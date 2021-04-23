@@ -18,12 +18,37 @@ impl Container {
         }
     }
 
+    pub fn with_capacity(capacity: usize, kind: MetricKind) -> Self {
+        Self {
+            nodes: Vec::with_capacity(capacity),
+            metric: Metric::new_as_rc(kind),
+        }
+    }
+
+    /// Adds a new node to the container.
+    pub fn add(&mut self, x: Scalar, y: Scalar, z: Scalar) {
+        let node = Node::new(self.nodes.len(), x, y, z);
+        self.nodes.push(node);
+    }
+
+    pub fn get(&self, index: usize) -> Option<&Node> {
+        self.nodes.get(index)
+    }
+
     /// Calculates and returns the distance between `node1` and `node2`.
     pub fn distance(&self, node1: &Node, node2: &Node) -> Scalar {
         // TODO: check whether a node with index belongs to this container.
         self.metric.borrow_mut().apply(node1, node2)
     }
 }
+
+// impl Iterator for Container {
+//     type Item = Node;
+
+//     fn next(&mut self) -> Option<Self::Item> {
+//         self.nodes.iter()
+//     }
+// }
 
 impl IntoIterator for Container {
     type Item = Node;
@@ -43,7 +68,7 @@ impl<'s> IntoIterator for &'s Container {
     }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Node {
     inner: RcNode
 }
