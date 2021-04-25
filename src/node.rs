@@ -111,3 +111,9 @@ impl Node {
         self.inner.borrow().z
     }
 }
+
+impl PartialEq for Node {
+    fn eq(&self, other: &Self) -> bool {
+        self.index() == other.index()
+    }
+}

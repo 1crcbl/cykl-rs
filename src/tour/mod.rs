@@ -1,10 +1,10 @@
-use getset::Getters;
-
-use crate::node::Node;
-
 pub mod arraytour;
 
 pub trait Tour {
+    type Output: PartialEq;
+
+    fn get(&self, node_idx: usize) -> Option<&Self::Output>;
+
     /// Returns the vertex that follows the vertex representing node `node_idx` in the current tour.
     ///
     /// Since a tour is a cycle, this function will return the first vertex,
@@ -12,7 +12,7 @@ pub trait Tour {
     ///
     /// The function returns `None` if the vertex is not found in the data structure
     /// or the tour is empty.
-    fn next(&self, node_idx: usize) -> Option<&Vertex>;
+    fn next(&self, node_idx: usize) -> Option<&Self::Output>;
 
     /// Returns the vertex that precedes the vertex representing node `node_idx` in the current tour.
     ///
@@ -21,7 +21,7 @@ pub trait Tour {
     ///
     /// The function returns `None` if the vertex is not found in the data structure
     /// or the tour is empty.
-    fn prev(&self, node_idx: usize) -> Option<&Vertex>;
+    fn prev(&self, node_idx: usize) -> Option<&Self::Output>;
 
     /// Returns true iff a tour, starting at the vertex `from_idx`, arrives at the vertex `mid_idx`
     /// before reaching the vertex `to_idx` in its forward traversal.
@@ -32,24 +32,4 @@ pub trait Tour {
     ///
     /// This function assumes that next(from_idx1) = to_idx1 and next(from_idx2) = to_idx2.
     fn flip(&mut self, from_idx1: usize, to_idx1: usize, from_idx2: usize, to_idx2: usize);
-}
-
-#[derive(Debug, Getters)]
-pub struct Vertex {
-    #[getset(get = "pub")]
-    node: Node,
-}
-
-impl Vertex {
-    pub fn new(node: &Node) -> Self {
-        Self {
-            node: node.clone(),
-        }
-    }
-}
-
-impl PartialEq for Vertex {
-    fn eq(&self, other: &Self) -> bool {
-        self.node().index() == other.node().index()
-    }
 }

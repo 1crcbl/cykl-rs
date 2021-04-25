@@ -1,6 +1,8 @@
-use crate::node::{Container};
+use getset::Getters;
 
-use super::{Tour, Vertex};
+use crate::node::{Container, Node};
+
+use super::Tour;
 
 ///
 /// Vertex[Tracker[ii]] = n_ii
@@ -16,13 +18,13 @@ use super::{Tour, Vertex};
 #[derive(Debug)]
 pub struct ArrayTour<'a> {
     container: &'a Container,
-    vertices: Vec<Vertex>,
+    vertices: Vec<ArrVertex>,
     tracker: Vec<usize>,
 }
 
 impl<'a> ArrayTour<'a> {
     pub fn new(container: &'a Container) -> Self {
-        let vertices: Vec<Vertex> = container.into_iter().map(|n| Vertex::new(n)).collect();
+        let vertices: Vec<ArrVertex> = container.into_iter().map(|n| ArrVertex::new(n)).collect();
         let tracker = (0..vertices.len()).collect();
 
         Self {
@@ -36,14 +38,16 @@ impl<'a> ArrayTour<'a> {
         self.vertices.swap(self.tracker[node_idx1], self.tracker[node_idx2]);
         self.tracker.swap(node_idx1, node_idx2);
     }
-
-    fn get(&self, node_idx: usize) -> Option<&Vertex> {
-        self.vertices.get(self.tracker[node_idx])
-    }
 }
 
 impl<'a> Tour for ArrayTour<'a> {
-    fn next(&self, node_idx: usize) -> Option<&Vertex> {
+    type Output = ArrVertex;
+
+    fn get(&self, node_idx: usize) -> Option<&Self::Output> {
+        self.vertices.get(self.tracker[node_idx])
+    }
+
+    fn next(&self, node_idx: usize) -> Option<&Self::Output> {
         if node_idx > self.vertices.len() {
             return None;
         }
@@ -52,7 +56,7 @@ impl<'a> Tour for ArrayTour<'a> {
         self.vertices.get(next_idx)
     }
 
-    fn prev(&self, node_idx: usize) -> Option<&Vertex> {
+    fn prev(&self, node_idx: usize) -> Option<&Self::Output> {
         if node_idx > self.vertices.len() {
             return None;
         }
@@ -99,10 +103,29 @@ impl<'a> Tour for ArrayTour<'a> {
             let n2 = self.vertices[afrom_idx2 - ii].node().index();
             self.swap(n1, n2);
         }
-
-        //self.swap(to_idx1, from_idx2);
     }
 
+}
+
+// 
+#[derive(Debug, Getters)]
+pub struct ArrVertex {
+    #[getset(get = "pub")]
+    node: Node
+}
+
+impl ArrVertex {
+    pub fn new(node: &Node) -> Self {
+        Self {
+            node: node.clone(),
+        }
+    }
+}
+
+impl PartialEq for ArrVertex {
+    fn eq(&self, other: &Self) -> bool {
+        self == other
+    }
 }
 
 #[allow(dead_code)]
