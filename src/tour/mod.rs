@@ -31,7 +31,7 @@ pub trait Tour {
     /// by the new edges `(from_idx1, from_idx2)` and `(to_idx1, to_idx2)`.
     ///
     /// This function assumes that next(from_idx1) = to_idx1 and next(from_idx2) = to_idx2.
-    fn flip(&self, from_idx1: usize, to_idx1: usize, from_idx2: usize, to_idx2: usize);
+    fn flip(&mut self, from_idx1: usize, to_idx1: usize, from_idx2: usize, to_idx2: usize);
 }
 
 #[derive(Debug, Getters)]
@@ -45,5 +45,11 @@ impl Vertex {
         Self {
             node: node.clone(),
         }
+    }
+}
+
+impl PartialEq for Vertex {
+    fn eq(&self, other: &Self) -> bool {
+        self.node().index() == other.node().index()
     }
 }
