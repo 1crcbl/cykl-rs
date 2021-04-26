@@ -1,7 +1,7 @@
 pub mod arraytour;
 
 pub trait Tour {
-    type Output: PartialEq;
+    type Output: PartialEq + Vertex;
 
     fn get(&self, node_idx: usize) -> Option<&Self::Output>;
 
@@ -32,4 +32,18 @@ pub trait Tour {
     ///
     /// This function assumes that next(from_idx1) = to_idx1 and next(from_idx2) = to_idx2.
     fn flip(&mut self, from_idx1: usize, to_idx1: usize, from_idx2: usize, to_idx2: usize);
+}
+
+pub trait Vertex {}
+
+mod tests {
+    use crate::{Scalar, metric::MetricKind, node::Container};
+
+    pub fn create_container(n_nodes: usize) -> Container {
+        let mut container = Container::new(MetricKind::Euc2d);
+        for ii in 0..n_nodes {
+            container.add(ii as Scalar, ii as Scalar, ii as Scalar);
+        }
+        container
+    }
 }

@@ -2,7 +2,7 @@ use getset::Getters;
 
 use crate::node::{Container, Node};
 
-use super::Tour;
+use super::{Tour, Vertex};
 
 ///
 /// Vertex[Tracker[ii]] = n_ii
@@ -88,7 +88,8 @@ impl<'a> Tour for ArrayTour<'a> {
 
     fn flip(&mut self, from_idx1: usize, to_idx1: usize, from_idx2: usize, to_idx2: usize) {
         // TODO: this is only a basic implementation.
-        // Optimisation on which directio to take is not taken into account.
+        // Optimisation on which direction to perform the flip, so that the number of flips
+        // is minimised, is not taken into account.
         // (from1, to1) - (from2, to2) -> (from1, from2) - (to1, to2)
         if from_idx1 > from_idx2 {
             return self.flip(from_idx2, to_idx2, from_idx1, to_idx1);
@@ -104,7 +105,6 @@ impl<'a> Tour for ArrayTour<'a> {
             self.swap(n1, n2);
         }
     }
-
 }
 
 // 
@@ -122,30 +122,25 @@ impl ArrVertex {
     }
 }
 
+impl Vertex for ArrVertex {}
+
 impl PartialEq for ArrVertex {
     fn eq(&self, other: &Self) -> bool {
         self == other
     }
 }
 
-#[allow(dead_code)]
+#[allow(dead_code, unused_imports)]
 mod tests {
     use super::*;
+    use super::super::tests::create_container;
 
     use crate::{Scalar, node::Container};
     use crate::metric::MetricKind;
 
-    fn create_container() -> Container {
-        let mut container = Container::new(MetricKind::Euc2d);
-        for ii in 0..10 {
-            container.add(ii as Scalar, ii as Scalar, ii as Scalar);
-        }
-        container
-    }
-
     #[test]
     fn test_next() {
-        let container = create_container();
+        let container = create_container(10);
         let tour = ArrayTour::new(&container);
 
         // [2] -> [3]
@@ -157,7 +152,7 @@ mod tests {
 
     #[test]
     fn test_prev() {
-        let container = create_container();
+        let container = create_container(10);
         let tour = ArrayTour::new(&container);
 
         // [2] -> [3]
@@ -169,22 +164,18 @@ mod tests {
 
     #[test]
     fn test_swap() {
-        let container = create_container();
+        let container = create_container(10);
         let mut tour = ArrayTour::new(&container);
 
         // [0] <-> [9]
         tour.swap(0, 9);
-        assert_eq!(tour.prev(0).unwrap(), tour.get(8).unwrap());
-        assert_eq!(tour.next(8).unwrap(), tour.get(0).unwrap());
-        assert_eq!(tour.prev(9).unwrap(), tour.get(0).unwrap());
-        assert_eq!(tour.next(0).unwrap(), tour.get(9).unwrap());
-        assert_eq!(tour.prev(1).unwrap(), tour.get(9).unwrap());
-        assert_eq!(tour.next(9).unwrap(), tour.get(1).unwrap());
+        let expected = vec![9, 1, 2, 3, 4, 5, 6, 7, 8, 0];
+        assert_eq!(expected, tour.tracker);
     }
 
     #[test]
     fn test_flip_case_1() {
-        let container = create_container();
+        let container = create_container(10);
         let mut tour = ArrayTour::new(&container);
 
         tour.flip(2, 3, 6, 7);
@@ -194,7 +185,7 @@ mod tests {
 
     #[test]
     fn test_flip_case_2() {
-        let container = create_container();
+        let container = create_container(10);
         let mut tour = ArrayTour::new(&container);
 
         // Expected: 0 - 1 - 9 - 8 - 7 - 6 - 5 - 4 - 3 - 2
@@ -205,7 +196,7 @@ mod tests {
 
     #[test]
     fn test_between() {
-        let container = create_container();
+        let container = create_container(10);
         let tour = ArrayTour::new(&container);
 
         assert!(tour.between(2, 5, 8));
