@@ -16,13 +16,13 @@ use super::{Tour, Vertex};
 /// Vertex:   | n_4 | n_2 | n_3 | n_5 | n_0 | n_1 |
 /// Tracker:  | 4   | 5   | 1   | 2   | 0   | 3   |
 #[derive(Debug)]
-pub struct ArrayTour<'a> {
+pub struct Array<'a> {
     container: &'a Container,
     vertices: Vec<ArrVertex>,
     tracker: Vec<usize>,
 }
 
-impl<'a> ArrayTour<'a> {
+impl<'a> Array<'a> {
     pub fn new(container: &'a Container) -> Self {
         let vertices: Vec<ArrVertex> = container.into_iter().map(|n| ArrVertex::new(n)).collect();
         let tracker = (0..vertices.len()).collect();
@@ -40,7 +40,7 @@ impl<'a> ArrayTour<'a> {
     }
 }
 
-impl<'a> Tour for ArrayTour<'a> {
+impl<'a> Tour for Array<'a> {
     type Output = ArrVertex;
 
     fn get(&self, node_idx: usize) -> Option<&Self::Output> {
@@ -72,18 +72,11 @@ impl<'a> Tour for ArrayTour<'a> {
     }
 
     fn between(&self, from_idx: usize, mid_idx: usize, to_idx: usize) -> bool {
-        let mut idx = (self.tracker[from_idx] + 1) % self.vertices.len();
-        let target = self.tracker[mid_idx];
-        let end_idx = self.tracker[to_idx];
-
-        while idx != end_idx {
-            if idx == target {
-                return true;
-            }
-            idx += 1;
+        if from_idx <= to_idx {
+            from_idx <= mid_idx && mid_idx <= to_idx
+        } else {
+            !(to_idx < mid_idx && mid_idx < from_idx)
         }
-
-        false
     }
 
     fn flip(&mut self, from_idx1: usize, to_idx1: usize, from_idx2: usize, to_idx2: usize) {
@@ -108,7 +101,7 @@ impl<'a> Tour for ArrayTour<'a> {
 }
 
 // 
-#[derive(Debug, Getters)]
+#[derive(Debug, Getters, PartialEq)]
 pub struct ArrVertex {
     #[getset(get = "pub")]
     node: Node
@@ -124,12 +117,6 @@ impl ArrVertex {
 
 impl Vertex for ArrVertex {}
 
-impl PartialEq for ArrVertex {
-    fn eq(&self, other: &Self) -> bool {
-        self == other
-    }
-}
-
 #[allow(dead_code, unused_imports)]
 mod tests {
     use super::*;
@@ -141,7 +128,7 @@ mod tests {
     #[test]
     fn test_next() {
         let container = create_container(10);
-        let tour = ArrayTour::new(&container);
+        let tour = Array::new(&container);
 
         // [2] -> [3]
         assert_eq!(tour.get(3).unwrap(), tour.next(2).unwrap());
@@ -153,7 +140,7 @@ mod tests {
     #[test]
     fn test_prev() {
         let container = create_container(10);
-        let tour = ArrayTour::new(&container);
+        let tour = Array::new(&container);
 
         // [2] -> [3]
         assert_eq!(tour.get(2).unwrap(), tour.prev(3).unwrap());
@@ -165,7 +152,7 @@ mod tests {
     #[test]
     fn test_swap() {
         let container = create_container(10);
-        let mut tour = ArrayTour::new(&container);
+        let mut tour = Array::new(&container);
 
         // [0] <-> [9]
         tour.swap(0, 9);
@@ -176,7 +163,7 @@ mod tests {
     #[test]
     fn test_flip_case_1() {
         let container = create_container(10);
-        let mut tour = ArrayTour::new(&container);
+        let mut tour = Array::new(&container);
 
         tour.flip(2, 3, 6, 7);
         let expected = vec![0, 1, 2, 6, 5, 4, 3, 7, 8, 9];
@@ -186,7 +173,7 @@ mod tests {
     #[test]
     fn test_flip_case_2() {
         let container = create_container(10);
-        let mut tour = ArrayTour::new(&container);
+        let mut tour = Array::new(&container);
 
         // Expected: 0 - 1 - 9 - 8 - 7 - 6 - 5 - 4 - 3 - 2
         tour.flip(9, 0, 1, 2);
@@ -197,11 +184,22 @@ mod tests {
     #[test]
     fn test_between() {
         let container = create_container(10);
-        let tour = ArrayTour::new(&container);
+        let tour = Array::new(&container);
 
+        // from < to
         assert!(tour.between(2, 5, 8));
         assert!(!tour.between(2, 1, 8));
+        assert!(tour.between(2, 2, 8));
+        assert!(tour.between(2, 8, 8));
+
+        // from > to
         assert!(tour.between(8, 1, 2));
         assert!(!tour.between(8, 5, 2));
+        assert!(tour.between(8, 2, 2));
+        assert!(tour.between(8, 8, 2));
+
+        // from == to
+        assert!(tour.between(2, 2, 2));
+        assert!(!tour.between(2, 8, 2));
     }
 }

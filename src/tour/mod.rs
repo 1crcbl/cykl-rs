@@ -1,4 +1,4 @@
-pub mod arraytour;
+pub mod array;
 
 pub trait Tour {
     type Output: PartialEq + Vertex;
