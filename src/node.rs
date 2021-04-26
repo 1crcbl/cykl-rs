@@ -40,6 +40,11 @@ impl Container {
         // TODO: check whether a node with index belongs to this container.
         self.metric.borrow_mut().apply(node1, node2)
     }
+
+    /// Returns the number of nodes in the container.
+    pub fn len(&self) -> usize {
+        self.nodes.len()
+    }
 }
 
 // impl Iterator for Container {

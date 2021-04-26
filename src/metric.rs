@@ -79,7 +79,7 @@ fn dist_euc_3d(node1: &Node, node2: &Node) -> Scalar {
     .sqrt()
 }
 
-#[allow(dead_code)]
+#[allow(dead_code, unused_imports)]
 mod tests {
     use super::*;
 

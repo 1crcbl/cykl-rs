@@ -1,4 +1,5 @@
 pub mod array;
+pub mod twoleveltree;
 
 pub trait Tour {
     type Output: PartialEq + Vertex;
