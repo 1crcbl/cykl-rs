@@ -1,6 +1,9 @@
 use std::{cell::RefCell, rc::Rc};
 
-use crate::{Scalar, metric::{Metric, MetricKind, RcMetric}};
+use crate::{
+    metric::{Metric, MetricKind, RcMetric},
+    Scalar,
+};
 
 type RcNode = Rc<RefCell<InnerNode>>;
 
@@ -75,7 +78,7 @@ impl<'s> IntoIterator for &'s Container {
 
 #[derive(Clone, Debug)]
 pub struct Node {
-    inner: RcNode
+    inner: RcNode,
 }
 
 #[derive(Debug)]
@@ -88,30 +91,29 @@ struct InnerNode {
 
 impl Node {
     pub fn new(index: usize, x: Scalar, y: Scalar, z: Scalar) -> Self {
-        let inner = InnerNode {
-            index,
-            x,
-            y,
-            z
-        };
+        let inner = InnerNode { index, x, y, z };
 
         Self {
             inner: Rc::new(RefCell::new(inner)),
         }
     }
 
+    #[inline]
     pub fn index(&self) -> usize {
         self.inner.borrow().index
     }
 
+    #[inline]
     pub fn x(&self) -> Scalar {
         self.inner.borrow().x
     }
 
+    #[inline]
     pub fn y(&self) -> Scalar {
         self.inner.borrow().y
     }
 
+    #[inline]
     pub fn z(&self) -> Scalar {
         self.inner.borrow().z
     }
@@ -120,5 +122,8 @@ impl Node {
 impl PartialEq for Node {
     fn eq(&self, other: &Self) -> bool {
         self.index() == other.index()
+            && self.x() == self.x()
+            && self.y() == self.y()
+            && self.z() == self.z()
     }
 }

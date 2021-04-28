@@ -35,7 +35,8 @@ impl<'a> Array<'a> {
     }
 
     fn swap(&mut self, node_idx1: usize, node_idx2: usize) {
-        self.vertices.swap(self.tracker[node_idx1], self.tracker[node_idx2]);
+        self.vertices
+            .swap(self.tracker[node_idx1], self.tracker[node_idx2]);
         self.tracker.swap(node_idx1, node_idx2);
     }
 }
@@ -88,7 +89,7 @@ impl<'a> Tour for Array<'a> {
             return self.flip(from_idx2, to_idx2, from_idx1, to_idx1);
         }
 
-        // Converts from node idex to internal array index.
+        // Converts from node index to internal array index.
         let afrom_idx2 = self.tracker[from_idx2];
         let ato_idx1 = self.tracker[to_idx1];
         let diff = (afrom_idx2 - ato_idx1 + 1) / 2;
@@ -100,18 +101,16 @@ impl<'a> Tour for Array<'a> {
     }
 }
 
-// 
+//
 #[derive(Debug, Getters, PartialEq)]
 pub struct ArrVertex {
     #[getset(get = "pub")]
-    node: Node
+    node: Node,
 }
 
 impl ArrVertex {
     pub fn new(node: &Node) -> Self {
-        Self {
-            node: node.clone(),
-        }
+        Self { node: node.clone() }
     }
 }
 
@@ -119,11 +118,11 @@ impl Vertex for ArrVertex {}
 
 #[allow(dead_code, unused_imports)]
 mod tests {
-    use super::*;
     use super::super::tests::create_container;
+    use super::*;
 
-    use crate::{Scalar, node::Container};
     use crate::metric::MetricKind;
+    use crate::{node::Container, Scalar};
 
     #[test]
     fn test_next() {

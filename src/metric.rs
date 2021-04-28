@@ -1,10 +1,10 @@
-use std::{cell::RefCell, collections::HashMap, rc::Rc};
 use std::fmt;
+use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 use crate::node::Node;
 use crate::Scalar;
 
-pub (crate) type RcMetric = Rc<RefCell<Metric>>;
+pub(crate) type RcMetric = Rc<RefCell<Metric>>;
 
 pub struct Metric {
     cache: HashMap<(usize, usize), Scalar>,

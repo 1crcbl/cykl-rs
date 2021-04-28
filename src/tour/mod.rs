@@ -38,7 +38,7 @@ pub trait Tour {
 pub trait Vertex {}
 
 mod tests {
-    use crate::{Scalar, metric::MetricKind, node::Container};
+    use crate::{metric::MetricKind, node::Container, Scalar};
 
     pub fn create_container(n_nodes: usize) -> Container {
         let mut container = Container::new(MetricKind::Euc2d);
