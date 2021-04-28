@@ -2,9 +2,9 @@ pub mod array;
 pub mod twoleveltree;
 
 pub trait Tour {
-    type Output: PartialEq + Vertex;
+    type TourNode: PartialEq + Vertex;
 
-    fn get(&self, node_idx: usize) -> Option<&Self::Output>;
+    fn get(&self, node_idx: usize) -> Option<&Self::TourNode>;
 
     /// Returns the vertex that follows the vertex representing node `node_idx` in the current tour.
     ///
@@ -13,7 +13,7 @@ pub trait Tour {
     ///
     /// The function returns `None` if the vertex is not found in the data structure
     /// or the tour is empty.
-    fn next(&self, node_idx: usize) -> Option<&Self::Output>;
+    fn next(&self, node_idx: usize) -> Option<&Self::TourNode>;
 
     /// Returns the vertex that precedes the vertex representing node `node_idx` in the current tour.
     ///
@@ -22,7 +22,7 @@ pub trait Tour {
     ///
     /// The function returns `None` if the vertex is not found in the data structure
     /// or the tour is empty.
-    fn prev(&self, node_idx: usize) -> Option<&Self::Output>;
+    fn prev(&self, node_idx: usize) -> Option<&Self::TourNode>;
 
     /// Returns true iff a tour, starting at the vertex `from_idx`, arrives at the vertex `mid_idx`
     /// before reaching the vertex `to_idx` in its forward traversal.
@@ -35,7 +35,12 @@ pub trait Tour {
     fn flip(&mut self, from_idx1: usize, to_idx1: usize, from_idx2: usize, to_idx2: usize);
 }
 
-pub trait Vertex {}
+pub trait Vertex {
+
+    fn is_visited(&self) -> bool;
+
+    fn visited(&mut self, flag: bool);
+}
 
 mod tests {
     use crate::{metric::MetricKind, node::Container, Scalar};

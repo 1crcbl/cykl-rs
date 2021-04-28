@@ -99,11 +99,10 @@ impl<'a> TwoLevelTree<'a> {
 }
 
 impl<'a> Tour for TwoLevelTree<'a> {
-    type Output = TltVertex;
+    type TourNode = TltVertex;
 
     #[inline]
-    fn get(&self, node_idx: usize) -> Option<&Self::Output> {
-        // TODO: check out-of-bound index
+    fn get(&self, node_idx: usize) -> Option<&Self::TourNode> {
         if let Some(v) = self.vertices.get(node_idx) {
             unsafe {
                 return v.as_ref().as_ptr().as_ref();
@@ -113,11 +112,11 @@ impl<'a> Tour for TwoLevelTree<'a> {
         None
     }
 
-    fn next(&self, _node_idx: usize) -> Option<&Self::Output> {
+    fn next(&self, node_idx: usize) -> Option<&Self::TourNode> {
         todo!()
     }
 
-    fn prev(&self, _node_idx: usize) -> Option<&Self::Output> {
+    fn prev(&self, _node_idx: usize) -> Option<&Self::TourNode> {
         todo!()
     }
 
@@ -133,6 +132,7 @@ impl<'a> Tour for TwoLevelTree<'a> {
 #[derive(Debug)]
 pub struct TltVertex {
     node: Node,
+    visited: bool,
     prev: Option<WeakVertex>,
     next: Option<WeakVertex>,
     parent: Option<WeakParent>,
@@ -142,6 +142,7 @@ impl TltVertex {
     pub fn new(node: &Node) -> Self {
         Self {
             node: node.clone(),
+            visited: false,
             prev: None,
             next: None,
             parent: None,
@@ -153,12 +154,21 @@ impl TltVertex {
     }
 }
 
-impl Vertex for TltVertex {}
+impl Vertex for TltVertex {
+    fn is_visited(&self) -> bool {
+        self.visited
+    }
+
+    fn visited(&mut self, flag: bool) {
+        self.visited = flag;
+    }
+}
 
 impl PartialEq for TltVertex {
     fn eq(&self, other: &Self) -> bool {
         // TODO: expand comparison to pointer.
         self.node == other.node
+        && self.visited == other.visited
     }
 }
 

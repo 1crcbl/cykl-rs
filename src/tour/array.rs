@@ -42,13 +42,13 @@ impl<'a> Array<'a> {
 }
 
 impl<'a> Tour for Array<'a> {
-    type Output = ArrVertex;
+    type TourNode = ArrVertex;
 
-    fn get(&self, node_idx: usize) -> Option<&Self::Output> {
+    fn get(&self, node_idx: usize) -> Option<&Self::TourNode> {
         self.vertices.get(self.tracker[node_idx])
     }
 
-    fn next(&self, node_idx: usize) -> Option<&Self::Output> {
+    fn next(&self, node_idx: usize) -> Option<&Self::TourNode> {
         if node_idx > self.vertices.len() {
             return None;
         }
@@ -57,7 +57,7 @@ impl<'a> Tour for Array<'a> {
         self.vertices.get(next_idx)
     }
 
-    fn prev(&self, node_idx: usize) -> Option<&Self::Output> {
+    fn prev(&self, node_idx: usize) -> Option<&Self::TourNode> {
         if node_idx > self.vertices.len() {
             return None;
         }
@@ -106,15 +106,27 @@ impl<'a> Tour for Array<'a> {
 pub struct ArrVertex {
     #[getset(get = "pub")]
     node: Node,
+    visited: bool,
 }
 
 impl ArrVertex {
     pub fn new(node: &Node) -> Self {
-        Self { node: node.clone() }
+        Self {
+            node: node.clone(),
+            visited: false,
+        }
     }
 }
 
-impl Vertex for ArrVertex {}
+impl Vertex for ArrVertex {
+    fn is_visited(&self) -> bool {
+        self.visited
+    }
+
+    fn visited(&mut self, flag: bool) {
+        self.visited = flag;
+    }
+}
 
 #[allow(dead_code, unused_imports)]
 mod tests {
