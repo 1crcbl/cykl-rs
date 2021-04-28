@@ -70,7 +70,7 @@ impl<'a> TwoLevelTree<'a> {
 
             for iv in beg_seg..end_seg {
                 let v = self.vertices.get(tour[iv]).unwrap();
-                v.borrow_mut().parent = Some(Rc::downgrade(p));
+                v.borrow_mut().parent = Rc::downgrade(p);
 
                 if iv == beg_seg {
                     p.borrow_mut().first = Some(Rc::downgrade(v));
@@ -113,11 +113,43 @@ impl<'a> Tour for TwoLevelTree<'a> {
     }
 
     fn next(&self, node_idx: usize) -> Option<&Self::TourNode> {
-        todo!()
+        if let Some(v) = self.vertices.get(node_idx) {
+            unsafe {
+                // TODO: is there a better way?
+                let borrow_v = v.borrow();
+                let kin = if (&*v.borrow().parent.as_ptr()).borrow().reverse {
+                    borrow_v.prev.as_ref()
+                } else {
+                    borrow_v.next.as_ref()
+                };
+
+                if let Some(node) = kin {
+                    return node.as_ptr().as_ref().unwrap().as_ptr().as_ref();
+                }
+            }
+        }
+
+        None
     }
 
-    fn prev(&self, _node_idx: usize) -> Option<&Self::TourNode> {
-        todo!()
+    fn prev(&self, node_idx: usize) -> Option<&Self::TourNode> {
+        if let Some(v) = self.vertices.get(node_idx) {
+            unsafe {
+                // TODO: is there a better way?
+                let borrow_v = v.borrow();
+                let kin = if (&*v.borrow().parent.as_ptr()).borrow().reverse {
+                    borrow_v.next.as_ref()
+                } else {
+                    borrow_v.prev.as_ref()
+                };
+
+                if let Some(node) = kin {
+                    return node.as_ptr().as_ref().unwrap().as_ptr().as_ref();
+                }
+            }
+        }
+
+        None
     }
 
     fn between(&self, _from_idx: usize, _mid_idx: usize, _to_idx: usize) -> bool {
@@ -135,7 +167,7 @@ pub struct TltVertex {
     visited: bool,
     prev: Option<WeakVertex>,
     next: Option<WeakVertex>,
-    parent: Option<WeakParent>,
+    parent: WeakParent,
 }
 
 impl TltVertex {
@@ -145,7 +177,7 @@ impl TltVertex {
             visited: false,
             prev: None,
             next: None,
-            parent: None,
+            parent: Weak::new(),
         }
     }
 
@@ -167,8 +199,7 @@ impl Vertex for TltVertex {
 impl PartialEq for TltVertex {
     fn eq(&self, other: &Self) -> bool {
         // TODO: expand comparison to pointer.
-        self.node == other.node
-        && self.visited == other.visited
+        self.node == other.node && self.visited == other.visited
     }
 }
 
@@ -268,5 +299,43 @@ mod tests {
             &Rc::downgrade(&tree.parents.first().unwrap()),
             tree.parents.last().unwrap().borrow().next.as_ref().unwrap()
         ));
+    }
+
+    #[test]
+    fn test_next() {
+        let n_nodes = 10;
+        let container = create_container(n_nodes);
+        let mut tree = TwoLevelTree::new(&container, 3);
+        tree.init(None);
+
+        let target = 9;
+        let expected = 0;
+
+        let result = tree.next(target);
+        let expected = tree.get(expected);
+
+        assert!(result.is_some());
+        assert!(true);
+        
+        assert_eq!(expected, result);
+    }
+
+    #[test]
+    fn test_prev() {
+        let n_nodes = 10;
+        let container = create_container(n_nodes);
+        let mut tree = TwoLevelTree::new(&container, 3);
+        tree.init(None);
+
+        let target = 0;
+        let expected = 9;
+
+        let result = tree.prev(target);
+        let expected = tree.get(expected);
+
+        assert!(result.is_some());
+        assert!(true);
+        
+        assert_eq!(expected, result);
     }
 }

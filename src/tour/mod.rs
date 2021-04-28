@@ -36,7 +36,6 @@ pub trait Tour {
 }
 
 pub trait Vertex {
-
     fn is_visited(&self) -> bool;
 
     fn visited(&mut self, flag: bool);
