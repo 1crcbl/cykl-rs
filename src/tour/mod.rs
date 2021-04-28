@@ -41,8 +41,17 @@ pub trait Vertex {
     fn visited(&mut self, flag: bool);
 }
 
+fn between(from: usize, mid: usize, to: usize) -> bool {
+    if from <= to {
+        from <= mid && mid <= to
+    } else {
+        !(to < mid && mid < from)
+    }
+}
+
+#[allow(dead_code, unused_imports)]
 mod tests {
-    use crate::{metric::MetricKind, node::Container, Scalar};
+    use crate::{metric::MetricKind, node::Container, tour::between, Scalar};
 
     pub fn create_container(n_nodes: usize) -> Container {
         let mut container = Container::new(MetricKind::Euc2d);
@@ -50,5 +59,14 @@ mod tests {
             container.add(ii as Scalar, ii as Scalar, ii as Scalar);
         }
         container
+    }
+
+    #[test]
+    fn test_between() {
+        // 1 -> 2 -> 3 -> 4 -> 5
+        assert!(between(1, 3, 4)); // true
+        assert!(!between(1, 5, 4)); // false
+        assert!(between(5, 1, 3)); // true
+        assert!(!between(5, 3, 1)); // false
     }
 }

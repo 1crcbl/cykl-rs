@@ -5,7 +5,7 @@ use std::{
 
 use crate::node::{Container, Node};
 
-use super::{Tour, Vertex};
+use super::{between, Tour, Vertex};
 
 type RcVertex = Rc<RefCell<TltVertex>>;
 type WeakVertex = Weak<RefCell<TltVertex>>;
@@ -70,6 +70,7 @@ impl<'a> TwoLevelTree<'a> {
 
             for iv in beg_seg..end_seg {
                 let v = self.vertices.get(tour[iv]).unwrap();
+                v.borrow_mut().seq_id = iv - beg_seg;
                 v.borrow_mut().parent = Rc::downgrade(p);
 
                 if iv == beg_seg {
@@ -101,6 +102,7 @@ impl<'a> TwoLevelTree<'a> {
 impl<'a> Tour for TwoLevelTree<'a> {
     type TourNode = TltVertex;
 
+    /// The operation should compute in *O*(1) time.
     #[inline]
     fn get(&self, node_idx: usize) -> Option<&Self::TourNode> {
         if let Some(v) = self.vertices.get(node_idx) {
@@ -112,10 +114,12 @@ impl<'a> Tour for TwoLevelTree<'a> {
         None
     }
 
+    /// The operation should compute in *O*(1) time.
+    #[inline]
     fn next(&self, node_idx: usize) -> Option<&Self::TourNode> {
         if let Some(v) = self.vertices.get(node_idx) {
             unsafe {
-                // TODO: is there a better way?
+                // NOTE: is there a better way?
                 let borrow_v = v.borrow();
                 let kin = if (&*v.borrow().parent.as_ptr()).borrow().reverse {
                     borrow_v.prev.as_ref()
@@ -132,10 +136,12 @@ impl<'a> Tour for TwoLevelTree<'a> {
         None
     }
 
+    /// The operation should compute in *O*(1) time.
+    #[inline]
     fn prev(&self, node_idx: usize) -> Option<&Self::TourNode> {
         if let Some(v) = self.vertices.get(node_idx) {
             unsafe {
-                // TODO: is there a better way?
+                // NOTE: is there a better way?
                 let borrow_v = v.borrow();
                 let kin = if (&*v.borrow().parent.as_ptr()).borrow().reverse {
                     borrow_v.next.as_ref()
@@ -152,10 +158,37 @@ impl<'a> Tour for TwoLevelTree<'a> {
         None
     }
 
-    fn between(&self, _from_idx: usize, _mid_idx: usize, _to_idx: usize) -> bool {
-        todo!()
+    /// This implementation should compute in *O*(1) time, with some constants.
+    fn between(&self, from_idx: usize, mid_idx: usize, to_idx: usize) -> bool {
+        match (self.get(from_idx), self.get(mid_idx), self.get(to_idx)) {
+            (Some(from), Some(mid), Some(to)) => {
+                let (fp, mp, tp) = (&from.parent, &mid.parent, &to.parent);
+                match (
+                    Weak::ptr_eq(fp, mp),
+                    Weak::ptr_eq(mp, tp),
+                    Weak::ptr_eq(tp, fp),
+                ) {
+                    (true, true, true) => between(from.seq_id, mid.seq_id, to.seq_id),
+                    (true, true, false) => false,
+                    (true, false, true) => false,
+                    (true, false, false) => false,
+                    (false, true, true) => false,
+                    (false, true, false) => false,
+                    (false, false, true) => false,
+                    (false, false, false) => unsafe {
+                        between(
+                            (&*fp.as_ptr()).borrow().id,
+                            (&*mp.as_ptr()).borrow().id,
+                            (&*tp.as_ptr()).borrow().id,
+                        )
+                    },
+                }
+            }
+            _ => false,
+        }
     }
 
+    /// This implementation of the `flip` operation takes at least Sigma(N) time to compute.
     fn flip(&mut self, _from_idx1: usize, _to_idx1: usize, _from_idx2: usize, _to_idx2: usize) {
         todo!()
     }
@@ -163,6 +196,10 @@ impl<'a> Tour for TwoLevelTree<'a> {
 
 #[derive(Debug)]
 pub struct TltVertex {
+    /// Sequential ID in the parent node.
+    ///
+    /// If a vertex is not attached to any parent node, `usize::MAX` will be assigned.
+    seq_id: usize,
     node: Node,
     visited: bool,
     prev: Option<WeakVertex>,
@@ -174,6 +211,7 @@ impl TltVertex {
     pub fn new(node: &Node) -> Self {
         Self {
             node: node.clone(),
+            seq_id: usize::MAX,
             visited: false,
             prev: None,
             next: None,
@@ -316,7 +354,7 @@ mod tests {
 
         assert!(result.is_some());
         assert!(true);
-        
+
         assert_eq!(expected, result);
     }
 
@@ -335,7 +373,7 @@ mod tests {
 
         assert!(result.is_some());
         assert!(true);
-        
+
         assert_eq!(expected, result);
     }
 }

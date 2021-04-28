@@ -2,7 +2,7 @@ use getset::Getters;
 
 use crate::node::{Container, Node};
 
-use super::{Tour, Vertex};
+use super::{between, Tour, Vertex};
 
 ///
 /// Vertex[Tracker[ii]] = n_ii
@@ -73,11 +73,7 @@ impl<'a> Tour for Array<'a> {
     }
 
     fn between(&self, from_idx: usize, mid_idx: usize, to_idx: usize) -> bool {
-        if from_idx <= to_idx {
-            from_idx <= mid_idx && mid_idx <= to_idx
-        } else {
-            !(to_idx < mid_idx && mid_idx < from_idx)
-        }
+        between(from_idx, mid_idx, to_idx)
     }
 
     fn flip(&mut self, from_idx1: usize, to_idx1: usize, from_idx2: usize, to_idx2: usize) {
