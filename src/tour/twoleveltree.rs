@@ -293,6 +293,65 @@ impl ParentVertex {
     }
 
     fn reverse(&mut self) {
+        // TODO: two inner ifs have the same structure => potential refractor.
+        if let (Some(first), Some(last)) = (self.first.upgrade(), self.last.upgrade()) {
+            let (tmp_prev, tmp_next) = if self.reverse {
+                (last.borrow().next.clone(), first.borrow().prev.clone())
+            } else {
+                (first.borrow().prev.clone(), last.borrow().next.clone())
+            };
+
+            if let (Some(prev_c), Some(prev_p)) = (tmp_prev.upgrade(), self.prev.upgrade()) {
+                match (prev_p.borrow().reverse, self.reverse) {
+                    (true, true) => {
+                        // reverse, reverse => reverse, forward
+                        prev_c.borrow_mut().prev = Rc::downgrade(&first);
+                        first.borrow_mut().prev = Rc::downgrade(&prev_c);
+                    }
+                    (true, false) => {
+                        // reverse, forward => reverse, reverse
+                        prev_c.borrow_mut().prev = Rc::downgrade(&last);
+                        last.borrow_mut().next = Rc::downgrade(&prev_c);
+                    }
+                    (false, true) => {
+                        // forward, reverse => forward, forward
+                        prev_c.borrow_mut().next = Rc::downgrade(&first);
+                        first.borrow_mut().prev = Rc::downgrade(&prev_c);
+                    }
+                    (false, false) => {
+                        // forward, forward => forward, reverse
+                        prev_c.borrow_mut().next = Rc::downgrade(&last);
+                        last.borrow_mut().next = Rc::downgrade(&prev_c);
+                    }
+                }
+            }
+
+            if let (Some(next_c), Some(next_p)) = (tmp_next.upgrade(), self.next.upgrade()) {
+                match (self.reverse, next_p.borrow().reverse) {
+                    (true, true) => {
+                        // reverse, reverse => forward, reverse
+                        last.borrow_mut().next = Rc::downgrade(&next_c);
+                        next_c.borrow_mut().next = Rc::downgrade(&last);
+                    }
+                    (true, false) => {
+                        // reverse, forward => forward, forward
+                        last.borrow_mut().next = Rc::downgrade(&next_c);
+                        next_c.borrow_mut().prev = Rc::downgrade(&last);
+                    }
+                    (false, true) => {
+                        // forward, reverse => reverse, reverse
+                        first.borrow_mut().prev = Rc::downgrade(&next_c);
+                        next_c.borrow_mut().next = Rc::downgrade(&first);
+                    }
+                    (false, false) => {
+                        // forward, forward => reverse, forward
+                        first.borrow_mut().prev = Rc::downgrade(&next_c);
+                        next_c.borrow_mut().prev = Rc::downgrade(&first);
+                    }
+                }
+            }
+        }
+
         self.reverse ^= true;
     }
 }
@@ -360,41 +419,18 @@ mod tests {
     }
 
     #[test]
-    fn test_next() {
+    fn test_next_and_prev() {
         let n_nodes = 10;
         let container = create_container(n_nodes);
         let mut tree = TwoLevelTree::new(&container, 3);
         tree.init(None);
 
-        let target = 9;
-        let expected = 0;
+        let order = (0..n_nodes).collect();
+        test_tree(&tree, &order);
 
-        let result = tree.next(target);
-        let expected = tree.get(expected);
-
-        assert!(result.is_some());
-        assert!(true);
-
-        assert_eq!(expected, result);
-    }
-
-    #[test]
-    fn test_prev() {
-        let n_nodes = 10;
-        let container = create_container(n_nodes);
-        let mut tree = TwoLevelTree::new(&container, 3);
-        tree.init(None);
-
-        let target = 0;
-        let expected = 9;
-
-        let result = tree.prev(target);
-        let expected = tree.get(expected);
-
-        assert!(result.is_some());
-        assert!(true);
-
-        assert_eq!(expected, result);
+        let order = vec![9, 1, 2, 4, 6, 3, 5, 8, 0, 7];
+        tree.init(Some(&order));
+        test_tree(&tree, &order);
     }
 
     #[test]
@@ -423,5 +459,44 @@ mod tests {
         assert!(!tree.between(3, 8, 5)); // false
         assert!(!tree.between(8, 5, 3)); // false
         assert!(tree.between(8, 3, 5)); // true
+    }
+
+    #[test]
+    fn test_parent_reverse() {
+        let n_nodes = 10;
+        let container = create_container(n_nodes);
+        let mut tree = TwoLevelTree::new(&container, 3);
+
+        tree.init(None);
+
+        // 0 -> 1 -> 2 -> 5 -> 4 -> 3 -> 6 -> 7 -> 8 -> 9
+        tree.parents[1].borrow_mut().reverse();
+        let order = vec![0, 1, 2, 5, 4, 3, 6, 7, 8, 9];
+        test_tree(&tree, &order);
+
+        // 0 -> 1 -> 2 -> 5 -> 4 -> 3 -> 8 -> 7 -> 6 -> 9
+        tree.parents[2].borrow_mut().reverse();
+        let order = vec![0, 1, 2, 5, 4, 3, 8, 7, 6, 9];
+        test_tree(&tree, &order);
+
+        tree.parents[3].borrow_mut().reverse();
+        test_tree(&tree, &order);
+
+        // 0 -> 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9
+        tree.parents[1].borrow_mut().reverse();
+        tree.parents[2].borrow_mut().reverse();
+        let order = (0..10).collect();
+        test_tree(&tree, &order);
+    }
+
+    fn test_tree(tree: &TwoLevelTree, order: &Vec<usize>) {
+        let len = order.len();
+        assert_eq!(tree.get(order[0]), tree.next(order[len - 1]));
+        assert_eq!(tree.get(order[len - 1]), tree.prev(order[0]));
+
+        for ii in 1..(order.len() - 1) {
+            assert_eq!(tree.get(order[ii]), tree.prev(order[ii + 1]));
+            assert_eq!(tree.get(order[ii + 1]), tree.next(order[ii]));
+        }
     }
 }
