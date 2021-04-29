@@ -169,12 +169,27 @@ impl<'a> Tour for TwoLevelTree<'a> {
                     Weak::ptr_eq(tp, fp),
                 ) {
                     (true, true, true) => between(from.seq_id, mid.seq_id, to.seq_id),
-                    (true, true, false) => false,
-                    (true, false, true) => false,
-                    (true, false, false) => false,
-                    (false, true, true) => false,
-                    (false, true, false) => false,
-                    (false, false, true) => false,
+                    (true, false, false) => {
+                        if let Some(p) = fp.upgrade() {
+                            p.borrow().reverse ^ (from.seq_id <= mid.seq_id)
+                        } else {
+                            false
+                        }
+                    }
+                    (false, true, false) => {
+                        if let Some(p) = mp.upgrade() {
+                            p.borrow().reverse ^ (mid.seq_id <= to.seq_id)
+                        } else {
+                            false
+                        }
+                    }
+                    (false, false, true) => {
+                        if let Some(p) = tp.upgrade() {
+                            p.borrow().reverse ^ (to.seq_id <= from.seq_id)
+                        } else {
+                            false
+                        }
+                    }
                     (false, false, false) => unsafe {
                         between(
                             (&*fp.as_ptr()).borrow().id,
@@ -182,6 +197,10 @@ impl<'a> Tour for TwoLevelTree<'a> {
                             (&*tp.as_ptr()).borrow().id,
                         )
                     },
+                    // (true, true, false)
+                    // (true, false, true)
+                    // (false, true, true)
+                    _ => panic!("The transitivity requirement is violated."),
                 }
             }
             _ => false,
@@ -219,7 +238,7 @@ impl TltVertex {
         }
     }
 
-    pub fn to_rc(self) -> RcVertex {
+    fn to_rc(self) -> RcVertex {
         Rc::new(RefCell::new(self))
     }
 }
@@ -375,5 +394,33 @@ mod tests {
         assert!(true);
 
         assert_eq!(expected, result);
+    }
+
+    #[test]
+    fn test_between_forward() {
+        let n_nodes = 10;
+        let container = create_container(n_nodes);
+        let mut tree = TwoLevelTree::new(&container, 3);
+        tree.init(None);
+
+        //  0 -> 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9
+
+        // All vertices reside under the same parent node.
+        assert!(tree.between(0, 1, 2)); // true
+        assert!(!tree.between(0, 2, 1)); // false
+        assert!(!tree.between(2, 1, 0)); // false
+        assert!(tree.between(2, 0, 1)); // true
+
+        // All vertices reside under distinct parent node.
+        assert!(tree.between(2, 3, 7)); // true
+        assert!(!tree.between(2, 7, 3)); // true
+        assert!(!tree.between(7, 3, 2)); // false
+        assert!(tree.between(7, 2, 3)); // true
+
+        // Two out of three vertices reside under the same parent node.
+        assert!(tree.between(3, 5, 8)); // true
+        assert!(!tree.between(3, 8, 5)); // false
+        assert!(!tree.between(8, 5, 3)); // false
+        assert!(tree.between(8, 3, 5)); // true
     }
 }
