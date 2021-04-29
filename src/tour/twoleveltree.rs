@@ -60,10 +60,10 @@ impl<'a> TwoLevelTree<'a> {
                 self.parents.get(ip - 1).unwrap()
             };
 
-            p.borrow_mut().next = Some(Rc::downgrade(next_p));
-            next_p.borrow_mut().prev = Some(Rc::downgrade(p));
-            p.borrow_mut().prev = Some(Rc::downgrade(prev_p));
-            prev_p.borrow_mut().next = Some(Rc::downgrade(p));
+            p.borrow_mut().next = Rc::downgrade(next_p);
+            next_p.borrow_mut().prev = Rc::downgrade(p);
+            p.borrow_mut().prev = Rc::downgrade(prev_p);
+            prev_p.borrow_mut().next = Rc::downgrade(p);
 
             let beg_seg = ip * p.borrow().max_size;
             let end_seg = (beg_seg + p.borrow().max_size).min(v_len);
@@ -74,11 +74,11 @@ impl<'a> TwoLevelTree<'a> {
                 v.borrow_mut().parent = Rc::downgrade(p);
 
                 if iv == beg_seg {
-                    p.borrow_mut().first = Some(Rc::downgrade(v));
+                    p.borrow_mut().first = Rc::downgrade(v);
                 }
 
                 if iv == end_seg - 1 {
-                    p.borrow_mut().last = Some(Rc::downgrade(v));
+                    p.borrow_mut().last = Rc::downgrade(v);
                 }
 
                 let next_v = self.vertices.get(tour[(iv + 1) % v_len]).unwrap();
@@ -88,10 +88,10 @@ impl<'a> TwoLevelTree<'a> {
                     self.vertices.get(tour[iv - 1]).unwrap()
                 };
 
-                v.borrow_mut().next = Some(Rc::downgrade(next_v));
-                next_v.borrow_mut().prev = Some(Rc::downgrade(v));
-                v.borrow_mut().prev = Some(Rc::downgrade(prev_v));
-                prev_v.borrow_mut().next = Some(Rc::downgrade(v));
+                v.borrow_mut().next = Rc::downgrade(next_v);
+                next_v.borrow_mut().prev = Rc::downgrade(v);
+                v.borrow_mut().prev = Rc::downgrade(prev_v);
+                prev_v.borrow_mut().next = Rc::downgrade(v);
 
                 p.borrow_mut().size += 1;
             }
@@ -115,21 +115,22 @@ impl<'a> Tour for TwoLevelTree<'a> {
     }
 
     /// The operation should compute in *O*(1) time.
+    // Note: There might be hit in performance due to memory safeguarding. Need benchmark to verify.
     #[inline]
     fn next(&self, node_idx: usize) -> Option<&Self::TourNode> {
         if let Some(v) = self.vertices.get(node_idx) {
-            unsafe {
-                // NOTE: is there a better way?
-                let borrow_v = v.borrow();
-                let kin = if (&*v.borrow().parent.as_ptr()).borrow().reverse {
-                    borrow_v.prev.as_ref()
+            let borrow_v = v.borrow();
+            if let Some(p) = borrow_v.parent.upgrade() {
+                let kin = if p.borrow().reverse {
+                    &borrow_v.prev
                 } else {
-                    borrow_v.next.as_ref()
+                    &borrow_v.next
                 };
 
-                if let Some(node) = kin {
-                    return node.as_ptr().as_ref().unwrap().as_ptr().as_ref();
-                }
+                return match kin.upgrade() {
+                    Some(node) => unsafe { node.as_ref().as_ptr().as_ref() },
+                    None => None,
+                };
             }
         }
 
@@ -137,21 +138,22 @@ impl<'a> Tour for TwoLevelTree<'a> {
     }
 
     /// The operation should compute in *O*(1) time.
+    // Note: There might be hit in performance due to memory safeguarding. Need benchmark to verify.
     #[inline]
     fn prev(&self, node_idx: usize) -> Option<&Self::TourNode> {
         if let Some(v) = self.vertices.get(node_idx) {
-            unsafe {
-                // NOTE: is there a better way?
-                let borrow_v = v.borrow();
-                let kin = if (&*v.borrow().parent.as_ptr()).borrow().reverse {
-                    borrow_v.next.as_ref()
+            let borrow_v = v.borrow();
+            if let Some(p) = borrow_v.parent.upgrade() {
+                let kin = if p.borrow().reverse {
+                    &borrow_v.next
                 } else {
-                    borrow_v.prev.as_ref()
+                    &borrow_v.prev
                 };
 
-                if let Some(node) = kin {
-                    return node.as_ptr().as_ref().unwrap().as_ptr().as_ref();
-                }
+                return match kin.upgrade() {
+                    Some(node) => unsafe { node.as_ref().as_ptr().as_ref() },
+                    None => None,
+                };
             }
         }
 
@@ -221,8 +223,8 @@ pub struct TltVertex {
     seq_id: usize,
     node: Node,
     visited: bool,
-    prev: Option<WeakVertex>,
-    next: Option<WeakVertex>,
+    prev: WeakVertex,
+    next: WeakVertex,
     parent: WeakParent,
 }
 
@@ -232,8 +234,8 @@ impl TltVertex {
             node: node.clone(),
             seq_id: usize::MAX,
             visited: false,
-            prev: None,
-            next: None,
+            prev: Weak::new(),
+            next: Weak::new(),
             parent: Weak::new(),
         }
     }
@@ -266,10 +268,10 @@ struct ParentVertex {
     size: usize,
     max_size: usize,
     reverse: bool,
-    prev: Option<WeakParent>,
-    next: Option<WeakParent>,
-    first: Option<WeakVertex>,
-    last: Option<WeakVertex>,
+    prev: WeakParent,
+    next: WeakParent,
+    first: WeakVertex,
+    last: WeakVertex,
 }
 
 impl ParentVertex {
@@ -279,15 +281,19 @@ impl ParentVertex {
             size: 0,
             max_size,
             reverse: false,
-            prev: None,
-            next: None,
-            first: None,
-            last: None,
+            prev: Weak::new(),
+            next: Weak::new(),
+            first: Weak::new(),
+            last: Weak::new(),
         }
     }
 
     fn to_rc(self) -> RcParent {
         Rc::new(RefCell::new(self))
+    }
+
+    fn reverse(&mut self) {
+        self.reverse ^= true;
     }
 }
 
@@ -316,45 +322,40 @@ mod tests {
         // First parent group
         let first_p = tree.parents[0].borrow();
         assert_eq!(3, first_p.size);
-        assert!(first_p.first.is_some());
-        assert!(first_p.last.is_some());
+        assert!(first_p.first.upgrade().is_some());
+        assert!(first_p.last.upgrade().is_some());
+
         assert!(Weak::ptr_eq(
             &Rc::downgrade(&tree.vertices[0]),
-            first_p.first.as_ref().unwrap()
+            &first_p.first
         ));
         assert!(Weak::ptr_eq(
             &Rc::downgrade(&tree.vertices[2]),
-            first_p.last.as_ref().unwrap()
+            &first_p.last
         ));
 
         // Last parent group
         let last_p = tree.parents.last().unwrap().borrow();
         assert_eq!(1, last_p.size);
-        assert!(last_p.first.is_some());
-        assert!(last_p.last.is_some());
+        assert!(last_p.first.upgrade().is_some());
+        assert!(last_p.last.upgrade().is_some());
         assert!(Weak::ptr_eq(
             &Rc::downgrade(&tree.vertices.last().unwrap()),
-            last_p.first.as_ref().unwrap()
+            &last_p.first
         ));
         assert!(Weak::ptr_eq(
             &Rc::downgrade(&tree.vertices.last().unwrap()),
-            last_p.last.as_ref().unwrap()
+            &last_p.last
         ));
 
         assert!(Weak::ptr_eq(
             &Rc::downgrade(&tree.parents.last().unwrap()),
-            tree.parents
-                .first()
-                .unwrap()
-                .borrow()
-                .prev
-                .as_ref()
-                .unwrap()
+            &tree.parents.first().unwrap().borrow().prev
         ));
 
         assert!(Weak::ptr_eq(
             &Rc::downgrade(&tree.parents.first().unwrap()),
-            tree.parents.last().unwrap().borrow().next.as_ref().unwrap()
+            &tree.parents.last().unwrap().borrow().next
         ));
     }
 
