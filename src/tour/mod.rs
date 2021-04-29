@@ -1,8 +1,13 @@
 pub mod array;
 pub mod twoleveltree;
 
+// Note: TourOrder might be elevated to a struct.
+pub type TourOrder = Vec<usize>;
+
 pub trait Tour {
-    type TourNode: PartialEq + Vertex;
+    type TourNode: Vertex + PartialEq + std::fmt::Debug;
+
+    fn init(&mut self, tour: Option<&TourOrder>);
 
     fn get(&self, node_idx: usize) -> Option<&Self::TourNode>;
 
@@ -53,12 +58,25 @@ fn between(from: usize, mid: usize, to: usize) -> bool {
 mod tests {
     use crate::{metric::MetricKind, node::Container, tour::between, Scalar};
 
+    use super::Tour;
+
     pub fn create_container(n_nodes: usize) -> Container {
         let mut container = Container::new(MetricKind::Euc2d);
         for ii in 0..n_nodes {
             container.add(ii as Scalar, ii as Scalar, ii as Scalar);
         }
         container
+    }
+
+    pub fn test_tree_order(tour: &impl Tour, expected: &Vec<usize>) {
+        let len = expected.len();
+        assert_eq!(tour.get(expected[0]), tour.next(expected[len - 1]));
+        assert_eq!(tour.get(expected[len - 1]), tour.prev(expected[0]));
+
+        for ii in 1..(expected.len() - 1) {
+            assert_eq!(tour.get(expected[ii]), tour.prev(expected[ii + 1]));
+            assert_eq!(tour.get(expected[ii + 1]), tour.next(expected[ii]));
+        }
     }
 
     #[test]

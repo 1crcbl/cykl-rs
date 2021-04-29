@@ -5,14 +5,12 @@ use std::{
 
 use crate::node::{Container, Node};
 
-use super::{between, Tour, Vertex};
+use super::{Tour, TourOrder, Vertex, between};
 
 type RcVertex = Rc<RefCell<TltVertex>>;
 type WeakVertex = Weak<RefCell<TltVertex>>;
 type RcParent = Rc<RefCell<ParentVertex>>;
 type WeakParent = Weak<RefCell<ParentVertex>>;
-
-pub type TourOrder = Vec<usize>;
 
 #[derive(Debug)]
 pub struct TwoLevelTree<'a> {
@@ -41,8 +39,12 @@ impl<'a> TwoLevelTree<'a> {
             parents,
         }
     }
+}
 
-    pub fn init(&mut self, tour: Option<&TourOrder>) {
+impl<'a> Tour for TwoLevelTree<'a> {
+    type TourNode = TltVertex;
+
+    fn init(&mut self, tour: Option<&TourOrder>) {
         let tour = match tour {
             // TODO: is there a better way that can avoid clone?
             Some(t) => t.clone(),
@@ -97,10 +99,6 @@ impl<'a> TwoLevelTree<'a> {
             }
         }
     }
-}
-
-impl<'a> Tour for TwoLevelTree<'a> {
-    type TourNode = TltVertex;
 
     /// The operation should compute in *O*(1) time.
     #[inline]
@@ -365,11 +363,13 @@ impl PartialEq for ParentVertex {
 
 #[allow(dead_code, unused_imports)]
 mod tests {
+    use crate::tour::tests::test_tree_order;
+
     use super::super::tests::create_container;
     use super::*;
 
     #[test]
-    fn test_init_tree() {
+    fn test_init() {
         let n_nodes = 10;
         let container = create_container(n_nodes);
         let mut tree = TwoLevelTree::new(&container, 3);
@@ -426,11 +426,11 @@ mod tests {
         tree.init(None);
 
         let order = (0..n_nodes).collect();
-        test_tree(&tree, &order);
+        test_tree_order(&tree, &order);
 
         let order = vec![9, 1, 2, 4, 6, 3, 5, 8, 0, 7];
         tree.init(Some(&order));
-        test_tree(&tree, &order);
+        test_tree_order(&tree, &order);
     }
 
     #[test]
@@ -472,31 +472,20 @@ mod tests {
         // 0 -> 1 -> 2 -> 5 -> 4 -> 3 -> 6 -> 7 -> 8 -> 9
         tree.parents[1].borrow_mut().reverse();
         let order = vec![0, 1, 2, 5, 4, 3, 6, 7, 8, 9];
-        test_tree(&tree, &order);
+        test_tree_order(&tree, &order);
 
         // 0 -> 1 -> 2 -> 5 -> 4 -> 3 -> 8 -> 7 -> 6 -> 9
         tree.parents[2].borrow_mut().reverse();
         let order = vec![0, 1, 2, 5, 4, 3, 8, 7, 6, 9];
-        test_tree(&tree, &order);
+        test_tree_order(&tree, &order);
 
         tree.parents[3].borrow_mut().reverse();
-        test_tree(&tree, &order);
+        test_tree_order(&tree, &order);
 
         // 0 -> 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9
         tree.parents[1].borrow_mut().reverse();
         tree.parents[2].borrow_mut().reverse();
         let order = (0..10).collect();
-        test_tree(&tree, &order);
-    }
-
-    fn test_tree(tree: &TwoLevelTree, order: &Vec<usize>) {
-        let len = order.len();
-        assert_eq!(tree.get(order[0]), tree.next(order[len - 1]));
-        assert_eq!(tree.get(order[len - 1]), tree.prev(order[0]));
-
-        for ii in 1..(order.len() - 1) {
-            assert_eq!(tree.get(order[ii]), tree.prev(order[ii + 1]));
-            assert_eq!(tree.get(order[ii + 1]), tree.next(order[ii]));
-        }
+        test_tree_order(&tree, &order);
     }
 }

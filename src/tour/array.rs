@@ -2,7 +2,7 @@ use getset::Getters;
 
 use crate::node::{Container, Node};
 
-use super::{between, Tour, Vertex};
+use super::{Tour, TourOrder, Vertex, between};
 
 ///
 /// Vertex[Tracker[ii]] = n_ii
@@ -43,6 +43,17 @@ impl<'a> Array<'a> {
 
 impl<'a> Tour for Array<'a> {
     type TourNode = ArrVertex;
+
+    fn init(&mut self, tour: Option<&TourOrder>) {
+        match tour {
+            Some(order) => {
+                for ii in 0..order.len() {
+                    self.swap(order[ii], *&self.vertices[ii].node().index());
+                }
+            }
+            None => {}
+        }
+    }
 
     fn get(&self, node_idx: usize) -> Option<&Self::TourNode> {
         self.vertices.get(self.tracker[node_idx])
@@ -129,8 +140,20 @@ mod tests {
     use super::super::tests::create_container;
     use super::*;
 
-    use crate::metric::MetricKind;
+    use crate::{metric::MetricKind, tour::tests::test_tree_order};
     use crate::{node::Container, Scalar};
+
+    #[test]
+    fn test_init() {
+        let container = create_container(10);
+        let mut tour = Array::new(&container);
+        tour.init(None);
+        test_tree_order(&tour, &(0..10).collect());
+
+        let expected = vec![3, 0, 4, 1, 6, 8, 7, 9, 5, 2];
+        tour.init(Some(&expected));
+        test_tree_order(&tour, &expected);
+    }
 
     #[test]
     fn test_next() {
