@@ -5,7 +5,7 @@ use std::{
 
 use crate::node::{Container, Node};
 
-use super::{Tour, TourOrder, Vertex, between};
+use super::{between, Tour, TourOrder, Vertex};
 
 type RcVertex = Rc<RefCell<TltVertex>>;
 type WeakVertex = Weak<RefCell<TltVertex>>;

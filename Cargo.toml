@@ -1,5 +1,5 @@
 [package]
-name = "lkh-rs"
+name = "cykl-rs"
 version = "0.1.0"
 authors = ["1crcbl <1crcbl@protonmail.com>"]
 edition = "2018"

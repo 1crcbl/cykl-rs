@@ -2,7 +2,7 @@ use getset::Getters;
 
 use crate::node::{Container, Node};
 
-use super::{Tour, TourOrder, Vertex, between};
+use super::{between, Tour, TourOrder, Vertex};
 
 ///
 /// Vertex[Tracker[ii]] = n_ii
