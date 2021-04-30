@@ -9,6 +9,9 @@ pub trait Tour {
 
     fn init(&mut self, tour: Option<&TourOrder>);
 
+    // Returns the number of vertices in the tour.
+    fn size(&self) -> usize;
+
     fn get(&self, node_idx: usize) -> Option<&Self::TourNode>;
 
     /// Returns the vertex that follows the vertex representing node `node_idx` in the current tour.

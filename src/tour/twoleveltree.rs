@@ -100,6 +100,10 @@ impl<'a> Tour for TwoLevelTree<'a> {
         }
     }
 
+    fn size(&self) -> usize {
+        self.vertices.len()
+    }
+
     /// The operation should compute in *O*(1) time.
     #[inline]
     fn get(&self, node_idx: usize) -> Option<&Self::TourNode> {

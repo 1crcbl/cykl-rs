@@ -55,6 +55,10 @@ impl<'a> Tour for Array<'a> {
         }
     }
 
+    fn size(&self) -> usize {
+        self.vertices.len()
+    }
+
     fn get(&self, node_idx: usize) -> Option<&Self::TourNode> {
         self.vertices.get(self.tracker[node_idx])
     }
