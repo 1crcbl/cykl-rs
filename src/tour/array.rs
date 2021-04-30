@@ -36,12 +36,6 @@ impl<'a> Array<'a> {
             tracker,
         }
     }
-
-    fn swap(&mut self, node_idx1: usize, node_idx2: usize) {
-        self.vertices
-            .swap(self.tracker[node_idx1], self.tracker[node_idx2]);
-        self.tracker.swap(node_idx1, node_idx2);
-    }
 }
 
 impl<'a> Tour for Array<'a> {
@@ -55,7 +49,7 @@ impl<'a> Tour for Array<'a> {
         };
 
         for ii in 0..tour.len() {
-            self.swap(tour[ii], *&self.vertices[ii].node().index());
+            self.swap_idx(tour[ii], *&self.vertices[ii].node().index());
             self.vertices[ii].visited = false;
         }
     }
@@ -131,10 +125,6 @@ impl<'a> Tour for Array<'a> {
         between(from_idx, mid_idx, to_idx)
     }
 
-    fn flip(&mut self, from1: &Self::TourNode, to1: &Self::TourNode, from2: &Self::TourNode, to2: &Self::TourNode) {
-        self.flip_idx(from1.index(), to1.index(), from2.index(), to2.index())
-    }
-
     fn flip_idx(&mut self, from_idx1: usize, to_idx1: usize, from_idx2: usize, to_idx2: usize) {
         // TODO: this is only a basic implementation.
         // Optimisation on which direction to perform the flip, so that the number of flips
@@ -151,8 +141,14 @@ impl<'a> Tour for Array<'a> {
         for ii in 0..diff {
             let n1 = self.vertices[ato_idx1 + ii].node().index();
             let n2 = self.vertices[afrom_idx2 - ii].node().index();
-            self.swap(n1, n2);
+            self.swap_idx(n1, n2);
         }
+    }
+
+    fn swap_idx(&mut self, idx_a: usize, idx_b: usize) {
+        self.vertices
+            .swap(self.tracker[idx_a], self.tracker[idx_b]);
+        self.tracker.swap(idx_a, idx_b);
     }
 }
 
@@ -255,9 +251,9 @@ mod tests {
         let mut tour = Array::new(&container);
 
         // [0] <-> [9]
-        tour.swap(0, 9);
+        tour.swap_idx(0, 9);
         let expected = vec![9, 1, 2, 3, 4, 5, 6, 7, 8, 0];
-        assert_eq!(expected, tour.tracker);
+        test_tree_order(&tour, &expected);
     }
 
     #[test]

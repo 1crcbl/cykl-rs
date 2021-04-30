@@ -50,13 +50,13 @@ pub trait Tour {
     /// before reaching the vertex `to_idx` in its forward traversal.
     fn between_idx(&self, from_idx: usize, mid_idx: usize, to_idx: usize) -> bool;
 
-    fn flip(&mut self, from1: &Self::TourNode, to1: &Self::TourNode, from2: &Self::TourNode, to2: &Self::TourNode);
-
     /// Updates the tour by replacing the edges `(from_idx1, to_idx1)` and `(from_idx2, to_idx2)`
     /// by the new edges `(from_idx1, from_idx2)` and `(to_idx1, to_idx2)`.
     ///
     /// This function assumes that next(from_idx1) = to_idx1 and next(from_idx2) = to_idx2.
     fn flip_idx(&mut self, from_idx1: usize, to_idx1: usize, from_idx2: usize, to_idx2: usize);
+
+    fn swap_idx(&mut self, idx_a: usize, idx_b: usize);
 }
 
 pub trait Vertex {

@@ -282,12 +282,12 @@ impl<'a> Tour for TwoLevelTree<'a> {
         }
     }
 
-    fn flip(&mut self, _from1: &Self::TourNode, _to1: &Self::TourNode, _from2: &Self::TourNode, _to2: &Self::TourNode) {
+    /// This implementation of the `flip` operation takes at least Sigma(N) time to compute.
+    fn flip_idx(&mut self, _from_idx1: usize, _to_idx1: usize, _from_idx2: usize, _to_idx2: usize) {
         todo!()
     }
 
-    /// This implementation of the `flip` operation takes at least Sigma(N) time to compute.
-    fn flip_idx(&mut self, _from_idx1: usize, _to_idx1: usize, _from_idx2: usize, _to_idx2: usize) {
+    fn swap_idx(&mut self, _idx_a: usize, _idx_b: usize) {
         todo!()
     }
 }
