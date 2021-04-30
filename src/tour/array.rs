@@ -80,11 +80,19 @@ impl<'a> Tour for Array<'a> {
         self.vertices.last()
     }
 
+    #[inline]
     fn get(&self, node_idx: usize) -> Option<&Self::TourNode> {
         self.vertices.get(self.tracker[node_idx])
     }
 
-    fn next(&self, node_idx: usize) -> Option<&Self::TourNode> {
+    #[inline]
+    fn next(&self, node: &Self::TourNode) -> Option<&Self::TourNode> {
+        // TODO: check if a node belongs to this tour/container.
+        self.next_idx(node.index())
+    }
+    
+    #[inline]
+    fn next_idx(&self, node_idx: usize) -> Option<&Self::TourNode> {
         if node_idx > self.vertices.len() {
             return None;
         }
@@ -93,7 +101,14 @@ impl<'a> Tour for Array<'a> {
         self.vertices.get(next_idx)
     }
 
-    fn prev(&self, node_idx: usize) -> Option<&Self::TourNode> {
+    #[inline]
+    fn prev(&self, node: &Self::TourNode) -> Option<&Self::TourNode> {
+        // TODO: check if a node belongs to this tour/container.
+        self.prev_idx(node.index())
+    }
+
+    #[inline]
+    fn prev_idx(&self, node_idx: usize) -> Option<&Self::TourNode> {
         if node_idx > self.vertices.len() {
             return None;
         }
@@ -108,17 +123,25 @@ impl<'a> Tour for Array<'a> {
         self.vertices.get(prev_idx)
     }
 
-    fn between(&self, from_idx: usize, mid_idx: usize, to_idx: usize) -> bool {
+    fn between(&self, from: &Self::TourNode, mid: &Self::TourNode, to: &Self::TourNode) -> bool {
+        between(from.index(), mid.index(), to.index())
+    }
+
+    fn between_idx(&self, from_idx: usize, mid_idx: usize, to_idx: usize) -> bool {
         between(from_idx, mid_idx, to_idx)
     }
 
-    fn flip(&mut self, from_idx1: usize, to_idx1: usize, from_idx2: usize, to_idx2: usize) {
+    fn flip(&mut self, from1: &Self::TourNode, to1: &Self::TourNode, from2: &Self::TourNode, to2: &Self::TourNode) {
+        self.flip_idx(from1.index(), to1.index(), from2.index(), to2.index())
+    }
+
+    fn flip_idx(&mut self, from_idx1: usize, to_idx1: usize, from_idx2: usize, to_idx2: usize) {
         // TODO: this is only a basic implementation.
         // Optimisation on which direction to perform the flip, so that the number of flips
         // is minimised, is not taken into account.
         // (from1, to1) - (from2, to2) -> (from1, from2) - (to1, to2)
         if from_idx1 > from_idx2 {
-            return self.flip(from_idx2, to_idx2, from_idx1, to_idx1);
+            return self.flip_idx(from_idx2, to_idx2, from_idx1, to_idx1);
         }
 
         // Converts from node index to internal array index.
@@ -169,6 +192,10 @@ impl ArrVertex {
 }
 
 impl Vertex for ArrVertex {
+    fn index(&self) -> usize {
+        self.node.index()
+    }
+
     fn is_visited(&self) -> bool {
         self.visited
     }
@@ -204,10 +231,10 @@ mod tests {
         let tour = Array::new(&container);
 
         // [2] -> [3]
-        assert_eq!(tour.get(3).unwrap(), tour.next(2).unwrap());
+        assert_eq!(tour.get(3).unwrap(), tour.next_idx(2).unwrap());
 
         // [4] -> [0]
-        assert_eq!(tour.get(0).unwrap(), tour.next(9).unwrap());
+        assert_eq!(tour.get(0).unwrap(), tour.next_idx(9).unwrap());
     }
 
     #[test]
@@ -216,10 +243,10 @@ mod tests {
         let tour = Array::new(&container);
 
         // [2] -> [3]
-        assert_eq!(tour.get(2).unwrap(), tour.prev(3).unwrap());
+        assert_eq!(tour.get(2).unwrap(), tour.prev_idx(3).unwrap());
 
         // [4] -> [0]
-        assert_eq!(tour.get(9).unwrap(), tour.prev(0).unwrap());
+        assert_eq!(tour.get(9).unwrap(), tour.prev_idx(0).unwrap());
     }
 
     #[test]
@@ -238,7 +265,7 @@ mod tests {
         let container = create_container(10);
         let mut tour = Array::new(&container);
 
-        tour.flip(2, 3, 6, 7);
+        tour.flip_idx(2, 3, 6, 7);
         let expected = vec![0, 1, 2, 6, 5, 4, 3, 7, 8, 9];
         assert_eq!(expected, tour.tracker);
     }
@@ -249,7 +276,7 @@ mod tests {
         let mut tour = Array::new(&container);
 
         // Expected: 0 - 1 - 9 - 8 - 7 - 6 - 5 - 4 - 3 - 2
-        tour.flip(9, 0, 1, 2);
+        tour.flip_idx(9, 0, 1, 2);
         let expected = vec![0, 1, 9, 8, 7, 6, 5, 4, 3, 2];
         assert_eq!(expected, tour.tracker);
     }
@@ -260,20 +287,20 @@ mod tests {
         let tour = Array::new(&container);
 
         // from < to
-        assert!(tour.between(2, 5, 8));
-        assert!(!tour.between(2, 1, 8));
-        assert!(tour.between(2, 2, 8));
-        assert!(tour.between(2, 8, 8));
+        assert!(tour.between_idx(2, 5, 8));
+        assert!(!tour.between_idx(2, 1, 8));
+        assert!(tour.between_idx(2, 2, 8));
+        assert!(tour.between_idx(2, 8, 8));
 
         // from > to
-        assert!(tour.between(8, 1, 2));
-        assert!(!tour.between(8, 5, 2));
-        assert!(tour.between(8, 2, 2));
-        assert!(tour.between(8, 8, 2));
+        assert!(tour.between_idx(8, 1, 2));
+        assert!(!tour.between_idx(8, 5, 2));
+        assert!(tour.between_idx(8, 2, 2));
+        assert!(tour.between_idx(8, 8, 2));
 
         // from == to
-        assert!(tour.between(2, 2, 2));
-        assert!(!tour.between(2, 8, 2));
+        assert!(tour.between_idx(2, 2, 2));
+        assert!(!tour.between_idx(2, 8, 2));
     }
 
     #[test]

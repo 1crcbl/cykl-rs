@@ -139,10 +139,32 @@ impl<'a> Tour for TwoLevelTree<'a> {
         }
     }
 
+    #[inline]
+    fn next(&self, node: &Self::TourNode) -> Option<&Self::TourNode> {
+        match node.parent.upgrade() {
+            Some(p) => {
+                let kin = if p.borrow().reverse {
+                    &node.prev
+                } else {
+                    &node.next
+                };
+    
+                return match kin.upgrade() {
+                    Some(node) => unsafe { node.as_ref().as_ptr().as_ref() },
+                    None 
+                    => None,
+                };
+            }
+            None => {
+                None
+            }
+        }
+    }
+
     /// The operation should compute in *O*(1) time.
     // Note: There might be hit in performance due to memory safeguarding. Need benchmark to verify.
     #[inline]
-    fn next(&self, node_idx: usize) -> Option<&Self::TourNode> {
+    fn next_idx(&self, node_idx: usize) -> Option<&Self::TourNode> {
         if let Some(v) = self.vertices.get(node_idx) {
             let borrow_v = v.borrow();
             if let Some(p) = borrow_v.parent.upgrade() {
@@ -162,10 +184,32 @@ impl<'a> Tour for TwoLevelTree<'a> {
         None
     }
 
+    #[inline]
+    fn prev(&self, node: &Self::TourNode) -> Option<&Self::TourNode> {
+        match node.parent.upgrade() {
+            Some(p) => {
+                let kin = if p.borrow().reverse {
+                    &node.next
+                } else {
+                    &node.prev
+                };
+    
+                return match kin.upgrade() {
+                    Some(node) => unsafe { node.as_ref().as_ptr().as_ref() },
+                    None 
+                    => None,
+                };
+            }
+            None => {
+                None
+            }
+        }
+    }
+
     /// The operation should compute in *O*(1) time.
     // Note: There might be hit in performance due to memory safeguarding. Need benchmark to verify.
     #[inline]
-    fn prev(&self, node_idx: usize) -> Option<&Self::TourNode> {
+    fn prev_idx(&self, node_idx: usize) -> Option<&Self::TourNode> {
         if let Some(v) = self.vertices.get(node_idx) {
             let borrow_v = v.borrow();
             if let Some(p) = borrow_v.parent.upgrade() {
@@ -183,59 +227,67 @@ impl<'a> Tour for TwoLevelTree<'a> {
         }
 
         None
+    }
+
+    fn between(&self, from: &Self::TourNode, mid: &Self::TourNode, to: &Self::TourNode) -> bool {
+        let (fp, mp, tp) = (&from.parent, &mid.parent, &to.parent);
+        match (
+            Weak::ptr_eq(fp, mp),
+            Weak::ptr_eq(mp, tp),
+            Weak::ptr_eq(tp, fp),
+        ) {
+            (true, true, true) => between(from.seq_id, mid.seq_id, to.seq_id),
+            (true, false, false) => {
+                if let Some(p) = fp.upgrade() {
+                    p.borrow().reverse ^ (from.seq_id <= mid.seq_id)
+                } else {
+                    false
+                }
+            }
+            (false, true, false) => {
+                if let Some(p) = mp.upgrade() {
+                    p.borrow().reverse ^ (mid.seq_id <= to.seq_id)
+                } else {
+                    false
+                }
+            }
+            (false, false, true) => {
+                if let Some(p) = tp.upgrade() {
+                    p.borrow().reverse ^ (to.seq_id <= from.seq_id)
+                } else {
+                    false
+                }
+            }
+            (false, false, false) => unsafe {
+                between(
+                    (&*fp.as_ptr()).borrow().id,
+                    (&*mp.as_ptr()).borrow().id,
+                    (&*tp.as_ptr()).borrow().id,
+                )
+            },
+            // (true, true, false)
+            // (true, false, true)
+            // (false, true, true)
+            _ => panic!("The transitivity requirement is violated."),
+        }
     }
 
     /// This implementation should compute in *O*(1) time, with some constants.
-    fn between(&self, from_idx: usize, mid_idx: usize, to_idx: usize) -> bool {
+    fn between_idx(&self, from_idx: usize, mid_idx: usize, to_idx: usize) -> bool {
         match (self.get(from_idx), self.get(mid_idx), self.get(to_idx)) {
             (Some(from), Some(mid), Some(to)) => {
-                let (fp, mp, tp) = (&from.parent, &mid.parent, &to.parent);
-                match (
-                    Weak::ptr_eq(fp, mp),
-                    Weak::ptr_eq(mp, tp),
-                    Weak::ptr_eq(tp, fp),
-                ) {
-                    (true, true, true) => between(from.seq_id, mid.seq_id, to.seq_id),
-                    (true, false, false) => {
-                        if let Some(p) = fp.upgrade() {
-                            p.borrow().reverse ^ (from.seq_id <= mid.seq_id)
-                        } else {
-                            false
-                        }
-                    }
-                    (false, true, false) => {
-                        if let Some(p) = mp.upgrade() {
-                            p.borrow().reverse ^ (mid.seq_id <= to.seq_id)
-                        } else {
-                            false
-                        }
-                    }
-                    (false, false, true) => {
-                        if let Some(p) = tp.upgrade() {
-                            p.borrow().reverse ^ (to.seq_id <= from.seq_id)
-                        } else {
-                            false
-                        }
-                    }
-                    (false, false, false) => unsafe {
-                        between(
-                            (&*fp.as_ptr()).borrow().id,
-                            (&*mp.as_ptr()).borrow().id,
-                            (&*tp.as_ptr()).borrow().id,
-                        )
-                    },
-                    // (true, true, false)
-                    // (true, false, true)
-                    // (false, true, true)
-                    _ => panic!("The transitivity requirement is violated."),
-                }
+                self.between(from, mid, to)
             }
             _ => false,
         }
     }
 
+    fn flip(&mut self, _from1: &Self::TourNode, _to1: &Self::TourNode, _from2: &Self::TourNode, _to2: &Self::TourNode) {
+        todo!()
+    }
+
     /// This implementation of the `flip` operation takes at least Sigma(N) time to compute.
-    fn flip(&mut self, _from_idx1: usize, _to_idx1: usize, _from_idx2: usize, _to_idx2: usize) {
+    fn flip_idx(&mut self, _from_idx1: usize, _to_idx1: usize, _from_idx2: usize, _to_idx2: usize) {
         todo!()
     }
 }
@@ -289,6 +341,10 @@ impl TltVertex {
 }
 
 impl Vertex for TltVertex {
+    fn index(&self) -> usize {
+        self.node.index()
+    }
+
     fn is_visited(&self) -> bool {
         self.visited
     }
@@ -488,22 +544,22 @@ mod tests {
         //  0 -> 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9
 
         // All vertices reside under the same parent node.
-        assert!(tree.between(0, 1, 2)); // true
-        assert!(!tree.between(0, 2, 1)); // false
-        assert!(!tree.between(2, 1, 0)); // false
-        assert!(tree.between(2, 0, 1)); // true
+        assert!(tree.between_idx(0, 1, 2)); // true
+        assert!(!tree.between_idx(0, 2, 1)); // false
+        assert!(!tree.between_idx(2, 1, 0)); // false
+        assert!(tree.between_idx(2, 0, 1)); // true
 
         // All vertices reside under distinct parent node.
-        assert!(tree.between(2, 3, 7)); // true
-        assert!(!tree.between(2, 7, 3)); // true
-        assert!(!tree.between(7, 3, 2)); // false
-        assert!(tree.between(7, 2, 3)); // true
+        assert!(tree.between_idx(2, 3, 7)); // true
+        assert!(!tree.between_idx(2, 7, 3)); // true
+        assert!(!tree.between_idx(7, 3, 2)); // false
+        assert!(tree.between_idx(7, 2, 3)); // true
 
         // Two out of three vertices reside under the same parent node.
-        assert!(tree.between(3, 5, 8)); // true
-        assert!(!tree.between(3, 8, 5)); // false
-        assert!(!tree.between(8, 5, 3)); // false
-        assert!(tree.between(8, 3, 5)); // true
+        assert!(tree.between_idx(3, 5, 8)); // true
+        assert!(!tree.between_idx(3, 8, 5)); // false
+        assert!(!tree.between_idx(8, 5, 3)); // false
+        assert!(tree.between_idx(8, 3, 5)); // true
     }
 
     #[test]
