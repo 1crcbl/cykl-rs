@@ -3,7 +3,10 @@ use std::{
     rc::{Rc, Weak},
 };
 
-use crate::node::{Container, Node};
+use crate::{
+    node::{Container, Node},
+    Scalar,
+};
 
 use super::{between, Tour, TourOrder, Vertex};
 
@@ -96,24 +99,44 @@ impl<'a> Tour for TwoLevelTree<'a> {
                 prev_v.borrow_mut().next = Rc::downgrade(v);
 
                 p.borrow_mut().size += 1;
+                v.borrow_mut().visited = false;
             }
         }
     }
 
+    #[inline]
     fn size(&self) -> usize {
         self.vertices.len()
+    }
+
+    #[inline]
+    fn distance(&self, a: &Self::TourNode, b: &Self::TourNode) -> Scalar {
+        self.container.distance(&a.node, &b.node)
+    }
+
+    #[inline]
+    fn begin(&self) -> Option<&Self::TourNode> {
+        match self.vertices.first() {
+            Some(v) => unsafe { v.as_ref().as_ptr().as_ref() },
+            None => None,
+        }
+    }
+
+    #[inline]
+    fn end(&self) -> Option<&Self::TourNode> {
+        match self.vertices.last() {
+            Some(v) => unsafe { v.as_ref().as_ptr().as_ref() },
+            None => None,
+        }
     }
 
     /// The operation should compute in *O*(1) time.
     #[inline]
     fn get(&self, node_idx: usize) -> Option<&Self::TourNode> {
-        if let Some(v) = self.vertices.get(node_idx) {
-            unsafe {
-                return v.as_ref().as_ptr().as_ref();
-            }
+        match self.vertices.get(node_idx) {
+            Some(v) => unsafe { v.as_ref().as_ptr().as_ref() },
+            None => None,
         }
-
-        None
     }
 
     /// The operation should compute in *O*(1) time.
@@ -213,6 +236,24 @@ impl<'a> Tour for TwoLevelTree<'a> {
 
     /// This implementation of the `flip` operation takes at least Sigma(N) time to compute.
     fn flip(&mut self, _from_idx1: usize, _to_idx1: usize, _from_idx2: usize, _to_idx2: usize) {
+        todo!()
+    }
+}
+
+impl<'a> IntoIterator for TwoLevelTree<'a> {
+    type Item = TltVertex;
+    type IntoIter = std::vec::IntoIter<Self::Item>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        todo!()
+    }
+}
+
+impl<'a, 's> IntoIterator for &'s TwoLevelTree<'a> {
+    type Item = &'s TltVertex;
+    type IntoIter = std::slice::Iter<'s, TltVertex>;
+
+    fn into_iter(self) -> Self::IntoIter {
         todo!()
     }
 }

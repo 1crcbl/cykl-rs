@@ -39,9 +39,9 @@ impl Container {
     }
 
     /// Calculates and returns the distance between `node1` and `node2`.
-    pub fn distance(&self, node1: &Node, node2: &Node) -> Scalar {
+    pub fn distance(&self, a: &Node, b: &Node) -> Scalar {
         // TODO: check whether a node with index belongs to this container.
-        self.metric.borrow_mut().apply(node1, node2)
+        self.metric.borrow_mut().apply(a, b)
     }
 
     /// Returns the number of nodes in the container.
@@ -49,14 +49,6 @@ impl Container {
         self.nodes.len()
     }
 }
-
-// impl Iterator for Container {
-//     type Item = Node;
-
-//     fn next(&mut self) -> Option<Self::Item> {
-//         self.nodes.iter()
-//     }
-// }
 
 impl IntoIterator for Container {
     type Item = Node;

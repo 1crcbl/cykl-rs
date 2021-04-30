@@ -1,6 +1,9 @@
 use getset::Getters;
 
-use crate::node::{Container, Node};
+use crate::{
+    node::{Container, Node},
+    Scalar,
+};
 
 use super::{between, Tour, TourOrder, Vertex};
 
@@ -45,18 +48,36 @@ impl<'a> Tour for Array<'a> {
     type TourNode = ArrVertex;
 
     fn init(&mut self, tour: Option<&TourOrder>) {
-        match tour {
-            Some(order) => {
-                for ii in 0..order.len() {
-                    self.swap(order[ii], *&self.vertices[ii].node().index());
-                }
-            }
-            None => {}
+        let tour = match tour {
+            // TODO: is there a better way that can avoid clone?
+            Some(t) => t.clone(),
+            None => (0..self.vertices.len()).collect(),
+        };
+
+        for ii in 0..tour.len() {
+            self.swap(tour[ii], *&self.vertices[ii].node().index());
+            self.vertices[ii].visited = false;
         }
     }
 
+    #[inline]
     fn size(&self) -> usize {
         self.vertices.len()
+    }
+
+    #[inline]
+    fn distance(&self, a: &Self::TourNode, b: &Self::TourNode) -> Scalar {
+        self.container.distance(&a.node, &b.node)
+    }
+
+    #[inline]
+    fn begin(&self) -> Option<&Self::TourNode> {
+        self.vertices.first()
+    }
+
+    #[inline]
+    fn end(&self) -> Option<&Self::TourNode> {
+        self.vertices.last()
     }
 
     fn get(&self, node_idx: usize) -> Option<&Self::TourNode> {
@@ -109,6 +130,24 @@ impl<'a> Tour for Array<'a> {
             let n2 = self.vertices[afrom_idx2 - ii].node().index();
             self.swap(n1, n2);
         }
+    }
+}
+
+impl<'a> IntoIterator for Array<'a> {
+    type Item = ArrVertex;
+    type IntoIter = std::vec::IntoIter<Self::Item>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.vertices.into_iter()
+    }
+}
+
+impl<'a, 's> IntoIterator for &'s Array<'a> {
+    type Item = &'s ArrVertex;
+    type IntoIter = std::slice::Iter<'s, ArrVertex>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.vertices.iter()
     }
 }
 
@@ -235,5 +274,17 @@ mod tests {
         // from == to
         assert!(tour.between(2, 2, 2));
         assert!(!tour.between(2, 8, 2));
+    }
+
+    #[test]
+    fn test_iter() {
+        let container = create_container(10);
+        let mut tour = Array::new(&container);
+        let expected = vec![3, 0, 4, 1, 6, 8, 7, 9, 5, 2];
+        tour.init(Some(&expected));
+
+        for (idx, vt) in (&tour).into_iter().enumerate() {
+            assert_eq!(tour.get(expected[idx]).unwrap(), vt);
+        }
     }
 }

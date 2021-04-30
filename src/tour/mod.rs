@@ -1,3 +1,5 @@
+use crate::Scalar;
+
 pub mod array;
 pub mod twoleveltree;
 
@@ -11,6 +13,12 @@ pub trait Tour {
 
     // Returns the number of vertices in the tour.
     fn size(&self) -> usize;
+
+    fn distance(&self, a: &Self::TourNode, b: &Self::TourNode) -> Scalar;
+
+    fn begin(&self) -> Option<&Self::TourNode>;
+
+    fn end(&self) -> Option<&Self::TourNode>;
 
     fn get(&self, node_idx: usize) -> Option<&Self::TourNode>;
 
