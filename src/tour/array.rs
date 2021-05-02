@@ -23,6 +23,7 @@ pub struct Array<'a> {
     container: &'a Container,
     vertices: Vec<ArrVertex>,
     tracker: Vec<usize>,
+    total_dist: Scalar,
 }
 
 impl<'a> Array<'a> {
@@ -34,6 +35,7 @@ impl<'a> Array<'a> {
             container,
             vertices,
             tracker,
+            total_dist: 0.,
         }
     }
 }
@@ -48,9 +50,17 @@ impl<'a> Tour for Array<'a> {
             None => (0..self.vertices.len()).collect(),
         };
 
+        self.total_dist = 0.;
+
         for ii in 0..tour.len() {
             self.swap_idx(tour[ii], *&self.vertices[ii].node().index());
             self.vertices[ii].visited = false;
+
+            if ii != tour.len() - 1 {
+                self.total_dist += self.container.distance_at(tour[ii], tour[ii + 1]);
+            } else {
+                self.total_dist += self.container.distance_at(tour[ii], tour[0]);
+            }
         }
     }
 
@@ -62,6 +72,10 @@ impl<'a> Tour for Array<'a> {
     #[inline]
     fn distance(&self, a: &Self::TourNode, b: &Self::TourNode) -> Scalar {
         self.container.distance(&a.node, &b.node)
+    }
+
+    fn total_distance(&self) -> Scalar {
+        self.total_dist
     }
 
     #[inline]
@@ -84,7 +98,7 @@ impl<'a> Tour for Array<'a> {
         // TODO: check if a node belongs to this tour/container.
         self.next_idx(node.index())
     }
-    
+
     #[inline]
     fn next_idx(&self, node_idx: usize) -> Option<&Self::TourNode> {
         if node_idx > self.vertices.len() {
@@ -146,8 +160,7 @@ impl<'a> Tour for Array<'a> {
     }
 
     fn swap_idx(&mut self, idx_a: usize, idx_b: usize) {
-        self.vertices
-            .swap(self.tracker[idx_a], self.tracker[idx_b]);
+        self.vertices.swap(self.tracker[idx_a], self.tracker[idx_b]);
         self.tracker.swap(idx_a, idx_b);
     }
 }
@@ -219,6 +232,17 @@ mod tests {
         let expected = vec![3, 0, 4, 1, 6, 8, 7, 9, 5, 2];
         tour.init(Some(&expected));
         test_tree_order(&tour, &expected);
+    }
+
+    #[test]
+    fn test_total_dist() {
+        let container = create_container(4);
+        let mut tour = Array::new(&container);
+        tour.init(None);
+        assert_eq!(6. * (2. as Scalar).sqrt(), tour.total_distance());
+
+        tour.init(Some(&vec![1, 3, 0, 2]));
+        assert_eq!(8. * (2. as Scalar).sqrt(), tour.total_distance());
     }
 
     #[test]

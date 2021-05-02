@@ -20,6 +20,7 @@ pub struct TwoLevelTree<'a> {
     container: &'a Container,
     vertices: Vec<RcVertex>,
     parents: Vec<RcParent>,
+    total_dist: Scalar,
 }
 
 impl<'a> TwoLevelTree<'a> {
@@ -40,6 +41,7 @@ impl<'a> TwoLevelTree<'a> {
             container,
             vertices,
             parents,
+            total_dist: 0.,
         }
     }
 }
@@ -56,6 +58,9 @@ impl<'a> Tour for TwoLevelTree<'a> {
 
         let p_len = self.parents.len();
         let v_len = self.vertices.len();
+
+        self.total_dist = 0.;
+
         for ip in 0..p_len {
             let p = self.parents.get(ip).unwrap();
             let next_p = self.parents.get((ip + 1) % p_len).unwrap();
@@ -64,6 +69,8 @@ impl<'a> Tour for TwoLevelTree<'a> {
             } else {
                 self.parents.get(ip - 1).unwrap()
             };
+
+            p.borrow_mut().size = 0;
 
             p.borrow_mut().next = Rc::downgrade(next_p);
             next_p.borrow_mut().prev = Rc::downgrade(p);
@@ -98,6 +105,8 @@ impl<'a> Tour for TwoLevelTree<'a> {
                 v.borrow_mut().prev = Rc::downgrade(prev_v);
                 prev_v.borrow_mut().next = Rc::downgrade(v);
 
+                self.total_dist += self.container.distance(&v.borrow().node, &next_v.borrow().node);
+
                 p.borrow_mut().size += 1;
                 v.borrow_mut().visited = false;
             }
@@ -112,6 +121,10 @@ impl<'a> Tour for TwoLevelTree<'a> {
     #[inline]
     fn distance(&self, a: &Self::TourNode, b: &Self::TourNode) -> Scalar {
         self.container.distance(&a.node, &b.node)
+    }
+
+    fn total_distance(&self) -> Scalar {
+        self.total_dist
     }
 
     #[inline]
@@ -148,16 +161,13 @@ impl<'a> Tour for TwoLevelTree<'a> {
                 } else {
                     &node.next
                 };
-    
+
                 return match kin.upgrade() {
                     Some(node) => unsafe { node.as_ref().as_ptr().as_ref() },
-                    None 
-                    => None,
+                    None => None,
                 };
             }
-            None => {
-                None
-            }
+            None => None,
         }
     }
 
@@ -193,16 +203,13 @@ impl<'a> Tour for TwoLevelTree<'a> {
                 } else {
                     &node.prev
                 };
-    
+
                 return match kin.upgrade() {
                     Some(node) => unsafe { node.as_ref().as_ptr().as_ref() },
-                    None 
-                    => None,
+                    None => None,
                 };
             }
-            None => {
-                None
-            }
+            None => None,
         }
     }
 
@@ -275,9 +282,7 @@ impl<'a> Tour for TwoLevelTree<'a> {
     /// This implementation should compute in *O*(1) time, with some constants.
     fn between_idx(&self, from_idx: usize, mid_idx: usize, to_idx: usize) -> bool {
         match (self.get(from_idx), self.get(mid_idx), self.get(to_idx)) {
-            (Some(from), Some(mid), Some(to)) => {
-                self.between(from, mid, to)
-            }
+            (Some(from), Some(mid), Some(to)) => self.between(from, mid, to),
             _ => false,
         }
     }
@@ -517,6 +522,20 @@ mod tests {
             &Rc::downgrade(&tree.parents.first().unwrap()),
             &tree.parents.last().unwrap().borrow().next
         ));
+    }
+
+    #[test]
+    fn test_total_dist() {
+        let n_nodes = 4;
+        let container = create_container(n_nodes);
+        let mut tree = TwoLevelTree::new(&container, 3);
+        tree.init(None);
+
+        tree.init(None);
+        assert_eq!(6. * (2. as Scalar).sqrt(), tree.total_distance());
+
+        tree.init(Some(&vec![1, 3, 0, 2]));
+        assert_eq!(8. * (2. as Scalar).sqrt(), tree.total_distance());        
     }
 
     #[test]

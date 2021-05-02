@@ -32,16 +32,16 @@ impl Metric {
         Rc::new(RefCell::new(metric))
     }
 
-    pub fn apply(&mut self, node1: &Node, node2: &Node) -> Scalar {
-        if node1.index() > node2.index() {
-            return self.apply(node2, node1);
+    pub fn apply(&mut self, a: &Node, b: &Node) -> Scalar {
+        if a.index() > b.index() {
+            return self.apply(b, a);
         }
-        let key = (node1.index(), node2.index());
+        let key = (a.index(), b.index());
 
         match self.cache.get(&key) {
             Some(d) => *d,
             None => {
-                let d = self.func.as_ref()(node1, node2);
+                let d = self.func.as_ref()(a, b);
                 self.cache.insert(key, d);
                 d
             }
@@ -68,15 +68,12 @@ pub enum MetricKind {
     Undefined,
 }
 
-fn dist_euc_2d(node1: &Node, node2: &Node) -> Scalar {
-    ((node1.x() - node2.x()).powi(2) + (node1.y() - node2.y()).powi(2)).sqrt()
+fn dist_euc_2d(a: &Node, b: &Node) -> Scalar {
+    ((a.x() - b.x()).powi(2) + (a.y() - b.y()).powi(2)).sqrt()
 }
 
-fn dist_euc_3d(node1: &Node, node2: &Node) -> Scalar {
-    ((node1.x() - node2.x()).powi(2)
-        + (node1.y() - node2.y()).powi(2)
-        + (node1.z() - node2.z()).powi(2))
-    .sqrt()
+fn dist_euc_3d(a: &Node, b: &Node) -> Scalar {
+    ((a.x() - b.x()).powi(2) + (a.y() - b.y()).powi(2) + (a.z() - b.z()).powi(2)).sqrt()
 }
 
 #[allow(dead_code, unused_imports)]
@@ -87,19 +84,19 @@ mod tests {
 
     #[test]
     fn test_euc_2d() {
-        let (node1, node2) = create_node_pair();
-        assert_eq!((34 as Scalar).sqrt(), dist_euc_2d(&node1, &node2));
+        let (a, b) = create_node_pair();
+        assert_eq!((34 as Scalar).sqrt(), dist_euc_2d(&a, &b));
     }
 
     #[test]
     fn test_euc_3d() {
-        let (node1, node2) = create_node_pair();
-        assert_eq!((35 as Scalar).sqrt(), dist_euc_3d(&node1, &node2));
+        let (a, b) = create_node_pair();
+        assert_eq!((35 as Scalar).sqrt(), dist_euc_3d(&a, &b));
     }
 
     fn create_node_pair() -> (Node, Node) {
-        let node1 = Node::new(0, 1., 2., 3.);
-        let node2 = Node::new(1, 6., 5., 4.);
-        (node1, node2)
+        let a = Node::new(0, 1., 2., 3.);
+        let b = Node::new(1, 6., 5., 4.);
+        (a, b)
     }
 }

@@ -9,12 +9,15 @@ pub type TourOrder = Vec<usize>;
 pub trait Tour {
     type TourNode: Vertex + PartialEq + std::fmt::Debug;
 
+    // TODO: should return Result<()>.
     fn init(&mut self, tour: Option<&TourOrder>);
 
     // Returns the number of vertices in the tour.
     fn size(&self) -> usize;
 
     fn distance(&self, a: &Self::TourNode, b: &Self::TourNode) -> Scalar;
+
+    fn total_distance(&self) -> Scalar;
 
     fn begin(&self) -> Option<&Self::TourNode>;
 
@@ -23,7 +26,7 @@ pub trait Tour {
     fn get(&self, node_idx: usize) -> Option<&Self::TourNode>;
 
     fn next(&self, node: &Self::TourNode) -> Option<&Self::TourNode>;
-    
+
     /// Returns the vertex that follows the vertex representing node `node_idx` in the current tour.
     ///
     /// Since a tour is a cycle, this function will return the first vertex,
@@ -99,8 +102,14 @@ mod tests {
             assert_eq!(tour.get(expected[ii + 1]), tour.next_idx(expected[ii]));
         }
 
-        assert_eq!(tour.get(expected[0]), tour.next(tour.get(expected[len - 1]).unwrap()));
-        assert_eq!(tour.get(expected[len - 1]), tour.prev(tour.get(expected[0]).unwrap()));
+        assert_eq!(
+            tour.get(expected[0]),
+            tour.next(tour.get(expected[len - 1]).unwrap())
+        );
+        assert_eq!(
+            tour.get(expected[len - 1]),
+            tour.prev(tour.get(expected[0]).unwrap())
+        );
     }
 
     #[test]
