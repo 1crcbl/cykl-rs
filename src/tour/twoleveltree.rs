@@ -1,3 +1,5 @@
+use getset::Getters;
+
 use std::{
     cell::RefCell,
     rc::{Rc, Weak},
@@ -49,12 +51,8 @@ impl<'a> TwoLevelTree<'a> {
 impl<'a> Tour for TwoLevelTree<'a> {
     type TourNode = TltVertex;
 
-    fn init(&mut self, tour: Option<&TourOrder>) {
-        let tour = match tour {
-            // TODO: is there a better way that can avoid clone?
-            Some(t) => t.clone(),
-            None => (0..self.vertices.len()).collect(),
-        };
+    fn apply(&mut self, tour: &TourOrder) {
+        let tour = tour.order();
 
         let p_len = self.parents.len();
         let v_len = self.vertices.len();
@@ -105,135 +103,14 @@ impl<'a> Tour for TwoLevelTree<'a> {
                 v.borrow_mut().prev = Rc::downgrade(prev_v);
                 prev_v.borrow_mut().next = Rc::downgrade(v);
 
-                self.total_dist += self.container.distance(&v.borrow().node, &next_v.borrow().node);
+                self.total_dist += self
+                    .container
+                    .distance(&v.borrow().node, &next_v.borrow().node);
 
                 p.borrow_mut().size += 1;
                 v.borrow_mut().visited = false;
             }
         }
-    }
-
-    #[inline]
-    fn size(&self) -> usize {
-        self.vertices.len()
-    }
-
-    #[inline]
-    fn distance(&self, a: &Self::TourNode, b: &Self::TourNode) -> Scalar {
-        self.container.distance(&a.node, &b.node)
-    }
-
-    fn total_distance(&self) -> Scalar {
-        self.total_dist
-    }
-
-    #[inline]
-    fn begin(&self) -> Option<&Self::TourNode> {
-        match self.vertices.first() {
-            Some(v) => unsafe { v.as_ref().as_ptr().as_ref() },
-            None => None,
-        }
-    }
-
-    #[inline]
-    fn end(&self) -> Option<&Self::TourNode> {
-        match self.vertices.last() {
-            Some(v) => unsafe { v.as_ref().as_ptr().as_ref() },
-            None => None,
-        }
-    }
-
-    /// The operation should compute in *O*(1) time.
-    #[inline]
-    fn get(&self, node_idx: usize) -> Option<&Self::TourNode> {
-        match self.vertices.get(node_idx) {
-            Some(v) => unsafe { v.as_ref().as_ptr().as_ref() },
-            None => None,
-        }
-    }
-
-    #[inline]
-    fn next(&self, node: &Self::TourNode) -> Option<&Self::TourNode> {
-        match node.parent.upgrade() {
-            Some(p) => {
-                let kin = if p.borrow().reverse {
-                    &node.prev
-                } else {
-                    &node.next
-                };
-
-                return match kin.upgrade() {
-                    Some(node) => unsafe { node.as_ref().as_ptr().as_ref() },
-                    None => None,
-                };
-            }
-            None => None,
-        }
-    }
-
-    /// The operation should compute in *O*(1) time.
-    // Note: There might be hit in performance due to memory safeguarding. Need benchmark to verify.
-    #[inline]
-    fn next_idx(&self, node_idx: usize) -> Option<&Self::TourNode> {
-        if let Some(v) = self.vertices.get(node_idx) {
-            let borrow_v = v.borrow();
-            if let Some(p) = borrow_v.parent.upgrade() {
-                let kin = if p.borrow().reverse {
-                    &borrow_v.prev
-                } else {
-                    &borrow_v.next
-                };
-
-                return match kin.upgrade() {
-                    Some(node) => unsafe { node.as_ref().as_ptr().as_ref() },
-                    None => None,
-                };
-            }
-        }
-
-        None
-    }
-
-    #[inline]
-    fn prev(&self, node: &Self::TourNode) -> Option<&Self::TourNode> {
-        match node.parent.upgrade() {
-            Some(p) => {
-                let kin = if p.borrow().reverse {
-                    &node.next
-                } else {
-                    &node.prev
-                };
-
-                return match kin.upgrade() {
-                    Some(node) => unsafe { node.as_ref().as_ptr().as_ref() },
-                    None => None,
-                };
-            }
-            None => None,
-        }
-    }
-
-    /// The operation should compute in *O*(1) time.
-    // Note: There might be hit in performance due to memory safeguarding. Need benchmark to verify.
-    #[inline]
-    fn prev_idx(&self, node_idx: usize) -> Option<&Self::TourNode> {
-        if let Some(v) = self.vertices.get(node_idx) {
-            let borrow_v = v.borrow();
-            if let Some(p) = borrow_v.parent.upgrade() {
-                let kin = if p.borrow().reverse {
-                    &borrow_v.next
-                } else {
-                    &borrow_v.prev
-                };
-
-                return match kin.upgrade() {
-                    Some(node) => unsafe { node.as_ref().as_ptr().as_ref() },
-                    None => None,
-                };
-            }
-        }
-
-        None
     }
 
     fn between(&self, from: &Self::TourNode, mid: &Self::TourNode, to: &Self::TourNode) -> bool {
@@ -280,20 +157,136 @@ impl<'a> Tour for TwoLevelTree<'a> {
     }
 
     /// This implementation should compute in *O*(1) time, with some constants.
-    fn between_idx(&self, from_idx: usize, mid_idx: usize, to_idx: usize) -> bool {
+    fn between_at(&self, from_idx: usize, mid_idx: usize, to_idx: usize) -> bool {
         match (self.get(from_idx), self.get(mid_idx), self.get(to_idx)) {
             (Some(from), Some(mid), Some(to)) => self.between(from, mid, to),
             _ => false,
         }
     }
 
+    #[inline]
+    fn distance(&self, a: usize, b: usize) -> Scalar {
+        // TODO: check if nodes belong to the group.
+        self.container
+            .distance(self.get(a).unwrap().node(), self.get(b).unwrap().node())
+    }
+
     /// This implementation of the `flip` operation takes at least Sigma(N) time to compute.
-    fn flip_idx(&mut self, _from_idx1: usize, _to_idx1: usize, _from_idx2: usize, _to_idx2: usize) {
+    fn flip_at(&mut self, _from_a: usize, _to_a: usize, _from_b: usize, _to_b: usize) {
         todo!()
     }
 
-    fn swap_idx(&mut self, _idx_a: usize, _idx_b: usize) {
-        todo!()
+    /// The operation should compute in *O*(1) time.
+    #[inline]
+    fn get(&self, node_idx: usize) -> Option<&Self::TourNode> {
+        match self.vertices.get(node_idx) {
+            Some(v) => unsafe { v.as_ref().as_ptr().as_ref() },
+            None => None,
+        }
+    }
+
+    #[inline]
+    fn next(&self, node: &Self::TourNode) -> Option<&Self::TourNode> {
+        match node.parent.upgrade() {
+            Some(p) => {
+                let kin = if p.borrow().reverse {
+                    &node.prev
+                } else {
+                    &node.next
+                };
+
+                return match kin.upgrade() {
+                    Some(node) => unsafe { node.as_ref().as_ptr().as_ref() },
+                    None => None,
+                };
+            }
+            None => None,
+        }
+    }
+
+    /// The operation should compute in *O*(1) time.
+    // Note: There might be hit in performance due to memory safeguarding. Need benchmark to verify.
+    #[inline]
+    fn next_at(&self, node_idx: usize) -> Option<&Self::TourNode> {
+        if let Some(v) = self.vertices.get(node_idx) {
+            let borrow_v = v.borrow();
+            if let Some(p) = borrow_v.parent.upgrade() {
+                let kin = if p.borrow().reverse {
+                    &borrow_v.prev
+                } else {
+                    &borrow_v.next
+                };
+
+                return match kin.upgrade() {
+                    Some(node) => unsafe { node.as_ref().as_ptr().as_ref() },
+                    None => None,
+                };
+            }
+        }
+
+        None
+    }
+
+    #[inline]
+    fn prev(&self, node: &Self::TourNode) -> Option<&Self::TourNode> {
+        match node.parent.upgrade() {
+            Some(p) => {
+                let kin = if p.borrow().reverse {
+                    &node.next
+                } else {
+                    &node.prev
+                };
+
+                return match kin.upgrade() {
+                    Some(node) => unsafe { node.as_ref().as_ptr().as_ref() },
+                    None => None,
+                };
+            }
+            None => None,
+        }
+    }
+
+    /// The operation should compute in *O*(1) time.
+    // Note: There might be hit in performance due to memory safeguarding. Need benchmark to verify.
+    #[inline]
+    fn prev_at(&self, node_idx: usize) -> Option<&Self::TourNode> {
+        if let Some(v) = self.vertices.get(node_idx) {
+            let borrow_v = v.borrow();
+            if let Some(p) = borrow_v.parent.upgrade() {
+                let kin = if p.borrow().reverse {
+                    &borrow_v.next
+                } else {
+                    &borrow_v.prev
+                };
+
+                return match kin.upgrade() {
+                    Some(node) => unsafe { node.as_ref().as_ptr().as_ref() },
+                    None => None,
+                };
+            }
+        }
+
+        None
+    }
+
+    #[inline]
+    fn reset(&mut self) {
+        for vt in &mut self.vertices {
+            vt.borrow_mut().visited(false);
+        }
+    }
+
+    #[inline]
+    fn size(&self) -> usize {
+        self.vertices.len()
+    }
+
+    fn total_distance(&self) -> Scalar {
+        self.total_dist
+    }
+
+    fn visited_at(&mut self, kin_index: usize, flag: bool) {
+        self.vertices[kin_index].borrow_mut().visited(flag);
     }
 }
 
@@ -315,12 +308,13 @@ impl<'a, 's> IntoIterator for &'s TwoLevelTree<'a> {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Getters)]
 pub struct TltVertex {
     /// Sequential ID in the parent node.
     ///
     /// If a vertex is not attached to any parent node, `usize::MAX` will be assigned.
     seq_id: usize,
+    #[getset(get = "pub")]
     node: Node,
     visited: bool,
     prev: WeakVertex,
@@ -396,6 +390,7 @@ impl ParentVertex {
         Rc::new(RefCell::new(self))
     }
 
+    #[allow(dead_code)]
     fn reverse(&mut self) {
         // TODO: two inner ifs have the same structure => potential refractor.
         if let (Some(first), Some(last)) = (self.first.upgrade(), self.last.upgrade()) {
@@ -475,11 +470,11 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_init() {
+    fn test_apply() {
         let n_nodes = 10;
         let container = create_container(n_nodes);
         let mut tree = TwoLevelTree::new(&container, 3);
-        tree.init(None);
+        tree.apply(&TourOrder::new((0..n_nodes).collect()));
 
         assert_eq!(4, tree.parents.len());
         assert_eq!(n_nodes, tree.vertices.len());
@@ -529,13 +524,12 @@ mod tests {
         let n_nodes = 4;
         let container = create_container(n_nodes);
         let mut tree = TwoLevelTree::new(&container, 3);
-        tree.init(None);
 
-        tree.init(None);
+        tree.apply(&TourOrder::new(vec![0, 1, 2, 3]));
         assert_eq!(6. * (2. as Scalar).sqrt(), tree.total_distance());
 
-        tree.init(Some(&vec![1, 3, 0, 2]));
-        assert_eq!(8. * (2. as Scalar).sqrt(), tree.total_distance());        
+        tree.apply(&TourOrder::new(vec![1, 3, 0, 2]));
+        assert_eq!(8. * (2. as Scalar).sqrt(), tree.total_distance());
     }
 
     #[test]
@@ -543,14 +537,13 @@ mod tests {
         let n_nodes = 10;
         let container = create_container(n_nodes);
         let mut tree = TwoLevelTree::new(&container, 3);
-        tree.init(None);
+        let expected = TourOrder::new((0..n_nodes).collect());
+        tree.apply(&expected);
+        test_tree_order(&tree, &expected);
 
-        let order = (0..n_nodes).collect();
-        test_tree_order(&tree, &order);
-
-        let order = vec![9, 1, 2, 4, 6, 3, 5, 8, 0, 7];
-        tree.init(Some(&order));
-        test_tree_order(&tree, &order);
+        let expected = TourOrder::new(vec![9, 1, 2, 4, 6, 3, 5, 8, 0, 7]);
+        tree.apply(&expected);
+        test_tree_order(&tree, &expected);
     }
 
     #[test]
@@ -558,27 +551,27 @@ mod tests {
         let n_nodes = 10;
         let container = create_container(n_nodes);
         let mut tree = TwoLevelTree::new(&container, 3);
-        tree.init(None);
+        tree.apply(&TourOrder::new((0..n_nodes).collect()));
 
         //  0 -> 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9
 
         // All vertices reside under the same parent node.
-        assert!(tree.between_idx(0, 1, 2)); // true
-        assert!(!tree.between_idx(0, 2, 1)); // false
-        assert!(!tree.between_idx(2, 1, 0)); // false
-        assert!(tree.between_idx(2, 0, 1)); // true
+        assert!(tree.between_at(0, 1, 2)); // true
+        assert!(!tree.between_at(0, 2, 1)); // false
+        assert!(!tree.between_at(2, 1, 0)); // false
+        assert!(tree.between_at(2, 0, 1)); // true
 
         // All vertices reside under distinct parent node.
-        assert!(tree.between_idx(2, 3, 7)); // true
-        assert!(!tree.between_idx(2, 7, 3)); // true
-        assert!(!tree.between_idx(7, 3, 2)); // false
-        assert!(tree.between_idx(7, 2, 3)); // true
+        assert!(tree.between_at(2, 3, 7)); // true
+        assert!(!tree.between_at(2, 7, 3)); // true
+        assert!(!tree.between_at(7, 3, 2)); // false
+        assert!(tree.between_at(7, 2, 3)); // true
 
         // Two out of three vertices reside under the same parent node.
-        assert!(tree.between_idx(3, 5, 8)); // true
-        assert!(!tree.between_idx(3, 8, 5)); // false
-        assert!(!tree.between_idx(8, 5, 3)); // false
-        assert!(tree.between_idx(8, 3, 5)); // true
+        assert!(tree.between_at(3, 5, 8)); // true
+        assert!(!tree.between_at(3, 8, 5)); // false
+        assert!(!tree.between_at(8, 5, 3)); // false
+        assert!(tree.between_at(8, 3, 5)); // true
     }
 
     #[test]
@@ -587,16 +580,15 @@ mod tests {
         let container = create_container(n_nodes);
         let mut tree = TwoLevelTree::new(&container, 3);
 
-        tree.init(None);
+        tree.apply(&TourOrder::new((0..n_nodes).collect()));
 
         // 0 -> 1 -> 2 -> 5 -> 4 -> 3 -> 6 -> 7 -> 8 -> 9
         tree.parents[1].borrow_mut().reverse();
-        let order = vec![0, 1, 2, 5, 4, 3, 6, 7, 8, 9];
-        test_tree_order(&tree, &order);
+        test_tree_order(&tree, &TourOrder::new(vec![0, 1, 2, 5, 4, 3, 6, 7, 8, 9]));
 
         // 0 -> 1 -> 2 -> 5 -> 4 -> 3 -> 8 -> 7 -> 6 -> 9
         tree.parents[2].borrow_mut().reverse();
-        let order = vec![0, 1, 2, 5, 4, 3, 8, 7, 6, 9];
+        let order = TourOrder::new(vec![0, 1, 2, 5, 4, 3, 8, 7, 6, 9]);
         test_tree_order(&tree, &order);
 
         tree.parents[3].borrow_mut().reverse();
@@ -605,7 +597,6 @@ mod tests {
         // 0 -> 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9
         tree.parents[1].borrow_mut().reverse();
         tree.parents[2].borrow_mut().reverse();
-        let order = (0..10).collect();
-        test_tree_order(&tree, &order);
+        test_tree_order(&tree, &TourOrder::new((0..10).collect()));
     }
 }

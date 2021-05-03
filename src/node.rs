@@ -38,14 +38,15 @@ impl Container {
         self.nodes.get(index)
     }
 
-    /// Calculates and returns the distance between `node_a` and `node_b`.
+    /// Calculates the distance between two nodes.
     pub fn distance(&self, a: &Node, b: &Node) -> Scalar {
         // TODO: check whether a node with index belongs to this container.
         self.metric.borrow_mut().apply(a, b)
     }
 
-    pub fn distance_at(&self, idx_a: usize, idx_b: usize) -> Scalar {
-        match (self.nodes.get(idx_a), self.nodes.get(idx_b)) {
+    /// Calculates the distance between two nodes at the given indices.
+    pub fn distance_at(&self, index_a: usize, index_b: usize) -> Scalar {
+        match (self.nodes.get(index_a), self.nodes.get(index_b)) {
             (Some(a), Some(b)) => self.metric.borrow_mut().apply(a, b),
             _ => 0.,
         }
