@@ -1,8 +1,11 @@
 use std::fmt;
 use std::{cell::RefCell, collections::HashMap, rc::Rc};
+use std::f64::consts::PI;
 
 use crate::node::Node;
 use crate::Scalar;
+
+const EARTH_RADIUS: Scalar = 6378.388;
 
 pub(crate) type RcMetric = Rc<RefCell<Metric>>;
 
@@ -17,6 +20,7 @@ impl Metric {
         let f: Box<dyn Fn(&Node, &Node) -> Scalar> = match &kind {
             MetricKind::Euc2d => Box::new(dist_euc_2d),
             MetricKind::Euc3d => Box::new(dist_euc_3d),
+            MetricKind::Geo => Box::new(dist_geo),
             _ => unimplemented!(),
         };
 
@@ -60,10 +64,12 @@ impl fmt::Debug for Metric {
 
 #[derive(Debug)]
 pub enum MetricKind {
-    /// Uses two-dimensional Euclidean distance.
+    /// Two-dimensional Euclidean distance.
     Euc2d,
-    /// Uses three-dimensional Euclidean distance.
+    /// Three-dimensional Euclidean distance.
     Euc3d,
+    /// Geographical distance.
+    Geo,
     ///
     Undefined,
 }
@@ -74,6 +80,23 @@ fn dist_euc_2d(a: &Node, b: &Node) -> Scalar {
 
 fn dist_euc_3d(a: &Node, b: &Node) -> Scalar {
     ((a.x() - b.x()).powi(2) + (a.y() - b.y()).powi(2) + (a.z() - b.z()).powi(2)).sqrt()
+}
+
+fn dist_geo(a: &Node, b: &Node) -> Scalar {
+    let (lat_a, lon_a) = (to_geo_coord(a.x()), to_geo_coord(a.y()));
+    let (lat_b, lon_b) = (to_geo_coord(b.x()), to_geo_coord(b.y()));
+
+    let q1 = (lon_a - lon_b).cos();
+    let q2 = (lat_a - lat_b).cos();
+    let q3 = (lat_a + lat_b).cos();
+    let q4 = (0.5 * ((1. + q1) * q2 - (1. - q1) * q3)).acos();
+    EARTH_RADIUS * q4 + 1.
+}
+
+fn to_geo_coord(x: Scalar) -> Scalar {
+    let deg = x.round();
+    let min = x - deg;
+    PI * (deg + 5. * min / 3.) / 180.
 }
 
 #[allow(dead_code, unused_imports)]

@@ -27,7 +27,7 @@ pub struct TwoLevelTree<'a> {
 
 impl<'a> TwoLevelTree<'a> {
     pub fn new(container: &'a Container, max_groupsize: usize) -> Self {
-        let n_parents = (container.len() / max_groupsize) + 1;
+        let n_parents = (container.size() / max_groupsize) + 1;
 
         let vertices = container
             .into_iter()
