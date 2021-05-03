@@ -3,6 +3,14 @@ name = "cykl-rs"
 version = "0.1.0"
 authors = ["1crcbl <1crcbl@protonmail.com>"]
 edition = "2018"
+license = "MIT OR Apache-2.0"
+
+readme = "README.md"
+description = "A heuristic solver for Travelling Salesman Problem"
+repository = "https://github.com/1crcbl/cykl-rs.git"
+
+keywords = ["heuristic", "lkh", "scientific", "travelling", "tsp"]
+categories = ["algorithms", "mathematics", "science"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

@@ -1,3 +1,5 @@
+![Maintenance](https://img.shields.io/badge/maintenance-experimental-blue.svg)
+
 # LKH-RS
 
 ## References
