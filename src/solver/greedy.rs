@@ -40,7 +40,7 @@ impl Solver for Greedy {
                     continue;
                 }
 
-                let new_dist = tour.distance(node_idx, kin_idx);
+                let new_dist = tour.distance_at(node_idx, kin_idx);
 
                 if new_dist < dist {
                     dist = new_dist;
@@ -57,7 +57,7 @@ impl Solver for Greedy {
                     total_dist += cnd_dist;
                 }
                 None => {
-                    total_dist += tour.distance(node_idx, beg_idx);
+                    total_dist += tour.distance_at(node_idx, beg_idx);
                 }
             };
         }
@@ -70,8 +70,8 @@ impl Solver for Greedy {
 mod tests {
     use crate::{metric::MetricKind, node::Container, tour::Array};
 
-    use super::*;
     use super::super::tests::load_burma_test;
+    use super::*;
 
     #[test]
     fn test_greedy() {

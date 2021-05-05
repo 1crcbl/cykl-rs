@@ -1,6 +1,6 @@
+use std::f64::consts::PI;
 use std::fmt;
 use std::{cell::RefCell, collections::HashMap, rc::Rc};
-use std::f64::consts::PI;
 
 use crate::node::Node;
 use crate::Scalar;

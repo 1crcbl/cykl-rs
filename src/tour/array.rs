@@ -39,7 +39,7 @@ impl<'a> Array<'a> {
         }
     }
 
-    fn swap_idx(&mut self, idx_a: usize, idx_b: usize) {
+    fn swap_at(&mut self, idx_a: usize, idx_b: usize) {
         self.vertices.swap(self.tracker[idx_a], self.tracker[idx_b]);
         self.tracker.swap(idx_a, idx_b);
     }
@@ -53,7 +53,7 @@ impl<'a> Tour for Array<'a> {
         self.total_dist = 0.;
 
         for ii in 0..tour.len() {
-            self.swap_idx(tour[ii], *&self.vertices[ii].node().index());
+            self.swap_at(tour[ii], *&self.vertices[ii].node().index());
             self.vertices[ii].visited = false;
 
             if ii != tour.len() - 1 {
@@ -75,7 +75,7 @@ impl<'a> Tour for Array<'a> {
     }
 
     #[inline]
-    fn distance(&self, a: usize, b: usize) -> Scalar {
+    fn distance_at(&self, a: usize, b: usize) -> Scalar {
         // TODO: check if nodes belong to the group.
         self.container
             .distance(self.get(a).unwrap().node(), self.get(b).unwrap().node())
@@ -85,7 +85,7 @@ impl<'a> Tour for Array<'a> {
         // TODO: this is only a basic implementation.
         // Optimisation on which direction to perform the flip, so that the number of flips
         // is minimised, is not taken into account.
-        // (from1, to1) - (from2, to2) -> (from1, from2) - (to1, to2)
+        // (from_a, to_a) - (from_b, to_b) -> (from_a, from_b) - (to_a, to_b)
         if from_a > from_b {
             return self.flip_at(from_b, to_b, from_a, to_a);
         }
@@ -97,7 +97,7 @@ impl<'a> Tour for Array<'a> {
         for ii in 0..diff {
             let n1 = self.vertices[ato_a + ii].node().index();
             let n2 = self.vertices[afrom_b - ii].node().index();
-            self.swap_idx(n1, n2);
+            self.swap_at(n1, n2);
         }
     }
 
@@ -272,7 +272,7 @@ mod tests {
         let mut tour = Array::new(&container);
 
         // [0] <-> [9]
-        tour.swap_idx(0, 9);
+        tour.swap_at(0, 9);
         test_tree_order(&tour, &TourOrder::new(vec![9, 1, 2, 3, 4, 5, 6, 7, 8, 0]));
     }
 

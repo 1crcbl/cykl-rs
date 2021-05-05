@@ -1,7 +1,7 @@
 use crate::tour::{Tour, TourOrder};
 
 mod greedy;
-pub use greedy::Greedy as Greedy;
+pub use greedy::Greedy;
 
 pub trait Solver {
     fn solve<T>(&self, tour: &mut T) -> TourOrder

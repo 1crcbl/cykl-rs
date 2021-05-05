@@ -4,8 +4,12 @@ use crate::Scalar;
 
 mod array;
 pub use array::Array;
-mod twoleveltree;
-pub use twoleveltree::TwoLevelTree;
+pub use array::ArrVertex;
+
+mod tlt;
+pub use tlt::TwoLevelTree;
+pub use tlt::TltVertex;
+
 
 pub trait Tour {
     type TourNode: Vertex + PartialEq + std::fmt::Debug;
@@ -20,9 +24,9 @@ pub trait Tour {
 
     /// Returns true iff the tour, starting at the vertex `from_index`, arrives at the vertex `mid_index`
     /// before reaching the vertex `to_index` in its forward traversal.
-    fn between_at(&self, from_idx: usize, mid_idx: usize, to_idx: usize) -> bool;
+    fn between_at(&self, from_index: usize, mid_index: usize, to_index: usize) -> bool;
 
-    /// Calculates the distance between two nodes.
+    /// Calculates the distance between two nodes at the given index.
     ///
     /// # Arguments
     /// * a - The index from the container of the tail node in the arc.
@@ -30,15 +34,16 @@ pub trait Tour {
     ///
     /// # Panics
     /// Panics if `a` or `b` are out of bounds.
-    fn distance(&self, a: usize, b: usize) -> Scalar;
+    fn distance_at(&self, a: usize, b: usize) -> Scalar;
 
     /// Permutate the tour's order by replacing the edges `(from_a, to_a)` and `(from_b, to_b)`
     /// by the new edges `(from_a, from_b)` and `(to_a, to_b)`.
     ///
-    /// After flipping, the direction of one of two new edges will be reversed and will be decided
-    /// by the concrete implementation of this trait.
+    /// After flipping, the direction of one of two new edges will be reversed and will be specified
+    /// by the concrete implementation of this operation.
     ///
     /// This function assumes `to_a` and `to_b` are the direct successors of `from_b` and `from_b`.
+    ///
     /// # Arguments
     /// * from_a - The index from the container of the tail node in the first arc.
     /// * to_a - The index from the container of the head node in the first arc.
@@ -159,6 +164,8 @@ mod tests {
     pub fn test_tree_order(tour: &impl Tour, expected: &TourOrder) {
         let expected = &expected.order;
         let len = expected.len();
+        
+        assert_eq!(tour.size(), len);
         assert_eq!(tour.get(expected[0]), tour.next_at(expected[len - 1]));
         assert_eq!(tour.get(expected[len - 1]), tour.prev_at(expected[0]));
 
