@@ -124,6 +124,12 @@ impl<'a> TwoLevelTree<'a> {
 
         self.parents.swap(parent_index_a, parent_index_b);
     }
+
+    // This function is currently in used only for testing purposes.
+    #[allow(dead_code)]
+    pub (super) fn parent(&self, index: usize) -> RcParent {
+        self.parents[index].clone()
+    }
 }
 
 impl<'a> Tour for TwoLevelTree<'a> {
@@ -397,7 +403,7 @@ impl PartialEq for TltVertex {
 }
 
 #[derive(Debug)]
-struct ParentVertex {
+pub (super) struct ParentVertex {
     rank: usize,
     max_len: usize,
     reverse: bool,
@@ -496,8 +502,7 @@ impl ParentVertex {
     /// Reverses the entire segment and updates the first and last nodes in the conduit layer
     /// to reflect this change in direction.
     #[inline]
-    #[allow(dead_code)]
-    fn reverse(&mut self) {
+    pub (super) fn reverse(&mut self) {
         let tmp = self.head.borrow().right.clone();
         self.head.borrow_mut().right = self.tail.borrow().left.clone();
         self.tail.borrow_mut().left = tmp;
@@ -567,218 +572,5 @@ impl Conduit {
 
     fn to_rc(self) -> Rc<RefCell<Self>> {
         Rc::new(RefCell::new(self))
-    }
-}
-
-#[allow(dead_code, unused_imports)]
-mod tests {
-    use crate::{
-        tour::{tests::test_tree_order, tlt::TwoLevelTree, Tour, TourOrder},
-        Scalar,
-    };
-
-    use super::super::tests::create_container;
-
-    #[test]
-    fn test_apply() {
-        let container = create_container(10);
-        let mut tour = TwoLevelTree::new(&container, 4);
-        let expected = TourOrder::new(vec![3, 0, 4, 1, 6, 8, 7, 9, 5, 2]);
-        tour.apply(&expected);
-        test_tree_order(&tour, &expected);
-    }
-
-    #[test]
-    fn test_between() {
-        let n_nodes = 10;
-        let container = create_container(n_nodes);
-        let mut tree = TwoLevelTree::new(&container, 3);
-        tree.apply(&TourOrder::new((0..n_nodes).collect()));
-
-        //  0 -> 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9
-
-        // All vertices reside under the same parent node.
-        assert!(tree.between_at(0, 1, 2)); // true
-        assert!(!tree.between_at(0, 2, 1)); // false
-        assert!(!tree.between_at(2, 1, 0)); // false
-        assert!(tree.between_at(2, 0, 1)); // true
-
-        // All vertices reside under distinct parent node.
-        assert!(tree.between_at(2, 3, 7)); // true
-        assert!(!tree.between_at(2, 7, 3)); // true
-        assert!(!tree.between_at(7, 3, 2)); // false
-        assert!(tree.between_at(7, 2, 3)); // true
-
-        // Two out of three vertices reside under the same parent node.
-        assert!(tree.between_at(3, 5, 8)); // true
-        assert!(!tree.between_at(3, 8, 5)); // false
-        assert!(!tree.between_at(8, 5, 3)); // false
-        assert!(tree.between_at(8, 3, 5)); // true
-
-        // Reverse [3 4 5]
-        assert!(tree.between_at(3, 4, 5)); // true
-        assert!(!tree.between_at(5, 4, 3)); // false
-
-        tree.parents[1].borrow_mut().reverse();
-
-        assert!(!tree.between_at(3, 4, 5)); // false
-        assert!(tree.between_at(5, 4, 3)); // true
-
-        assert!(!tree.between_at(3, 5, 8)); // false
-        assert!(tree.between_at(3, 8, 5)); // true
-        assert!(tree.between_at(8, 5, 3)); // true
-        assert!(!tree.between_at(8, 3, 5)); // false
-    }
-
-    #[test]
-    fn test_total_dist() {
-        let n_nodes = 4;
-        let container = create_container(n_nodes);
-        let mut tree = TwoLevelTree::new(&container, 3);
-
-        tree.apply(&TourOrder::new(vec![0, 1, 2, 3]));
-        assert_eq!(6. * (2. as Scalar).sqrt(), tree.total_distance());
-
-        tree.apply(&TourOrder::new(vec![1, 3, 0, 2]));
-        assert_eq!(8. * (2. as Scalar).sqrt(), tree.total_distance());
-    }
-
-    // Test flip case: New paths lie within the same segment.
-    #[test]
-    fn test_flip_1() {
-        let n_nodes = 50;
-        let container = create_container(n_nodes);
-        let mut tree = TwoLevelTree::new(&container, 10);
-        tree.apply(&TourOrder::new((0..n_nodes).collect()));
-
-        tree.flip_at(3, 4, 8, 9);
-        let mut expected = vec![0, 1, 2, 3, 8, 7, 6, 5, 4, 9];
-        expected.append(&mut (10..n_nodes).collect());
-        test_tree_order(&tree, &TourOrder::new(expected));
-
-        tree.flip_at(3, 8, 4, 9);
-        test_tree_order(&tree, &TourOrder::new((0..n_nodes).collect()));
-
-        tree.flip_at(8, 9, 3, 4);
-        let mut expected = vec![0, 1, 2, 3, 8, 7, 6, 5, 4, 9];
-        expected.append(&mut (10..n_nodes).collect());
-        test_tree_order(&tree, &TourOrder::new(expected));
-
-        tree.flip_at(4, 9, 3, 8);
-        let mut expected = vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
-        expected.append(&mut (10..n_nodes).collect());
-        test_tree_order(&tree, &TourOrder::new(expected));
-
-        // Reverses the entire segment.
-        tree.flip_at(9, 10, 19, 20);
-        let mut expected: Vec<usize> = (0..10).collect();
-        expected.append(&mut (10..20).rev().collect());
-        expected.append(&mut (20..n_nodes).collect());
-        test_tree_order(&tree, &TourOrder::new(expected));
-
-        tree.parents[1].borrow_mut().reverse();
-        test_tree_order(&tree, &TourOrder::new((0..n_nodes).collect()));
-    }
-
-    // Test flip case: New paths consist of a sequence of consecutive segments.
-    // This test focuses on inner reverse.
-    #[test]
-    fn test_flip_2() {
-        let n_nodes = 50;
-        let container = create_container(n_nodes);
-        let mut tree = TwoLevelTree::new(&container, 10);
-        tree.apply(&TourOrder::new((0..n_nodes).collect()));
-
-        tree.flip_at(9, 10, 29, 30);
-        let mut expected: Vec<usize> = (0..10).collect();
-        expected.append(&mut (20..30).rev().collect());
-        expected.append(&mut (10..20).rev().collect());
-        expected.append(&mut (30..n_nodes).collect());
-        test_tree_order(&tree, &TourOrder::new(expected));
-
-        tree.flip_at(10, 30, 9, 29);
-        test_tree_order(&tree, &TourOrder::new((0..n_nodes).collect()));
-
-        tree.flip_at(29, 30, 9, 10);
-        let mut expected: Vec<usize> = (0..10).collect();
-        expected.append(&mut (20..30).rev().collect());
-        expected.append(&mut (10..20).rev().collect());
-        expected.append(&mut (30..n_nodes).collect());
-        test_tree_order(&tree, &TourOrder::new(expected));
-
-        tree.flip_at(9, 29, 10, 30);
-        test_tree_order(&tree, &TourOrder::new((0..n_nodes).collect()));
-
-        tree.parents[1].borrow_mut().reverse();
-
-        tree.flip_at(9, 19, 29, 30);
-        let mut expected: Vec<usize> = (0..10).collect();
-        expected.append(&mut (20..30).rev().collect());
-        expected.append(&mut (10..20).collect());
-        expected.append(&mut (30..n_nodes).collect());
-        test_tree_order(&tree, &TourOrder::new(expected));
-    }
-
-    // Test flip case: New paths consist of a sequence of consecutive segments.
-    // This test focuses on outer reverse.
-    #[test]
-    fn test_flip_3() {
-        let n_nodes = 100;
-        let container = create_container(n_nodes);
-        let mut tree = TwoLevelTree::new(&container, 10);
-        tree.apply(&TourOrder::new((0..n_nodes).collect()));
-
-        let mut expected: Vec<usize> = (90..n_nodes).rev().collect();
-        expected.append(&mut (10..90).collect());
-        expected.append(&mut (0..10).rev().collect());
-        tree.flip_at(9, 10, 89, 90);
-        test_tree_order(&tree, &TourOrder::new(expected));
-
-        tree.flip_at(90, 10, 89, 9);
-        test_tree_order(&tree, &TourOrder::new((0..n_nodes).collect()));
-
-        let mut expected: Vec<usize> = (90..n_nodes).rev().collect();
-        expected.append(&mut (10..90).collect());
-        expected.append(&mut (0..10).rev().collect());
-        tree.flip_at(89, 90, 9, 10);
-        test_tree_order(&tree, &TourOrder::new(expected));
-
-        tree.flip_at(89, 9, 90, 10);
-        test_tree_order(&tree, &TourOrder::new((0..n_nodes).collect()));
-
-        tree.parents[8].borrow_mut().reverse();
-
-        let mut expected: Vec<usize> = (80..90).collect();
-        expected.append(&mut (10..80).collect());
-        expected.append(&mut (0..10).rev().collect());
-        expected.append(&mut (90..n_nodes).rev().collect());
-        tree.flip_at(9, 10, 79, 89);
-        test_tree_order(&tree, &TourOrder::new(expected));
-    }
-
-    #[test]
-    fn test_parent_reverse() {
-        let n_nodes = 10;
-        let container = create_container(n_nodes);
-        let mut tree = TwoLevelTree::new(&container, 3);
-
-        tree.apply(&TourOrder::new((0..n_nodes).collect()));
-
-        // 0 -> 1 -> 2 -> 5 -> 4 -> 3 -> 6 -> 7 -> 8 -> 9
-        tree.parents[1].borrow_mut().reverse();
-        test_tree_order(&tree, &TourOrder::new(vec![0, 1, 2, 5, 4, 3, 6, 7, 8, 9]));
-
-        // 0 -> 1 -> 2 -> 5 -> 4 -> 3 -> 8 -> 7 -> 6 -> 9
-        tree.parents[2].borrow_mut().reverse();
-        let order = TourOrder::new(vec![0, 1, 2, 5, 4, 3, 8, 7, 6, 9]);
-        test_tree_order(&tree, &order);
-
-        tree.parents[3].borrow_mut().reverse();
-        test_tree_order(&tree, &order);
-
-        // 0 -> 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9
-        tree.parents[1].borrow_mut().reverse();
-        tree.parents[2].borrow_mut().reverse();
-        test_tree_order(&tree, &TourOrder::new((0..10).collect()));
     }
 }

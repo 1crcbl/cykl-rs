@@ -10,6 +10,7 @@ mod tlt;
 pub use tlt::TwoLevelTree;
 pub use tlt::TltVertex;
 
+mod tests;
 
 pub trait Tour {
     type TourNode: Vertex + PartialEq + std::fmt::Debug;
@@ -144,52 +145,5 @@ fn between(from: usize, mid: usize, to: usize) -> bool {
         from <= mid && mid <= to
     } else {
         !(to < mid && mid < from)
-    }
-}
-
-#[allow(dead_code, unused_imports)]
-mod tests {
-    use crate::{metric::MetricKind, node::Container, tour::between, Scalar};
-
-    use super::{Tour, TourOrder};
-
-    pub fn create_container(n_nodes: usize) -> Container {
-        let mut container = Container::new(MetricKind::Euc2d);
-        for ii in 0..n_nodes {
-            container.add(ii as Scalar, ii as Scalar, ii as Scalar);
-        }
-        container
-    }
-
-    pub fn test_tree_order(tour: &impl Tour, expected: &TourOrder) {
-        let expected = &expected.order;
-        let len = expected.len();
-        
-        assert_eq!(tour.size(), len);
-        assert_eq!(tour.get(expected[0]), tour.next_at(expected[len - 1]));
-        assert_eq!(tour.get(expected[len - 1]), tour.prev_at(expected[0]));
-
-        for ii in 1..(expected.len() - 1) {
-            assert_eq!(tour.get(expected[ii]), tour.prev_at(expected[ii + 1]));
-            assert_eq!(tour.get(expected[ii + 1]), tour.next_at(expected[ii]));
-        }
-
-        assert_eq!(
-            tour.get(expected[0]),
-            tour.next(tour.get(expected[len - 1]).unwrap())
-        );
-        assert_eq!(
-            tour.get(expected[len - 1]),
-            tour.prev(tour.get(expected[0]).unwrap())
-        );
-    }
-
-    #[test]
-    fn test_between() {
-        // 1 -> 2 -> 3 -> 4 -> 5
-        assert!(between(1, 3, 4)); // true
-        assert!(!between(1, 5, 4)); // false
-        assert!(between(5, 1, 3)); // true
-        assert!(!between(5, 3, 1)); // false
     }
 }

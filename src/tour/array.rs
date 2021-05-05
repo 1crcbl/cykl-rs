@@ -39,9 +39,15 @@ impl<'a> Array<'a> {
         }
     }
 
-    fn swap_at(&mut self, idx_a: usize, idx_b: usize) {
+    pub (crate) fn swap_at(&mut self, idx_a: usize, idx_b: usize) {
         self.vertices.swap(self.tracker[idx_a], self.tracker[idx_b]);
         self.tracker.swap(idx_a, idx_b);
+    }
+
+    // This function is currently in use for testing purposes.
+    #[allow(dead_code)]
+    pub (crate) fn tracker(&self) -> &Vec<usize> {
+        &self.tracker
     }
 }
 
@@ -211,111 +217,5 @@ impl Vertex for ArrVertex {
 
     fn visited(&mut self, flag: bool) {
         self.visited = flag;
-    }
-}
-
-#[allow(dead_code, unused_imports)]
-mod tests {
-    use super::super::tests::create_container;
-    use super::*;
-
-    use crate::{metric::MetricKind, tour::tests::test_tree_order};
-    use crate::{node::Container, Scalar};
-
-    #[test]
-    fn test_apply() {
-        let container = create_container(10);
-        let mut tour = Array::new(&container);
-        let expected = TourOrder::new(vec![3, 0, 4, 1, 6, 8, 7, 9, 5, 2]);
-        tour.apply(&expected);
-        test_tree_order(&tour, &expected);
-    }
-
-    #[test]
-    fn test_total_dist() {
-        let container = create_container(4);
-        let mut tour = Array::new(&container);
-        tour.apply(&TourOrder::new(vec![0, 1, 2, 3]));
-        assert_eq!(6. * (2. as Scalar).sqrt(), tour.total_distance());
-
-        tour.apply(&TourOrder::new(vec![1, 3, 0, 2]));
-        assert_eq!(8. * (2. as Scalar).sqrt(), tour.total_distance());
-    }
-
-    #[test]
-    fn test_next() {
-        let container = create_container(10);
-        let tour = Array::new(&container);
-
-        // [2] -> [3]
-        assert_eq!(tour.get(3).unwrap(), tour.next_at(2).unwrap());
-
-        // [4] -> [0]
-        assert_eq!(tour.get(0).unwrap(), tour.next_at(9).unwrap());
-    }
-
-    #[test]
-    fn test_prev() {
-        let container = create_container(10);
-        let tour = Array::new(&container);
-
-        // [2] -> [3]
-        assert_eq!(tour.get(2).unwrap(), tour.prev_at(3).unwrap());
-
-        // [4] -> [0]
-        assert_eq!(tour.get(9).unwrap(), tour.prev_at(0).unwrap());
-    }
-
-    #[test]
-    fn test_swap() {
-        let container = create_container(10);
-        let mut tour = Array::new(&container);
-
-        // [0] <-> [9]
-        tour.swap_at(0, 9);
-        test_tree_order(&tour, &TourOrder::new(vec![9, 1, 2, 3, 4, 5, 6, 7, 8, 0]));
-    }
-
-    #[test]
-    fn test_flip_case_1() {
-        let container = create_container(10);
-        let mut tour = Array::new(&container);
-
-        tour.flip_at(2, 3, 6, 7);
-        let expected = vec![0, 1, 2, 6, 5, 4, 3, 7, 8, 9];
-        assert_eq!(expected, tour.tracker);
-    }
-
-    #[test]
-    fn test_flip_case_2() {
-        let container = create_container(10);
-        let mut tour = Array::new(&container);
-
-        // Expected: 0 - 1 - 9 - 8 - 7 - 6 - 5 - 4 - 3 - 2
-        tour.flip_at(9, 0, 1, 2);
-        let expected = vec![0, 1, 9, 8, 7, 6, 5, 4, 3, 2];
-        assert_eq!(expected, tour.tracker);
-    }
-
-    #[test]
-    fn test_between() {
-        let container = create_container(10);
-        let tour = Array::new(&container);
-
-        // from < to
-        assert!(tour.between_at(2, 5, 8));
-        assert!(!tour.between_at(2, 1, 8));
-        assert!(tour.between_at(2, 2, 8));
-        assert!(tour.between_at(2, 8, 8));
-
-        // from > to
-        assert!(tour.between_at(8, 1, 2));
-        assert!(!tour.between_at(8, 5, 2));
-        assert!(tour.between_at(8, 2, 2));
-        assert!(tour.between_at(8, 8, 2));
-
-        // from == to
-        assert!(tour.between_at(2, 2, 2));
-        assert!(!tour.between_at(2, 8, 2));
     }
 }

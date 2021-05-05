@@ -65,20 +65,3 @@ impl Solver for Greedy {
         TourOrder::with_dist(result, total_dist)
     }
 }
-
-#[allow(dead_code, unused_imports)]
-mod tests {
-    use crate::{metric::MetricKind, node::Container, tour::Array};
-
-    use super::super::tests::load_burma_test;
-    use super::*;
-
-    #[test]
-    fn test_greedy() {
-        let container = load_burma_test();
-        let nng = Greedy::new();
-        let mut tour = Array::new(&container);
-        let result = nng.solve(&mut tour);
-        assert_eq!(container.size(), result.order().len());
-    }
-}
