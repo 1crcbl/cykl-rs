@@ -17,3 +17,10 @@ categories = ["algorithms", "mathematics", "science"]
 [dependencies]
 getset = "0.1.1"
 rand = "0.8.3"
+
+[dev-dependencies]
+criterion = { version = "0.3", features = ["html_reports"] }
+
+[[bench]]
+name = "ds"
+harness = false
