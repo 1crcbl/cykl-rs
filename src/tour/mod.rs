@@ -3,12 +3,12 @@ use getset::Getters;
 use crate::Scalar;
 
 mod array;
-pub use array::Array;
 pub use array::ArrVertex;
+pub use array::Array;
 
 mod tlt;
-pub use tlt::TwoLevelTree;
 pub use tlt::TltVertex;
+pub use tlt::TwoLevelTree;
 
 mod tests;
 

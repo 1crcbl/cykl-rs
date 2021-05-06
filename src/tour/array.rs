@@ -39,14 +39,14 @@ impl<'a> Array<'a> {
         }
     }
 
-    pub (crate) fn swap_at(&mut self, idx_a: usize, idx_b: usize) {
+    pub(crate) fn swap_at(&mut self, idx_a: usize, idx_b: usize) {
         self.vertices.swap(self.tracker[idx_a], self.tracker[idx_b]);
         self.tracker.swap(idx_a, idx_b);
     }
 
     // This function is currently in use for testing purposes.
     #[allow(dead_code)]
-    pub (crate) fn tracker(&self) -> &Vec<usize> {
+    pub(crate) fn tracker(&self) -> &Vec<usize> {
         &self.tracker
     }
 }

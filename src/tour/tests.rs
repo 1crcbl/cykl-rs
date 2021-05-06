@@ -1,6 +1,6 @@
-use crate::{metric::MetricKind, node::Container, Scalar};
 #[allow(unused_imports)]
 use crate::tour::between;
+use crate::{metric::MetricKind, node::Container, Scalar};
 
 use super::{Tour, TourOrder};
 
@@ -17,7 +17,7 @@ pub fn create_container(n_nodes: usize) -> Container {
 pub fn test_tree_order(tour: &impl Tour, expected: &TourOrder) {
     let expected = &expected.order;
     let len = expected.len();
-    
+
     assert_eq!(tour.size(), len);
     assert_eq!(tour.get(expected[0]), tour.next_at(expected[len - 1]));
     assert_eq!(tour.get(expected[len - 1]), tour.prev_at(expected[0]));
@@ -333,6 +333,27 @@ mod tests_tlt {
         test_tree_order(&tree, &TourOrder::new(expected));
     }
 
+    // Test flip case: Vertices are positioned in the middle of segments.
+    #[test]
+    fn test_flip_4() {
+        let n_nodes = 100;
+        let container = create_container(n_nodes);
+        let mut tree = TwoLevelTree::with_default_order(&container, 10);
+
+        tree.flip_at(15, 16, 25, 26);
+        let mut expected: Vec<usize> = (0..16).collect();
+        expected.append(&mut (16..26).rev().collect());
+        expected.append(&mut (26..n_nodes).collect());
+        test_tree_order(&tree, &TourOrder::new(expected));
+
+        let mut tree = TwoLevelTree::with_default_order(&container, 10);
+        tree.flip_at(12, 13, 92, 93);
+        let mut expected: Vec<usize> = (0..13).rev().collect();
+        expected.append(&mut (93..n_nodes).rev().collect());
+        expected.append(&mut (13..93).collect());
+        test_tree_order(&tree, &TourOrder::new(expected));
+    }
+
     #[test]
     fn test_segment_reverse() {
         let n_nodes = 10;
@@ -357,5 +378,34 @@ mod tests_tlt {
         tree.segment(1).borrow_mut().reverse();
         tree.segment(2).borrow_mut().reverse();
         test_tree_order(&tree, &TourOrder::new((0..10).collect()));
+    }
+
+    #[test]
+    fn test_split_segment() {
+        let n_nodes = 15;
+        let container = create_container(n_nodes);
+        let mut tree = TwoLevelTree::with_default_order(&container, 5);
+        //tree.apply(&TourOrder::new((0..n_nodes).collect()));
+
+        // Original: [0 1 2 3 4] [5 6 7 >8< 9] [10 11 12 13 14]
+        tree.split_seg(1, 3);
+        test_tree_order(&tree, &TourOrder::new((0..n_nodes).collect()));
+        assert_eq!(5, tree.segment(0).borrow().len());
+        assert_eq!(3, tree.segment(1).borrow().len());
+        assert_eq!(7, tree.segment(2).borrow().len());
+
+        // Reverse a segment
+        tree.segment(2).borrow_mut().reverse();
+        let mut expected: Vec<usize> = (0..8).collect();
+        expected.append(&mut vec![14, 13, 12, 11, 10, 9, 8]);
+        let expected = TourOrder::new(expected);
+        test_tree_order(&tree, &expected);
+
+        // [8 9 10 11 >12< 13 14] (Reverse)
+        tree.split_seg(2, 4);
+        test_tree_order(&tree, &expected);
+        assert_eq!(5, tree.segment(0).borrow().len());
+        assert_eq!(6, tree.segment(1).borrow().len());
+        assert_eq!(4, tree.segment(2).borrow().len());
     }
 }

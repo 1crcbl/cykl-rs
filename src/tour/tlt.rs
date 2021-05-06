@@ -11,7 +11,7 @@ use crate::{
     Scalar,
 };
 
-use super::{between, Tour, Vertex};
+use super::{between, Tour, TourOrder, Vertex};
 
 type RcVertex = Rc<RefCell<TltVertex>>;
 type WeakVertex = Weak<RefCell<TltVertex>>;
@@ -61,6 +61,12 @@ impl<'a> TwoLevelTree<'a> {
         }
     }
 
+    pub fn with_default_order(container: &'a Container, max_grouplen: usize) -> Self {
+        let mut result = Self::new(container, max_grouplen);
+        result.apply(&TourOrder::new((0..container.size()).collect()));
+        result
+    }
+
     fn reverse_inner_seg(&mut self, from: usize, to: usize) {
         if from > to {
             return self.reverse_inner_seg(to, from);
@@ -79,7 +85,7 @@ impl<'a> TwoLevelTree<'a> {
         }
 
         let mut diff = self.segments.len() - to + from + 1;
-        diff = diff / 2 +  diff % 2;
+        diff = diff / 2 + diff % 2;
         for ii in 0..diff {
             let idx_a = if from >= ii {
                 from - ii
@@ -92,9 +98,38 @@ impl<'a> TwoLevelTree<'a> {
         }
     }
 
+    /// Split a segment at the given position. The vertice with rank `split_index` in the old
+    /// segment will become the first element of a new segment, while its predecessor will be the
+    /// last element in the old segment.
+    pub(super) fn split_seg(&mut self, segment_index: usize, split_index: usize) {
+        // take care of reverse
+        let len = self.segments.len();
+
+        let this_seg = self.segments.get(segment_index).unwrap();
+        let rev_flag = this_seg.borrow().is_reverse();
+        let mut split_seg = this_seg.borrow_mut().children.split_off(split_index);
+
+        if rev_flag {
+            let prev = self.segments.get((len + segment_index - 1) % len).unwrap();
+            prev.borrow_mut().append(&mut split_seg, rev_flag);
+        } else {
+            let next = self.segments.get((segment_index + 1) % len).unwrap();
+            next.borrow_mut().prepend(&mut split_seg, rev_flag);
+        }
+
+        // TODO: better implementation without invoking update_rank from Segment.
+        this_seg.borrow_mut().update_rank();
+        this_seg.borrow_mut().update_head();
+        this_seg.borrow_mut().update_tail();
+    }
+
     fn swap_and_reverse(&mut self, segment_index_a: usize, segment_index_b: usize) {
         if segment_index_a == segment_index_b {
-            self.segments.get(segment_index_a).unwrap().borrow_mut().reverse();
+            self.segments
+                .get(segment_index_a)
+                .unwrap()
+                .borrow_mut()
+                .reverse();
             return;
         }
 
@@ -127,7 +162,7 @@ impl<'a> TwoLevelTree<'a> {
 
     // This function is currently in used only for testing purposes.
     #[allow(dead_code)]
-    pub (super) fn segment(&self, index: usize) -> RcSegment {
+    pub(super) fn segment(&self, index: usize) -> RcSegment {
         self.segments[index].clone()
     }
 }
@@ -219,43 +254,60 @@ impl<'a> Tour for TwoLevelTree<'a> {
     }
 
     fn flip_at(&mut self, from_a: usize, to_a: usize, from_b: usize, to_b: usize) {
-        if let (Some(from_a), Some(to_a), Some(from_b), Some(to_b)) = (
+        if let (Some(fav), Some(tav), Some(fbv), Some(tbv)) = (
             self.get(from_a),
             self.get(to_a),
             self.get(from_b),
             self.get(to_b),
         ) {
             // We assume (!) the fact that every node is bound to a segment and thus can bypass sanity check.
-            let (p_from_a, p_to_a, p_from_b, p_to_b) = (
-                from_a.segment.upgrade().unwrap(),
-                to_a.segment.upgrade().unwrap(),
-                from_b.segment.upgrade().unwrap(),
-                to_b.segment.upgrade().unwrap(),
+            let (pfa, pta, pfb, ptb) = (
+                fav.segment.upgrade().unwrap(),
+                tav.segment.upgrade().unwrap(),
+                fbv.segment.upgrade().unwrap(),
+                tbv.segment.upgrade().unwrap(),
             );
 
             // Case 1: Either the entire path (to_b, from_a) or (to_a, from_b) resides in the
             // same segment. In this case, we will flip the local path.
-            if Rc::ptr_eq(&p_from_a, &p_to_b) && to_b.rank < from_a.rank {
+            if Rc::ptr_eq(&pfa, &ptb) && tbv.rank < fav.rank {
                 // TODO: check unwrap()
-                return p_from_a
-                    .borrow_mut()
-                    .reverse_segment(from_a.rank, to_b.rank);
-            } else if Rc::ptr_eq(&p_from_b, &p_to_a) && to_a.rank <= from_b.rank {
-                return p_from_b
-                    .borrow_mut()
-                    .reverse_segment(from_b.rank, to_a.rank);
+                return pfa.borrow_mut().reverse_segment(fav.rank, tbv.rank);
+            } else if Rc::ptr_eq(&pfb, &pta) && tav.rank <= fbv.rank {
+                return pfb.borrow_mut().reverse_segment(fbv.rank, tav.rank);
             }
 
-            // Case 2: (from_a, to_a) AND (from_b, to_b) AND both paths (to_b, from_a) and
-            // (to_a, from_b) consist of a sequence of consecutive segments.
-            // Since to_a and to_b are direct successors of from_a and from_b, this means that
-            // all vertices are either at the head or the tail of their corresponding segments.
-            // Thus, we only need to reverse their corresponding segments.
+            // Case 2: Both paths (to_b, from_a) AND (to_a, from_b) consist of a sequence of
+            // consecutive segments. Since to_a and to_b are direct successors of from_a and from_b,
+            // this means that all vertices are either at the head or the tail of their
+            // corresponding segments. Thus, we only need to reverse these segments.
+            //
+            // Case 1 and 2 are special arrangements of vertices in the data structure. A more
+            // general case is when vertices are positioned in the middle of their segments.
+            //
+            // Thus in case 3, neither of the two cases above apply. To tackle this case, we will
+            // rearrange the vertices by splitting their corresponding segments so that the
+            // requirements for case 1 or 2 are satisfied.
+
+            // Check for case 3.
+            if Rc::ptr_eq(&pfa, &pta) {
+                let seg_idx = pfa.borrow().rank();
+                let split_idx = tav.rank();
+                self.split_seg(seg_idx, split_idx);
+                return self.flip_at(from_a, to_a, from_b, to_b);
+            } else if Rc::ptr_eq(&pfb, &ptb) {
+                let seg_idx = pfb.borrow().rank();
+                let split_idx = tbv.rank();
+                self.split_seg(seg_idx, split_idx);
+                return self.flip_at(from_a, to_a, from_b, to_b);
+            }
+
+            // Logic to handle case 2.
             let (pfa_r, pta_r, pfb_r, ptb_r) = (
-                p_from_a.borrow().rank(),
-                p_to_a.borrow().rank(),
-                p_from_b.borrow().rank(),
-                p_to_b.borrow().rank(),
+                pfa.borrow().rank(),
+                pta.borrow().rank(),
+                pfb.borrow().rank(),
+                ptb.borrow().rank(),
             );
 
             let (diff1, is_inner1) = if pta_r <= pfb_r {
@@ -364,6 +416,7 @@ pub struct TltVertex {
     /// Flag indicating whether a vertex has been visited/processed.
     visited: bool,
     /// Weak reference to a node's segment.
+    #[getset(get = "pub(super)")]
     segment: WeakSegment,
 }
 
@@ -377,8 +430,14 @@ impl TltVertex {
         }
     }
 
+    /// Converts `self` to a reference counting pointer, consuming `self`.
     fn to_rc(self) -> RcVertex {
         Rc::new(RefCell::new(self))
+    }
+
+    /// Returns the rank of a vertice in its corresponding segment.
+    pub(super) fn rank(&self) -> usize {
+        self.rank
     }
 }
 
@@ -404,7 +463,7 @@ impl PartialEq for TltVertex {
 }
 
 #[derive(Debug)]
-pub (super) struct Segment {
+pub(super) struct Segment {
     rank: usize,
     max_len: usize,
     reverse: bool,
@@ -503,7 +562,7 @@ impl Segment {
     /// Reverses the entire segment and updates the first and last nodes in the conduit layer
     /// to reflect this change in direction.
     #[inline]
-    pub (super) fn reverse(&mut self) {
+    pub(super) fn reverse(&mut self) {
         let tmp = self.head.borrow().right.clone();
         self.head.borrow_mut().right = self.tail.borrow().left.clone();
         self.tail.borrow_mut().left = tmp;
@@ -553,6 +612,103 @@ impl Segment {
     #[inline]
     fn to_rc(self) -> RcSegment {
         Rc::new(RefCell::new(self))
+    }
+
+    fn update_head(&mut self) {
+        self.head.borrow_mut().right = Rc::downgrade(if self.is_reverse() {
+            self.children.back().unwrap()
+        } else {
+            self.children.front().unwrap()
+        });
+    }
+
+    fn update_tail(&mut self) {
+        self.tail.borrow_mut().left = Rc::downgrade(if self.is_reverse() {
+            self.children.front().unwrap()
+        } else {
+            self.children.back().unwrap()
+        });
+    }
+
+    fn update_rank(&mut self) {
+        for (ii, c) in self.children.iter().enumerate() {
+            c.borrow_mut().rank = ii;
+        }
+    }
+
+    fn prepend(&mut self, elts: &mut VecDeque<RcVertex>, reverse: bool) {
+        // TODO: better implementation without invoking clone from Rc and update_rank from self.
+        let p = self.children.front().unwrap().borrow().segment.clone();
+
+        match (reverse, self.reverse) {
+            (true, true) => {
+                for el in elts.iter() {
+                    el.borrow_mut().segment = p.clone();
+                    self.children.push_back(el.clone());
+                }
+            }
+            (true, false) => {
+                for el in elts.iter() {
+                    el.borrow_mut().segment = p.clone();
+                    self.children.push_front(el.clone());
+                }
+            }
+            (false, true) => {
+                for el in elts.iter().rev() {
+                    el.borrow_mut().segment = p.clone();
+                    self.children.push_back(el.clone());
+                }
+            }
+            (false, false) => {
+                for el in elts.iter().rev() {
+                    el.borrow_mut().segment = p.clone();
+                    self.children.push_front(el.clone());
+                }
+            }
+        }
+
+        self.update_rank();
+        self.update_head();
+    }
+
+    fn append(&mut self, elts: &mut VecDeque<RcVertex>, reverse: bool) {
+        // TODO: better implementation without invoking clone from Rc and update_rank from self.
+        let p = self.children.front().unwrap().borrow().segment.clone();
+
+        match (reverse, self.reverse) {
+            (true, true) => {
+                for el in elts.iter().rev() {
+                    el.borrow_mut().segment = p.clone();
+                    self.children.push_front(el.clone());
+                }
+            }
+            (true, false) => {
+                for el in elts.iter().rev() {
+                    el.borrow_mut().segment = p.clone();
+                    self.children.push_back(el.clone());
+                }
+            }
+            (false, true) => {
+                for el in elts.iter() {
+                    el.borrow_mut().segment = p.clone();
+                    self.children.push_front(el.clone());
+                }
+            }
+            (false, false) => {
+                for el in elts.iter() {
+                    el.borrow_mut().segment = p.clone();
+                    self.children.push_back(el.clone());
+                }
+            }
+        }
+
+        self.update_rank();
+        self.update_tail();
+    }
+
+    #[allow(dead_code)]
+    pub(super) fn len(&self) -> usize {
+        self.children.len()
     }
 }
 

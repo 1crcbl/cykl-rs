@@ -22,10 +22,13 @@ fn load_burma_test() -> Container {
 
 #[allow(dead_code, unused_imports)]
 mod tests_greedy {
-    use crate::{solver::{Greedy, Solver}, tour::Array};
+    use crate::{
+        solver::{Greedy, Solver},
+        tour::Array,
+    };
 
     use super::*;
-    
+
     #[test]
     fn test_greedy_array() {
         let container = load_burma_test();
