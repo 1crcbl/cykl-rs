@@ -15,22 +15,22 @@ use super::{between, Tour, Vertex};
 
 type RcVertex = Rc<RefCell<TltVertex>>;
 type WeakVertex = Weak<RefCell<TltVertex>>;
-type RcParent = Rc<RefCell<ParentVertex>>;
-type WeakParent = Weak<RefCell<ParentVertex>>;
+type RcSegment = Rc<RefCell<Segment>>;
+type WeakSegment = Weak<RefCell<Segment>>;
 
 #[derive(Debug)]
 pub struct TwoLevelTree<'a> {
     container: &'a Container,
     vertices: Vec<RcVertex>,
-    parents: Vec<RcParent>,
+    segments: Vec<RcSegment>,
     total_dist: Scalar,
 }
 
 impl<'a> TwoLevelTree<'a> {
     pub fn new(container: &'a Container, max_grouplen: usize) -> Self {
-        let mut n_parents = container.size() / max_grouplen;
+        let mut n_segments = container.size() / max_grouplen;
         if container.size() % max_grouplen != 0 {
-            n_parents += 1;
+            n_segments += 1;
         }
 
         let vertices = container
@@ -38,25 +38,25 @@ impl<'a> TwoLevelTree<'a> {
             .map(|n| TltVertex::new(n).to_rc())
             .collect();
 
-        let mut parents = Vec::with_capacity(n_parents);
-        parents.push(ParentVertex::new(0, max_grouplen).to_rc());
-        for ii in 1..n_parents {
-            let p = ParentVertex::new(ii, max_grouplen).to_rc();
-            let prev_p = parents.get(ii - 1).unwrap();
+        let mut segments = Vec::with_capacity(n_segments);
+        segments.push(Segment::new(0, max_grouplen).to_rc());
+        for ii in 1..n_segments {
+            let p = Segment::new(ii, max_grouplen).to_rc();
+            let prev_p = segments.get(ii - 1).unwrap();
             p.borrow_mut().head = prev_p.borrow().tail.clone();
 
-            if ii == n_parents - 1 {
-                let first = parents.first().unwrap();
+            if ii == n_segments - 1 {
+                let first = segments.first().unwrap();
                 p.borrow_mut().tail = first.borrow().head.clone();
             }
 
-            parents.push(p);
+            segments.push(p);
         }
 
         Self {
             container,
             vertices,
-            parents,
+            segments,
             total_dist: 0.,
         }
     }
@@ -78,32 +78,32 @@ impl<'a> TwoLevelTree<'a> {
             return self.reverse_inner_seg(to, from);
         }
 
-        let mut diff = self.parents.len() - to + from + 1;
+        let mut diff = self.segments.len() - to + from + 1;
         diff = diff / 2 +  diff % 2;
         for ii in 0..diff {
             let idx_a = if from >= ii {
                 from - ii
             } else {
-                self.parents.len() + from - ii
+                self.segments.len() + from - ii
             };
 
-            let idx_b = (ii + to) % self.parents.len();
+            let idx_b = (ii + to) % self.segments.len();
             self.swap_and_reverse(idx_a, idx_b);
         }
     }
 
-    fn swap_and_reverse(&mut self, parent_index_a: usize, parent_index_b: usize) {
-        if parent_index_a == parent_index_b {
-            self.parents.get(parent_index_a).unwrap().borrow_mut().reverse();
+    fn swap_and_reverse(&mut self, segment_index_a: usize, segment_index_b: usize) {
+        if segment_index_a == segment_index_b {
+            self.segments.get(segment_index_a).unwrap().borrow_mut().reverse();
             return;
         }
 
-        let p_a = self.parents.get(parent_index_a).unwrap();
-        let p_b = self.parents.get(parent_index_b).unwrap();
+        let p_a = self.segments.get(segment_index_a).unwrap();
+        let p_b = self.segments.get(segment_index_b).unwrap();
 
         // exchange rank
-        p_a.borrow_mut().rank = parent_index_b;
-        p_b.borrow_mut().rank = parent_index_a;
+        p_a.borrow_mut().rank = segment_index_b;
+        p_b.borrow_mut().rank = segment_index_a;
 
         // exchange head
         let tmp = p_a.borrow().head.clone();
@@ -122,13 +122,13 @@ impl<'a> TwoLevelTree<'a> {
         p_a.borrow_mut().reverse();
         p_b.borrow_mut().reverse();
 
-        self.parents.swap(parent_index_a, parent_index_b);
+        self.segments.swap(segment_index_a, segment_index_b);
     }
 
     // This function is currently in used only for testing purposes.
     #[allow(dead_code)]
-    pub (super) fn parent(&self, index: usize) -> RcParent {
-        self.parents[index].clone()
+    pub (super) fn segment(&self, index: usize) -> RcSegment {
+        self.segments[index].clone()
     }
 }
 
@@ -138,13 +138,13 @@ impl<'a> Tour for TwoLevelTree<'a> {
     fn apply(&mut self, tour: &super::TourOrder) {
         let tour = tour.order();
 
-        let p_len = self.parents.len();
+        let p_len = self.segments.len();
         let v_len = self.vertices.len();
 
         self.total_dist = 0.;
 
         for ip in 0..p_len {
-            let p = self.parents.get(ip).unwrap();
+            let p = self.segments.get(ip).unwrap();
 
             p.borrow_mut().reset();
 
@@ -154,7 +154,7 @@ impl<'a> Tour for TwoLevelTree<'a> {
             for iv in beg_seg..end_seg {
                 let v = self.vertices.get(tour[iv]).unwrap();
                 v.borrow_mut().rank = iv - beg_seg;
-                v.borrow_mut().parent = Rc::downgrade(p);
+                v.borrow_mut().segment = Rc::downgrade(p);
 
                 if iv == beg_seg {
                     p.borrow_mut().head.borrow_mut().right = Rc::downgrade(v);
@@ -179,9 +179,9 @@ impl<'a> Tour for TwoLevelTree<'a> {
 
     fn between(&self, from: &Self::TourNode, mid: &Self::TourNode, to: &Self::TourNode) -> bool {
         if let (Some(fp), Some(mp), Some(tp)) = (
-            &from.parent.upgrade(),
-            &mid.parent.upgrade(),
-            &to.parent.upgrade(),
+            &from.segment.upgrade(),
+            &mid.segment.upgrade(),
+            &to.segment.upgrade(),
         ) {
             match (Rc::ptr_eq(fp, mp), Rc::ptr_eq(mp, tp), Rc::ptr_eq(tp, fp)) {
                 (true, true, true) => {
@@ -225,16 +225,16 @@ impl<'a> Tour for TwoLevelTree<'a> {
             self.get(from_b),
             self.get(to_b),
         ) {
-            // We assume (!) the fact that every node has parent and thus can bypass sanity check.
+            // We assume (!) the fact that every node is bound to a segment and thus can bypass sanity check.
             let (p_from_a, p_to_a, p_from_b, p_to_b) = (
-                from_a.parent.upgrade().unwrap(),
-                to_a.parent.upgrade().unwrap(),
-                from_b.parent.upgrade().unwrap(),
-                to_b.parent.upgrade().unwrap(),
+                from_a.segment.upgrade().unwrap(),
+                to_a.segment.upgrade().unwrap(),
+                from_b.segment.upgrade().unwrap(),
+                to_b.segment.upgrade().unwrap(),
             );
 
-            // Case 1: Either (to_b, from_a) or (to_a, from_b) stays in the same parent node.
-            // The order of inputs here is very important for deciding which segment is to be reversed.
+            // Case 1: Either the entire path (to_b, from_a) or (to_a, from_b) resides in the
+            // same segment. In this case, we will flip the local path.
             if Rc::ptr_eq(&p_from_a, &p_to_b) && to_b.rank < from_a.rank {
                 // TODO: check unwrap()
                 return p_from_a
@@ -246,10 +246,11 @@ impl<'a> Tour for TwoLevelTree<'a> {
                     .reverse_segment(from_b.rank, to_a.rank);
             }
 
-            // Case 2: (from_a, to_a) AND (from_b, to_b) lie in different segments.
+            // Case 2: (from_a, to_a) AND (from_b, to_b) AND both paths (to_b, from_a) and
+            // (to_a, from_b) consist of a sequence of consecutive segments.
             // Since to_a and to_b are direct successors of from_a and from_b, this means that
-            // all vertices are at either ends of their corresponding segments. Thus, we only need
-            // to reverse their's parent nodes.
+            // all vertices are either at the head or the tail of their corresponding segments.
+            // Thus, we only need to reverse their corresponding segments.
             let (pfa_r, pta_r, pfb_r, ptb_r) = (
                 p_from_a.borrow().rank(),
                 p_to_a.borrow().rank(),
@@ -260,13 +261,13 @@ impl<'a> Tour for TwoLevelTree<'a> {
             let (diff1, is_inner1) = if pta_r <= pfb_r {
                 (pfb_r - pta_r, true)
             } else {
-                (self.parents.len() - pta_r + pfb_r, false)
+                (self.segments.len() - pta_r + pfb_r, false)
             };
 
             let (diff2, is_inner2) = if ptb_r <= pfa_r {
                 (pfa_r - ptb_r, true)
             } else {
-                (self.parents.len() - ptb_r + pfa_r, false)
+                (self.segments.len() - ptb_r + pfa_r, false)
             };
 
             let (from, to, is_inner) = if diff1 <= diff2 {
@@ -299,7 +300,7 @@ impl<'a> Tour for TwoLevelTree<'a> {
     fn next_at(&self, kin_index: usize) -> Option<&Self::TourNode> {
         if let Some(kin) = self.vertices.get(kin_index) {
             let kin_borrow = kin.borrow();
-            match kin_borrow.parent.upgrade() {
+            match kin_borrow.segment.upgrade() {
                 Some(p) => match p.borrow().next(kin_borrow.rank).upgrade() {
                     Some(next) => unsafe { next.as_ref().as_ptr().as_ref() },
                     None => None,
@@ -318,7 +319,7 @@ impl<'a> Tour for TwoLevelTree<'a> {
     fn prev_at(&self, kin_index: usize) -> Option<&Self::TourNode> {
         if let Some(kin) = self.vertices.get(kin_index) {
             let kin_borrow = kin.borrow();
-            match kin_borrow.parent.upgrade() {
+            match kin_borrow.segment.upgrade() {
                 Some(p) => match p.borrow().prev(kin_borrow.rank).upgrade() {
                     Some(prev) => unsafe { prev.as_ref().as_ptr().as_ref() },
                     None => None,
@@ -353,17 +354,17 @@ impl<'a> Tour for TwoLevelTree<'a> {
 
 #[derive(Debug, Getters)]
 pub struct TltVertex {
-    /// Sequential ID used inside a parent node to which a vertex belongs.
+    /// Sequential ID used inside a segment to which a vertex belongs.
     ///
-    /// If a vertex is not attached to any parent node, `usize::MAX` will be assigned.
+    /// If a vertex is not attached to any segment, `usize::MAX` will be assigned.
     rank: usize,
     /// Reference to a data node that a vertex represents in a tour.
     #[getset(get = "pub")]
     node: Node,
     /// Flag indicating whether a vertex has been visited/processed.
     visited: bool,
-    /// Weak reference to a node's parent node.
-    parent: WeakParent,
+    /// Weak reference to a node's segment.
+    segment: WeakSegment,
 }
 
 impl TltVertex {
@@ -372,7 +373,7 @@ impl TltVertex {
             node: node.clone(),
             rank: usize::MAX,
             visited: false,
-            parent: Weak::new(),
+            segment: Weak::new(),
         }
     }
 
@@ -403,7 +404,7 @@ impl PartialEq for TltVertex {
 }
 
 #[derive(Debug)]
-pub (super) struct ParentVertex {
+pub (super) struct Segment {
     rank: usize,
     max_len: usize,
     reverse: bool,
@@ -413,7 +414,7 @@ pub (super) struct ParentVertex {
     tail: Rc<RefCell<Conduit>>,
 }
 
-impl ParentVertex {
+impl Segment {
     fn new(rank: usize, max_len: usize) -> Self {
         Self {
             rank,
@@ -509,12 +510,12 @@ impl ParentVertex {
         self.reverse ^= true;
     }
 
-    /// Reverses the segment `(a, b)` in a parent node. The order of the inputs are
-    /// not important since the implementation will handle it.
+    /// Reverses the path `(a, b)` in a segment. The function assumes that both `a` and `b` lie in
+    /// the same segment.
     ///
     /// # Arguments
-    /// * a - The rank of a vertex in a parent node at one end of the segment to be reversed.
-    /// * b - The rank of a vertex in a parent node at the other end of the segment to be reversed.
+    /// * a - The rank of a vertex at one end of the segment to be reversed.
+    /// * b - The rank of a vertex at the other end of the segment to be reversed.
     ///
     /// # Panics
     /// Panics if `a` or `b` are out of bounds.
@@ -550,12 +551,12 @@ impl ParentVertex {
     }
 
     #[inline]
-    fn to_rc(self) -> RcParent {
+    fn to_rc(self) -> RcSegment {
         Rc::new(RefCell::new(self))
     }
 }
 
-/// Buffer zone between two parent vertices.
+/// Buffer zone between two segments.
 #[derive(Debug)]
 struct Conduit {
     left: WeakVertex,
