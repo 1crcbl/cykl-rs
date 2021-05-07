@@ -1,3 +1,5 @@
+// Benchmarks for data structures.
+
 #[allow(unused_imports)]
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 
@@ -17,43 +19,41 @@ pub fn create_container(n_nodes: usize) -> Container {
     container
 }
 
-fn bench_next(tour: &impl Tour) {
-    let len = tour.size();
-    for ii in 0..len {
-        tour.next_at(ii);
-    }
-}
-
-fn bench_prev(tour: &impl Tour) {
-    let len = tour.size();
-    for ii in 0..len {
-        tour.prev_at(ii);
-    }
-}
-
-fn bench_between(tour: &impl Tour) {
-    let len = tour.size();
-    for _ in 0..len {
-        tour.between_at(5, 10, 15);
-        tour.between_at(50, 550, 1050);
-    }
-}
-
-fn array_benchmark(c: &mut Criterion) {
+fn benchmark_next(c: &mut Criterion) {
     let container_1mil = create_container(1_000_000);
     let arr_1mil = Array::new(&container_1mil);
-    c.bench_function("Array 1M Next", |b| b.iter(|| bench_next(&arr_1mil)));
-    c.bench_function("Array 1M Prev", |b| b.iter(|| bench_prev(&arr_1mil)));
-    c.bench_function("Array 1M Between", |b| b.iter(|| bench_between(&arr_1mil)));
-}
-
-fn tlt_benchmark(c: &mut Criterion) {
-    let container_1mil = create_container(1_000_000);
     let tlt_1mil = TwoLevelTree::with_default_order(&container_1mil, 100);
-    c.bench_function("TLT 1M Next", |b| b.iter(|| bench_next(&tlt_1mil)));
-    c.bench_function("TLT 1M Prev", |b| b.iter(|| bench_prev(&tlt_1mil)));
-    c.bench_function("TLT 1M Between", |b| b.iter(|| bench_between(&tlt_1mil)));
+    c.bench_function("Array 1M Next", |b| {
+        b.iter(|| arr_1mil.next_at(black_box(1_000_000 - 1)))
+    });
+    c.bench_function("TLT   1M Next", |b| {
+        b.iter(|| tlt_1mil.next_at(black_box(1_000_000 - 1)))
+    });
 }
 
-criterion_group!(benches, array_benchmark, tlt_benchmark);
+fn benchmark_prev(c: &mut Criterion) {
+    let container_1mil = create_container(1_000_000);
+    let arr_1mil = Array::new(&container_1mil);
+    let tlt_1mil = TwoLevelTree::with_default_order(&container_1mil, 100);
+    c.bench_function("Array 1M Prev", |b| {
+        b.iter(|| arr_1mil.prev_at(black_box(1_000_000 - 1)))
+    });
+    c.bench_function("TLT   1M Prev", |b| {
+        b.iter(|| tlt_1mil.prev_at(black_box(1_000_000 - 1)))
+    });
+}
+
+fn benchmark_between(c: &mut Criterion) {
+    let container_1mil = create_container(1_000_000);
+    let arr_1mil = Array::new(&container_1mil);
+    let tlt_1mil = TwoLevelTree::with_default_order(&container_1mil, 100);
+    c.bench_function("Array 1M Between", |b| {
+        b.iter(|| arr_1mil.between_at(black_box(1), black_box(500_000), black_box(1_000_000 - 1)))
+    });
+    c.bench_function("TLT   1M Between", |b| {
+        b.iter(|| tlt_1mil.between_at(black_box(1), black_box(500_000), black_box(1_000_000 - 1)))
+    });
+}
+
+criterion_group!(benches, benchmark_next, benchmark_prev, benchmark_between);
 criterion_main!(benches);
