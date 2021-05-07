@@ -113,13 +113,13 @@ impl<'a> Tour for Array<'a> {
     }
 
     #[inline]
-    fn next(&self, node: &Self::TourNode) -> Option<&Self::TourNode> {
+    fn successor(&self, node: &Self::TourNode) -> Option<&Self::TourNode> {
         // TODO: check if a node belongs to this tour/container.
-        self.next_at(node.index())
+        self.successor_at(node.index())
     }
 
     #[inline]
-    fn next_at(&self, node_idx: usize) -> Option<&Self::TourNode> {
+    fn successor_at(&self, node_idx: usize) -> Option<&Self::TourNode> {
         if node_idx > self.vertices.len() {
             return None;
         }
@@ -129,13 +129,13 @@ impl<'a> Tour for Array<'a> {
     }
 
     #[inline]
-    fn prev(&self, node: &Self::TourNode) -> Option<&Self::TourNode> {
+    fn predecessor(&self, node: &Self::TourNode) -> Option<&Self::TourNode> {
         // TODO: check if a node belongs to this tour/container.
-        self.prev_at(node.index())
+        self.predecessor_at(node.index())
     }
 
     #[inline]
-    fn prev_at(&self, node_idx: usize) -> Option<&Self::TourNode> {
+    fn predecessor_at(&self, node_idx: usize) -> Option<&Self::TourNode> {
         if node_idx > self.vertices.len() {
             return None;
         }
@@ -158,7 +158,7 @@ impl<'a> Tour for Array<'a> {
     }
 
     #[inline]
-    fn size(&self) -> usize {
+    fn len(&self) -> usize {
         self.vertices.len()
     }
 

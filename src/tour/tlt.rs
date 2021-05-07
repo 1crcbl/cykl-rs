@@ -345,11 +345,11 @@ impl<'a> Tour for TwoLevelTree<'a> {
         }
     }
 
-    fn next(&self, kin: &Self::TourNode) -> Option<&Self::TourNode> {
-        self.next_at(kin.index())
+    fn successor(&self, kin: &Self::TourNode) -> Option<&Self::TourNode> {
+        self.successor_at(kin.index())
     }
 
-    fn next_at(&self, kin_index: usize) -> Option<&Self::TourNode> {
+    fn successor_at(&self, kin_index: usize) -> Option<&Self::TourNode> {
         if let Some(kin) = self.vertices.get(kin_index) {
             let kin_borrow = kin.borrow();
             match kin_borrow.segment.upgrade() {
@@ -364,11 +364,11 @@ impl<'a> Tour for TwoLevelTree<'a> {
         }
     }
 
-    fn prev(&self, kin: &Self::TourNode) -> Option<&Self::TourNode> {
-        self.prev_at(kin.index())
+    fn predecessor(&self, kin: &Self::TourNode) -> Option<&Self::TourNode> {
+        self.predecessor_at(kin.index())
     }
 
-    fn prev_at(&self, kin_index: usize) -> Option<&Self::TourNode> {
+    fn predecessor_at(&self, kin_index: usize) -> Option<&Self::TourNode> {
         if let Some(kin) = self.vertices.get(kin_index) {
             let kin_borrow = kin.borrow();
             match kin_borrow.segment.upgrade() {
@@ -388,7 +388,7 @@ impl<'a> Tour for TwoLevelTree<'a> {
     }
 
     #[inline]
-    fn size(&self) -> usize {
+    fn len(&self) -> usize {
         self.vertices.len()
     }
 

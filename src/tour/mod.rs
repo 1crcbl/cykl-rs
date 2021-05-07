@@ -66,7 +66,7 @@ pub trait Tour {
     ///
     /// Since a tour is a cycle, the direct successor of the last vertex is the first vertex
     /// in the forward traversal of the tour.
-    fn next(&self, kin: &Self::TourNode) -> Option<&Self::TourNode>;
+    fn successor(&self, kin: &Self::TourNode) -> Option<&Self::TourNode>;
 
     /// Returns a reference to a vertex which is the direct successor of the vertex at the given
     /// index in the forward traversal of the tour.
@@ -76,7 +76,7 @@ pub trait Tour {
     ///
     /// Since a tour is a cycle, the direct successor of the last vertex is the first vertex
     /// in the forward traversal of the tour.
-    fn next_at(&self, kin_index: usize) -> Option<&Self::TourNode>;
+    fn successor_at(&self, kin_index: usize) -> Option<&Self::TourNode>;
 
     /// Returns a reference to a vertex which is the direct predecessor of the vertex at the given
     /// index in the forward traversal of the tour.
@@ -86,7 +86,7 @@ pub trait Tour {
     ///
     /// Since a tour is a cycle, the direct predecessor of the last vertex is the first vertex
     /// in the forward traversal of the tour.
-    fn prev(&self, kin: &Self::TourNode) -> Option<&Self::TourNode>;
+    fn predecessor(&self, kin: &Self::TourNode) -> Option<&Self::TourNode>;
 
     /// Returns a reference to a vertex which is the direct predecessor of the vertex at the given
     /// index in the forward traversal of the tour.
@@ -96,13 +96,13 @@ pub trait Tour {
     ///
     /// Since a tour is a cycle, the direct predecessor of the first vertex is the last vertex
     /// in the forward traversal of the tour.
-    fn prev_at(&self, kin_index: usize) -> Option<&Self::TourNode>;
+    fn predecessor_at(&self, kin_index: usize) -> Option<&Self::TourNode>;
 
     /// Resets all the internal states of the tour and its vertices.
     fn reset(&mut self);
 
     /// Returns the number of vertices in the tour.
-    fn size(&self) -> usize;
+    fn len(&self) -> usize;
 
     /// Returns the total distance of completely traversing through the tour.
     fn total_distance(&self) -> Scalar;

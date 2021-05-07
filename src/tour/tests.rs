@@ -18,22 +18,22 @@ pub fn test_tree_order(tour: &impl Tour, expected: &TourOrder) {
     let expected = &expected.order;
     let len = expected.len();
 
-    assert_eq!(tour.size(), len);
-    assert_eq!(tour.get(expected[0]), tour.next_at(expected[len - 1]));
-    assert_eq!(tour.get(expected[len - 1]), tour.prev_at(expected[0]));
+    assert_eq!(tour.len(), len);
+    assert_eq!(tour.get(expected[0]), tour.successor_at(expected[len - 1]));
+    assert_eq!(tour.get(expected[len - 1]), tour.predecessor_at(expected[0]));
 
     for ii in 1..(expected.len() - 1) {
-        assert_eq!(tour.get(expected[ii]), tour.prev_at(expected[ii + 1]));
-        assert_eq!(tour.get(expected[ii + 1]), tour.next_at(expected[ii]));
+        assert_eq!(tour.get(expected[ii]), tour.predecessor_at(expected[ii + 1]));
+        assert_eq!(tour.get(expected[ii + 1]), tour.successor_at(expected[ii]));
     }
 
     assert_eq!(
         tour.get(expected[0]),
-        tour.next(tour.get(expected[len - 1]).unwrap())
+        tour.successor(tour.get(expected[len - 1]).unwrap())
     );
     assert_eq!(
         tour.get(expected[len - 1]),
-        tour.prev(tour.get(expected[0]).unwrap())
+        tour.predecessor(tour.get(expected[0]).unwrap())
     );
 }
 
@@ -78,10 +78,10 @@ mod tests_array {
         let tour = Array::new(&container);
 
         // [2] -> [3]
-        assert_eq!(tour.get(3).unwrap(), tour.next_at(2).unwrap());
+        assert_eq!(tour.get(3).unwrap(), tour.successor_at(2).unwrap());
 
         // [4] -> [0]
-        assert_eq!(tour.get(0).unwrap(), tour.next_at(9).unwrap());
+        assert_eq!(tour.get(0).unwrap(), tour.successor_at(9).unwrap());
     }
 
     #[test]
@@ -90,10 +90,10 @@ mod tests_array {
         let tour = Array::new(&container);
 
         // [2] -> [3]
-        assert_eq!(tour.get(2).unwrap(), tour.prev_at(3).unwrap());
+        assert_eq!(tour.get(2).unwrap(), tour.predecessor_at(3).unwrap());
 
         // [4] -> [0]
-        assert_eq!(tour.get(9).unwrap(), tour.prev_at(0).unwrap());
+        assert_eq!(tour.get(9).unwrap(), tour.predecessor_at(0).unwrap());
     }
 
     #[test]

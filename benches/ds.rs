@@ -19,27 +19,27 @@ pub fn create_container(n_nodes: usize) -> Container {
     container
 }
 
-fn benchmark_next(c: &mut Criterion) {
+fn benchmark_successor(c: &mut Criterion) {
     let container_1mil = create_container(1_000_000);
     let arr_1mil = Array::new(&container_1mil);
     let tlt_1mil = TwoLevelTree::with_default_order(&container_1mil, 100);
-    c.bench_function("Array 1M Next", |b| {
-        b.iter(|| arr_1mil.next_at(black_box(1_000_000 - 1)))
+    c.bench_function("Array 1M Successor", |b| {
+        b.iter(|| arr_1mil.successor_at(black_box(1_000_000 - 1)))
     });
-    c.bench_function("TLT   1M Next", |b| {
-        b.iter(|| tlt_1mil.next_at(black_box(1_000_000 - 1)))
+    c.bench_function("TLT   1M Successor", |b| {
+        b.iter(|| tlt_1mil.successor_at(black_box(1_000_000 - 1)))
     });
 }
 
-fn benchmark_prev(c: &mut Criterion) {
+fn benchmark_predecessor(c: &mut Criterion) {
     let container_1mil = create_container(1_000_000);
     let arr_1mil = Array::new(&container_1mil);
     let tlt_1mil = TwoLevelTree::with_default_order(&container_1mil, 100);
-    c.bench_function("Array 1M Prev", |b| {
-        b.iter(|| arr_1mil.prev_at(black_box(1_000_000 - 1)))
+    c.bench_function("Array 1M Predecessor", |b| {
+        b.iter(|| arr_1mil.predecessor_at(black_box(1_000_000 - 1)))
     });
-    c.bench_function("TLT   1M Prev", |b| {
-        b.iter(|| tlt_1mil.prev_at(black_box(1_000_000 - 1)))
+    c.bench_function("TLT   1M Predecessor", |b| {
+        b.iter(|| tlt_1mil.predecessor_at(black_box(1_000_000 - 1)))
     });
 }
 
@@ -55,5 +55,5 @@ fn benchmark_between(c: &mut Criterion) {
     });
 }
 
-criterion_group!(benches, benchmark_next, benchmark_prev, benchmark_between);
+criterion_group!(benches, benchmark_successor, benchmark_predecessor, benchmark_between);
 criterion_main!(benches);
