@@ -463,4 +463,42 @@ mod test_tll {
         assert!(tree.between_at(8, 5, 3)); // true
         assert!(!tree.between_at(8, 3, 5)); // false
     }
+
+    #[test]
+    fn test_flip_1() {
+        let n_nodes = 50;
+        let container = create_container(n_nodes);
+        let mut tree = TwoLevelList::new(&container, 10);
+        tree.apply(&TourOrder::new((0..n_nodes).collect()));
+
+        tree.flip_at(3, 4, 8, 9);
+        let mut expected = vec![0, 1, 2, 3, 8, 7, 6, 5, 4, 9];
+        expected.append(&mut (10..n_nodes).collect());
+        test_tour_order(&tree, &TourOrder::new(expected));
+
+        tree.flip_at(3, 8, 4, 9);
+        test_tour_order(&tree, &TourOrder::new((0..n_nodes).collect()));
+
+        tree.flip_at(8, 9, 3, 4);
+        let mut expected = vec![0, 1, 2, 3, 8, 7, 6, 5, 4, 9];
+        expected.append(&mut (10..n_nodes).collect());
+        test_tour_order(&tree, &TourOrder::new(expected));
+
+        tree.flip_at(4, 9, 3, 8);
+        let mut expected = vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
+        expected.append(&mut (10..n_nodes).collect());
+        test_tour_order(&tree, &TourOrder::new(expected));
+
+        // Reverses the entire segment.
+        tree.flip_at(9, 10, 19, 20);
+        let mut expected: Vec<usize> = (0..10).collect();
+        expected.append(&mut (10..20).rev().collect());
+        expected.append(&mut (20..n_nodes).collect());
+        test_tour_order(&tree, &TourOrder::new(expected));
+
+        unsafe {
+            (*tree.segment(1).unwrap().unwrap().as_ptr()).reverse();
+        }
+        test_tour_order(&tree, &TourOrder::new((0..n_nodes).collect()));
+    }
 }

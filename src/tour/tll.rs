@@ -197,44 +197,46 @@ impl<'a> Tour for TwoLevelList<'a> {
         ) {
             match (ofan, otan, ofbn, otbn) {
                 (Some(fan), Some(tan), Some(fbn), Some(tbn)) => unsafe {
-                    match ((*fan.as_ptr()).segment, (*tan.as_ptr()).segment, (*fbn.as_ptr()).segment, (*tbn.as_ptr()).segment) {
+                    match (
+                        (*fan.as_ptr()).segment,
+                        (*tan.as_ptr()).segment,
+                        (*fbn.as_ptr()).segment,
+                        (*tbn.as_ptr()).segment,
+                    ) {
                         (Some(sfa), Some(sta), Some(sfb), Some(stb)) => {
-                            let (left, right, parent) = if sfa == stb && (*tbn.as_ptr()).rank <= (*fan.as_ptr()).rank {
-                                (*tbn, *fan, sfa)
-                            } else if sfb == sta && (*tan.as_ptr()).rank <= (*fbn.as_ptr()).rank {
-                                (*tan, *fbn, sfb)
-                            } else {
-                                return
-                            };
-
-                            let (rl, rr) = ((*left.as_ptr()).rank, (*right.as_ptr()).rank);
-                            let mut rank = rr;
-                            let mut node = left;
-                            while rank >= rl {
-                                let tmp = (*node.as_ptr()).successor;
-                                (*node.as_ptr()).successor = (*node.as_ptr()).predecessor;
-                                (*node.as_ptr()).predecessor = tmp;
-                                (*node.as_ptr()).rank = rank;
-                                rank -= 1;
-                                
-                                match tmp {
-                                    Some(next) => node = next,
-                                    None => break,
+                            if sfa == stb && (*tbn.as_ptr()).rank <= (*fan.as_ptr()).rank {
+                                if ((*sfa.as_ptr()).first == *ofan
+                                    && (*sfa.as_ptr()).reverse
+                                    && (*sfa.as_ptr()).last == *otbn)
+                                    || ((*sfa.as_ptr()).first == *otbn
+                                        && (*sfa.as_ptr()).last == *ofan)
+                                {
+                                    return (*sfa.as_ptr()).reverse();
                                 }
+                                return reverse_segment(&sfa, &tbn, &fan);
+                            } else if sfb == sta && (*tan.as_ptr()).rank <= (*fbn.as_ptr()).rank {
+                                if ((*sfb.as_ptr()).first == *ofbn
+                                    && (*sfb.as_ptr()).reverse
+                                    && (*sfb.as_ptr()).last == *otan)
+                                    || ((*sfb.as_ptr()).first == *otan
+                                        && (*sfb.as_ptr()).last == *ofbn)
+                                {
+                                    return (*sfb.as_ptr()).reverse();
+                                }
+                                return reverse_segment(&sfb, &tan, &fbn);
                             }
                         }
-                        _ => panic!("Node without segment while flipping.")
+                        _ => panic!("Node without segment while flipping."),
                     }
-
-                }
-                _ => panic!("Nullpointer")
+                },
+                _ => panic!("Nullpointer"),
             }
 
             // TODO: better panic message.
-
         }
     }
 
+    #[inline]
     fn get(&self, index: usize) -> Option<&Self::TourNode> {
         match self.vertices.get(index) {
             Some(v) => match v {
@@ -347,7 +349,7 @@ impl TllNode {
 
 impl Vertex for TllNode {
     fn index(&self) -> usize {
-        todo!()
+        self.data.index()
     }
 
     fn is_visited(&self) -> bool {
@@ -425,4 +427,64 @@ impl Segment {
 fn to_nonnull<T>(x: T) -> Option<NonNull<T>> {
     let boxed = Box::new(x);
     Some(Box::leak(boxed).into())
+}
+
+// TODO: should be mut self.
+// TODO: better panic msg.
+unsafe fn reverse_segment(seg: &NonNull<Segment>, a: &NonNull<TllNode>, b: &NonNull<TllNode>) {
+    let a_pred = (*a.as_ptr()).predecessor;
+    let b_succ = (*b.as_ptr()).successor;
+    (*a.as_ptr()).predecessor = b_succ;
+    (*b.as_ptr()).successor = a_pred;
+
+    let (rl, rr) = ((*a.as_ptr()).rank, (*b.as_ptr()).rank);
+    let mut rank = rr;
+    let mut node = *a;
+
+    while rank >= rl {
+        let tmp = (*node.as_ptr()).successor;
+        (*node.as_ptr()).successor = (*node.as_ptr()).predecessor;
+        (*node.as_ptr()).predecessor = tmp;
+        (*node.as_ptr()).rank = rank;
+        rank -= 1;
+
+        match tmp {
+            Some(next) => node = next,
+            None => break,
+        }
+    }
+
+    match a_pred {
+        Some(pred) => {
+            if (*pred.as_ptr()).predecessor == Some(*a) {
+                (*pred.as_ptr()).predecessor = Some(*b);
+            } else {
+                (*pred.as_ptr()).successor = Some(*b);
+            }
+        }
+        None => panic!("No predecessor when attempting to reverse segment."),
+    }
+
+    match b_succ {
+        Some(succ) => {
+            if (*succ.as_ptr()).predecessor == Some(*b) {
+                (*succ.as_ptr()).predecessor = Some(*a);
+            } else {
+                (*succ.as_ptr()).successor = Some(*a);
+            }
+        }
+        None => panic!("No predecessor when attempting to reverse segment."),
+    }
+
+    if (*seg.as_ptr()).first == Some(*a) {
+        (*seg.as_ptr()).first = Some(*b);
+    } else if (*seg.as_ptr()).first == Some(*b) {
+        (*seg.as_ptr()).first = Some(*a);
+    }
+
+    if (*seg.as_ptr()).last == Some(*a) {
+        (*seg.as_ptr()).last = Some(*b);
+    } else if (*seg.as_ptr()).last == Some(*b) {
+        (*seg.as_ptr()).last = Some(*a);
+    }
 }
