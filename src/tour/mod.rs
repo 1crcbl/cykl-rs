@@ -10,6 +10,8 @@ mod tlt;
 pub use tlt::TltVertex;
 pub use tlt::TwoLevelTree;
 
+pub mod tll;
+
 mod tests;
 
 pub trait Tour {
@@ -140,7 +142,10 @@ impl TourOrder {
     }
 }
 
-fn between(from: usize, mid: usize, to: usize) -> bool {
+fn between<T>(from: T, mid: T, to: T) -> bool
+where
+    T: PartialEq + PartialOrd,
+{
     if from <= to {
         from <= mid && mid <= to
     } else {

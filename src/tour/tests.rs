@@ -14,27 +14,26 @@ pub fn create_container(n_nodes: usize) -> Container {
 }
 
 #[allow(dead_code)]
-pub fn test_tree_order(tour: &impl Tour, expected: &TourOrder) {
+pub fn test_tour_order(tour: &impl Tour, expected: &TourOrder) {
     let expected = &expected.order;
     let len = expected.len();
 
     assert_eq!(tour.len(), len);
-    assert_eq!(tour.get(expected[0]), tour.successor_at(expected[len - 1]));
-    assert_eq!(tour.get(expected[len - 1]), tour.predecessor_at(expected[0]));
 
-    for ii in 1..(expected.len() - 1) {
-        assert_eq!(tour.get(expected[ii]), tour.predecessor_at(expected[ii + 1]));
-        assert_eq!(tour.get(expected[ii + 1]), tour.successor_at(expected[ii]));
+    for ii in 0..(expected.len() - 1) {
+        assert_eq!(
+            tour.get(expected[(len + ii - 1) % len]),
+            tour.predecessor_at(expected[ii]),
+            "Test predecessor at index = {}",
+            ii
+        );
+        assert_eq!(
+            tour.get(expected[(ii + 1) % len]),
+            tour.successor_at(expected[ii]),
+            "Test successor at index = {}",
+            ii
+        );
     }
-
-    assert_eq!(
-        tour.get(expected[0]),
-        tour.successor(tour.get(expected[len - 1]).unwrap())
-    );
-    assert_eq!(
-        tour.get(expected[len - 1]),
-        tour.predecessor(tour.get(expected[0]).unwrap())
-    );
 }
 
 #[test]
@@ -58,7 +57,7 @@ mod tests_array {
         let mut tour = Array::new(&container);
         let expected = TourOrder::new(vec![3, 0, 4, 1, 6, 8, 7, 9, 5, 2]);
         tour.apply(&expected);
-        test_tree_order(&tour, &expected);
+        test_tour_order(&tour, &expected);
     }
 
     #[test]
@@ -103,7 +102,7 @@ mod tests_array {
 
         // [0] <-> [9]
         tour.swap_at(0, 9);
-        test_tree_order(&tour, &TourOrder::new(vec![9, 1, 2, 3, 4, 5, 6, 7, 8, 0]));
+        test_tour_order(&tour, &TourOrder::new(vec![9, 1, 2, 3, 4, 5, 6, 7, 8, 0]));
     }
 
     #[test]
@@ -162,7 +161,7 @@ mod tests_tlt {
         let mut tour = TwoLevelTree::new(&container, 4);
         let expected = TourOrder::new(vec![3, 0, 4, 1, 6, 8, 7, 9, 5, 2]);
         tour.apply(&expected);
-        test_tree_order(&tour, &expected);
+        test_tour_order(&tour, &expected);
     }
 
     #[test]
@@ -231,30 +230,30 @@ mod tests_tlt {
         tree.flip_at(3, 4, 8, 9);
         let mut expected = vec![0, 1, 2, 3, 8, 7, 6, 5, 4, 9];
         expected.append(&mut (10..n_nodes).collect());
-        test_tree_order(&tree, &TourOrder::new(expected));
+        test_tour_order(&tree, &TourOrder::new(expected));
 
         tree.flip_at(3, 8, 4, 9);
-        test_tree_order(&tree, &TourOrder::new((0..n_nodes).collect()));
+        test_tour_order(&tree, &TourOrder::new((0..n_nodes).collect()));
 
         tree.flip_at(8, 9, 3, 4);
         let mut expected = vec![0, 1, 2, 3, 8, 7, 6, 5, 4, 9];
         expected.append(&mut (10..n_nodes).collect());
-        test_tree_order(&tree, &TourOrder::new(expected));
+        test_tour_order(&tree, &TourOrder::new(expected));
 
         tree.flip_at(4, 9, 3, 8);
         let mut expected = vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
         expected.append(&mut (10..n_nodes).collect());
-        test_tree_order(&tree, &TourOrder::new(expected));
+        test_tour_order(&tree, &TourOrder::new(expected));
 
         // Reverses the entire segment.
         tree.flip_at(9, 10, 19, 20);
         let mut expected: Vec<usize> = (0..10).collect();
         expected.append(&mut (10..20).rev().collect());
         expected.append(&mut (20..n_nodes).collect());
-        test_tree_order(&tree, &TourOrder::new(expected));
+        test_tour_order(&tree, &TourOrder::new(expected));
 
         tree.segment(1).borrow_mut().reverse();
-        test_tree_order(&tree, &TourOrder::new((0..n_nodes).collect()));
+        test_tour_order(&tree, &TourOrder::new((0..n_nodes).collect()));
     }
 
     // Test flip case: New paths consist of a sequence of consecutive segments.
@@ -271,20 +270,20 @@ mod tests_tlt {
         expected.append(&mut (20..30).rev().collect());
         expected.append(&mut (10..20).rev().collect());
         expected.append(&mut (30..n_nodes).collect());
-        test_tree_order(&tree, &TourOrder::new(expected));
+        test_tour_order(&tree, &TourOrder::new(expected));
 
         tree.flip_at(10, 30, 9, 29);
-        test_tree_order(&tree, &TourOrder::new((0..n_nodes).collect()));
+        test_tour_order(&tree, &TourOrder::new((0..n_nodes).collect()));
 
         tree.flip_at(29, 30, 9, 10);
         let mut expected: Vec<usize> = (0..10).collect();
         expected.append(&mut (20..30).rev().collect());
         expected.append(&mut (10..20).rev().collect());
         expected.append(&mut (30..n_nodes).collect());
-        test_tree_order(&tree, &TourOrder::new(expected));
+        test_tour_order(&tree, &TourOrder::new(expected));
 
         tree.flip_at(9, 29, 10, 30);
-        test_tree_order(&tree, &TourOrder::new((0..n_nodes).collect()));
+        test_tour_order(&tree, &TourOrder::new((0..n_nodes).collect()));
 
         tree.segment(1).borrow_mut().reverse();
 
@@ -293,7 +292,7 @@ mod tests_tlt {
         expected.append(&mut (20..30).rev().collect());
         expected.append(&mut (10..20).collect());
         expected.append(&mut (30..n_nodes).collect());
-        test_tree_order(&tree, &TourOrder::new(expected));
+        test_tour_order(&tree, &TourOrder::new(expected));
     }
 
     // Test flip case: New paths consist of a sequence of consecutive segments.
@@ -309,19 +308,19 @@ mod tests_tlt {
         expected.append(&mut (10..90).collect());
         expected.append(&mut (0..10).rev().collect());
         tree.flip_at(9, 10, 89, 90);
-        test_tree_order(&tree, &TourOrder::new(expected));
+        test_tour_order(&tree, &TourOrder::new(expected));
 
         tree.flip_at(90, 10, 89, 9);
-        test_tree_order(&tree, &TourOrder::new((0..n_nodes).collect()));
+        test_tour_order(&tree, &TourOrder::new((0..n_nodes).collect()));
 
         let mut expected: Vec<usize> = (90..n_nodes).rev().collect();
         expected.append(&mut (10..90).collect());
         expected.append(&mut (0..10).rev().collect());
         tree.flip_at(89, 90, 9, 10);
-        test_tree_order(&tree, &TourOrder::new(expected));
+        test_tour_order(&tree, &TourOrder::new(expected));
 
         tree.flip_at(89, 9, 90, 10);
-        test_tree_order(&tree, &TourOrder::new((0..n_nodes).collect()));
+        test_tour_order(&tree, &TourOrder::new((0..n_nodes).collect()));
 
         tree.segment(8).borrow_mut().reverse();
 
@@ -330,7 +329,7 @@ mod tests_tlt {
         expected.append(&mut (0..10).rev().collect());
         expected.append(&mut (90..n_nodes).rev().collect());
         tree.flip_at(9, 10, 79, 89);
-        test_tree_order(&tree, &TourOrder::new(expected));
+        test_tour_order(&tree, &TourOrder::new(expected));
     }
 
     // Test flip case: Vertices are positioned in the middle of segments.
@@ -344,14 +343,14 @@ mod tests_tlt {
         let mut expected: Vec<usize> = (0..16).collect();
         expected.append(&mut (16..26).rev().collect());
         expected.append(&mut (26..n_nodes).collect());
-        test_tree_order(&tree, &TourOrder::new(expected));
+        test_tour_order(&tree, &TourOrder::new(expected));
 
         let mut tree = TwoLevelTree::with_default_order(&container, 10);
         tree.flip_at(12, 13, 92, 93);
         let mut expected: Vec<usize> = (0..13).rev().collect();
         expected.append(&mut (93..n_nodes).rev().collect());
         expected.append(&mut (13..93).collect());
-        test_tree_order(&tree, &TourOrder::new(expected));
+        test_tour_order(&tree, &TourOrder::new(expected));
     }
 
     #[test]
@@ -364,20 +363,20 @@ mod tests_tlt {
 
         // 0 -> 1 -> 2 -> 5 -> 4 -> 3 -> 6 -> 7 -> 8 -> 9
         tree.segment(1).borrow_mut().reverse();
-        test_tree_order(&tree, &TourOrder::new(vec![0, 1, 2, 5, 4, 3, 6, 7, 8, 9]));
+        test_tour_order(&tree, &TourOrder::new(vec![0, 1, 2, 5, 4, 3, 6, 7, 8, 9]));
 
         // 0 -> 1 -> 2 -> 5 -> 4 -> 3 -> 8 -> 7 -> 6 -> 9
         tree.segment(2).borrow_mut().reverse();
         let order = TourOrder::new(vec![0, 1, 2, 5, 4, 3, 8, 7, 6, 9]);
-        test_tree_order(&tree, &order);
+        test_tour_order(&tree, &order);
 
         tree.segment(3).borrow_mut().reverse();
-        test_tree_order(&tree, &order);
+        test_tour_order(&tree, &order);
 
         // 0 -> 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9
         tree.segment(1).borrow_mut().reverse();
         tree.segment(2).borrow_mut().reverse();
-        test_tree_order(&tree, &TourOrder::new((0..10).collect()));
+        test_tour_order(&tree, &TourOrder::new((0..10).collect()));
     }
 
     #[test]
@@ -389,7 +388,7 @@ mod tests_tlt {
 
         // Original: [0 1 2 3 4] [5 6 7 >8< 9] [10 11 12 13 14]
         tree.split_seg(1, 3);
-        test_tree_order(&tree, &TourOrder::new((0..n_nodes).collect()));
+        test_tour_order(&tree, &TourOrder::new((0..n_nodes).collect()));
         assert_eq!(5, tree.segment(0).borrow().len());
         assert_eq!(3, tree.segment(1).borrow().len());
         assert_eq!(7, tree.segment(2).borrow().len());
@@ -399,13 +398,69 @@ mod tests_tlt {
         let mut expected: Vec<usize> = (0..8).collect();
         expected.append(&mut vec![14, 13, 12, 11, 10, 9, 8]);
         let expected = TourOrder::new(expected);
-        test_tree_order(&tree, &expected);
+        test_tour_order(&tree, &expected);
 
         // [8 9 10 11 >12< 13 14] (Reverse)
         tree.split_seg(2, 4);
-        test_tree_order(&tree, &expected);
+        test_tour_order(&tree, &expected);
         assert_eq!(5, tree.segment(0).borrow().len());
         assert_eq!(6, tree.segment(1).borrow().len());
         assert_eq!(4, tree.segment(2).borrow().len());
+    }
+}
+
+#[allow(dead_code, unused_imports)]
+mod test_tll {
+    use crate::tour::{
+        tests::{create_container, test_tour_order},
+        tll::TwoLevelList,
+        Tour, TourOrder,
+    };
+
+    #[test]
+    fn test_between() {
+        let n_nodes = 10;
+        let container = create_container(n_nodes);
+        let mut tree = TwoLevelList::new(&container, 3);
+        tree.apply(&TourOrder::new((0..n_nodes).collect()));
+
+        //  0 -> 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9
+
+        // All vertices reside under the same parent node.
+        assert!(tree.between_at(0, 1, 2)); // true
+        assert!(!tree.between_at(0, 2, 1)); // false
+        assert!(!tree.between_at(2, 1, 0)); // false
+        assert!(tree.between_at(2, 0, 1)); // true
+
+        // All vertices reside under distinct parent node.
+        assert!(tree.between_at(2, 3, 7)); // true
+        assert!(!tree.between_at(2, 7, 3)); // true
+        assert!(!tree.between_at(7, 3, 2)); // false
+        assert!(tree.between_at(7, 2, 3)); // true
+
+        // Two out of three vertices reside under the same parent node.
+        assert!(tree.between_at(3, 5, 8)); // true
+        assert!(!tree.between_at(3, 8, 5)); // false
+        assert!(!tree.between_at(8, 5, 3)); // false
+        assert!(tree.between_at(8, 3, 5)); // true
+
+        // Reverse [3 4 5]
+        assert!(tree.between_at(3, 4, 5)); // true
+        assert!(!tree.between_at(5, 4, 3)); // false
+
+        //tree.segment(1).borrow_mut().reverse();
+        unsafe {
+            (*tree.segment(1).unwrap().unwrap().as_ptr()).reverse();
+        }
+
+        test_tour_order(&tree, &TourOrder::new(vec![0, 1, 2, 5, 4, 3, 6, 7, 8, 9]));
+
+        assert!(!tree.between_at(3, 4, 5)); // false
+        assert!(tree.between_at(5, 4, 3)); // true
+
+        assert!(!tree.between_at(3, 5, 8)); // false
+        assert!(tree.between_at(3, 8, 5)); // true
+        assert!(tree.between_at(8, 5, 3)); // true
+        assert!(!tree.between_at(8, 3, 5)); // false
     }
 }
