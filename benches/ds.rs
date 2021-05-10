@@ -126,13 +126,33 @@ fn benchmark_flip_case_2(c: &mut Criterion) {
     c.bench_function("TLL   1M Flip - Case 2", |b| b.iter(|| flip(&mut tll_1mil)));
 }
 
+/// Flip multiple segments.
+fn benchmark_flip_case_3(c: &mut Criterion) {
+    fn flip(tour: &mut impl Tour) {
+        let left = black_box(99);
+        let next_left = tour.successor_at(left).unwrap().index();
+        let next_right = 600;
+        let right = tour.predecessor_at(next_right).unwrap().index();
+        tour.flip_at(left, next_left, right, next_right);
+    }
+
+    let container_1mil = create_container(1_000_000);
+    let mut arr_1mil = Array::new(&container_1mil);
+    let mut tlt_1mil = TwoLevelTree::with_default_order(&container_1mil, 100);
+    let mut tll_1mil = TwoLevelList::with_default_order(&container_1mil, 100);
+    c.bench_function("Array 1M Flip - Case 3", |b| b.iter(|| flip(&mut arr_1mil)));
+    c.bench_function("TLT   1M Flip - Case 3", |b| b.iter(|| flip(&mut tlt_1mil)));
+    c.bench_function("TLL   1M Flip - Case 3", |b| b.iter(|| flip(&mut tll_1mil)));
+}
+
 criterion_group!(
     benches,
-    // benchmark_get,
-    // benchmark_successor,
-    // benchmark_predecessor,
-    // benchmark_between,
+    benchmark_get,
+    benchmark_successor,
+    benchmark_predecessor,
+    benchmark_between,
     benchmark_flip_case_1,
     benchmark_flip_case_2,
+    benchmark_flip_case_3,
 );
 criterion_main!(benches);

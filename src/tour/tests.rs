@@ -448,7 +448,6 @@ mod test_tll {
         assert!(tree.between_at(3, 4, 5)); // true
         assert!(!tree.between_at(5, 4, 3)); // false
 
-        //tree.segment(1).borrow_mut().reverse();
         unsafe {
             (*tree.segment(1).unwrap().unwrap().as_ptr()).reverse();
         }
@@ -500,5 +499,46 @@ mod test_tll {
             (*tree.segment(1).unwrap().unwrap().as_ptr()).reverse();
         }
         test_tour_order(&tree, &TourOrder::new((0..n_nodes).collect()));
+    }
+
+    // Test flip case: New paths consist of a sequence of consecutive segments.
+    // This test focuses on inner reverse.
+    #[test]
+    fn test_flip_2() {
+        let n_nodes = 50;
+        let container = create_container(n_nodes);
+        let mut tree = TwoLevelList::new(&container, 10);
+        tree.apply(&TourOrder::new((0..n_nodes).collect()));
+
+        tree.flip_at(9, 10, 29, 30);
+        let mut expected: Vec<usize> = (0..10).collect();
+        expected.append(&mut (20..30).rev().collect());
+        expected.append(&mut (10..20).rev().collect());
+        expected.append(&mut (30..n_nodes).collect());
+        test_tour_order(&tree, &TourOrder::new(expected));
+
+        tree.flip_at(10, 30, 9, 29);
+        test_tour_order(&tree, &TourOrder::new((0..n_nodes).collect()));
+
+        tree.flip_at(29, 30, 9, 10);
+        let mut expected: Vec<usize> = (0..10).collect();
+        expected.append(&mut (20..30).rev().collect());
+        expected.append(&mut (10..20).rev().collect());
+        expected.append(&mut (30..n_nodes).collect());
+        test_tour_order(&tree, &TourOrder::new(expected));
+
+        tree.flip_at(9, 29, 10, 30);
+        test_tour_order(&tree, &TourOrder::new((0..n_nodes).collect()));
+
+        unsafe {
+            (*tree.segment(1).unwrap().unwrap().as_ptr()).reverse();
+        }
+
+        tree.flip_at(9, 19, 29, 30);
+        let mut expected: Vec<usize> = (0..10).collect();
+        expected.append(&mut (20..30).rev().collect());
+        expected.append(&mut (10..20).collect());
+        expected.append(&mut (30..n_nodes).collect());
+        test_tour_order(&tree, &TourOrder::new(expected));
     }
 }

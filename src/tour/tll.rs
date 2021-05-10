@@ -204,6 +204,10 @@ impl<'a> Tour for TwoLevelList<'a> {
                         (*tbn.as_ptr()).segment,
                     ) {
                         (Some(sfa), Some(sta), Some(sfb), Some(stb)) => {
+                            // Case 1: Either the entire path (to_b, from_a) or (to_a, from_b)
+                            // resides in the same segment. In this case, we will flip either the
+                            // local path or the entire segment if both nodes are the end nodes
+                            // of that segment.
                             if sfa == stb && (*tbn.as_ptr()).rank <= (*fan.as_ptr()).rank {
                                 if ((*sfa.as_ptr()).first == *ofan
                                     && (*sfa.as_ptr()).reverse
@@ -213,7 +217,7 @@ impl<'a> Tour for TwoLevelList<'a> {
                                 {
                                     return (*sfa.as_ptr()).reverse();
                                 }
-                                return reverse_segment(&sfa, &tbn, &fan);
+                                return reverse_int_seg(&sfa, &tbn, &fan);
                             } else if sfb == sta && (*tan.as_ptr()).rank <= (*fbn.as_ptr()).rank {
                                 if ((*sfb.as_ptr()).first == *ofbn
                                     && (*sfb.as_ptr()).reverse
@@ -223,8 +227,56 @@ impl<'a> Tour for TwoLevelList<'a> {
                                 {
                                     return (*sfb.as_ptr()).reverse();
                                 }
-                                return reverse_segment(&sfb, &tan, &fbn);
+                                return reverse_int_seg(&sfb, &tan, &fbn);
                             }
+
+                            // Case 2: Both paths (to_b, from_a) AND (to_a, from_b) consist of a
+                            // sequence of consecutive segments. Since to_a and to_b are direct
+                            // successors of from_a and from_b, this means that all vertices are
+                            // either at the head or the tail of their corresponding segments.
+                            // Thus, we only need to reverse these segments.
+                            //
+                            // Case 1 and 2 are special arrangements of vertices in the tour. A more
+                            // general case is when vertices are positioned somewhere in the middle
+                            // of their segments. To tackle this case, we will rearrange affected
+                            // vertices by splitting their corresponding segments so that the
+                            // requirements for case 1 or 2 are satisfied.
+
+                            // Logic to handle case 2.
+                            let (sfa_r, sta_r, sfb_r, stb_r) = (
+                                (*sfa.as_ptr()).rank,
+                                (*sta.as_ptr()).rank,
+                                (*sfb.as_ptr()).rank,
+                                (*stb.as_ptr()).rank,
+                            );
+
+                            let (diff1, is_inner1) = if sta_r <= sfb_r {
+                                (sfb_r - sta_r, true)
+                            } else {
+                                (self.segments.len() - sta_r + sfb_r, false)
+                            };
+
+                            let (diff2, is_inner2) = if stb_r <= sfa_r {
+                                (sfa_r - stb_r, true)
+                            } else {
+                                (self.segments.len() - stb_r + sfa_r, false)
+                            };
+
+                            if diff1 <= diff2 {
+                                // Reverses the path (to_a, from_b).
+                                if is_inner1 {
+                                    return reverse_segs(&sta, &sfb);
+                                } else {
+                                    todo!()
+                                }
+                            } else {
+                                // Reverses the path (to_b, from_a).
+                                if is_inner2 {
+                                    return reverse_segs(&stb, &sfa);
+                                } else {
+                                    todo!()
+                                }
+                            };
                         }
                         _ => panic!("Node without segment while flipping."),
                     }
@@ -429,9 +481,9 @@ fn to_nonnull<T>(x: T) -> Option<NonNull<T>> {
     Some(Box::leak(boxed).into())
 }
 
-// TODO: should be mut self.
+/// Reverse a segment internally.
 // TODO: better panic msg.
-unsafe fn reverse_segment(seg: &NonNull<Segment>, a: &NonNull<TllNode>, b: &NonNull<TllNode>) {
+unsafe fn reverse_int_seg(seg: &NonNull<Segment>, a: &NonNull<TllNode>, b: &NonNull<TllNode>) {
     let a_pred = (*a.as_ptr()).predecessor;
     let b_succ = (*b.as_ptr()).successor;
     (*a.as_ptr()).predecessor = b_succ;
@@ -488,3 +540,187 @@ unsafe fn reverse_segment(seg: &NonNull<Segment>, a: &NonNull<TllNode>, b: &NonN
         (*seg.as_ptr()).last = Some(*a);
     }
 }
+
+// TODO: better panic msg.
+// TODO: this fn is a bomb. needs an intensive care.
+unsafe fn reverse_segs(from: &NonNull<Segment>, to: &NonNull<Segment>) {
+    let nel = (*to.as_ptr()).rank - (*from.as_ptr()).rank;
+    let nel = nel + nel % 2;
+
+    let mut a = *from;
+    let mut b = *to;
+
+    let mut count = 0;
+    while count <= nel {
+        count += 1;
+        if a == b {
+            (*a.as_ptr()).reverse();
+            continue;
+        }
+
+        match ((*a.as_ptr()).reverse, (*b.as_ptr()).reverse) {
+            (true, true) | (false, false) => {
+                match ((*a.as_ptr()).first, (*b.as_ptr()).first) {
+                    (Some(fa), Some(fb)) => {
+                        let a_pred = (*fa.as_ptr()).predecessor;
+                        let b_pred = (*fb.as_ptr()).predecessor;
+
+                        match a_pred {
+                            Some(pred) => {
+                                if (*pred.as_ptr()).predecessor == (*a.as_ptr()).first {
+                                    (*pred.as_ptr()).predecessor = (*b.as_ptr()).first;
+                                } else {
+                                    (*pred.as_ptr()).successor = (*b.as_ptr()).first;
+                                }
+                            }
+                            None => panic!("Missing pointer")
+                        }
+
+                        match b_pred {
+                            Some(pred) => {
+                                if (*pred.as_ptr()).predecessor == (*b.as_ptr()).first {
+                                    (*pred.as_ptr()).predecessor = (*a.as_ptr()).first;
+                                } else {
+                                    (*pred.as_ptr()).successor = (*a.as_ptr()).first;
+                                }
+                            }
+                            None => panic!("Missing pointer")
+                        }
+
+                        (*fa.as_ptr()).predecessor = b_pred;
+                        (*fb.as_ptr()).predecessor = a_pred;
+                    }
+                    _ => panic!("Missing pointers")
+                }
+
+                match ((*a.as_ptr()).last, (*b.as_ptr()).last) {
+                    (Some(la), Some(lb)) => {
+                        let a_succ = (*la.as_ptr()).successor;
+                        let b_succ = (*lb.as_ptr()).successor;
+
+                        match a_succ {
+                            Some(succ) => {
+                                if (*succ.as_ptr()).predecessor == (*a.as_ptr()).last {
+                                    (*succ.as_ptr()).predecessor = (*b.as_ptr()).last;
+                                } else {
+                                    (*succ.as_ptr()).successor = (*b.as_ptr()).last;
+                                }
+                            }
+                            None => panic!("Missing pointer")
+                        }
+
+                        match b_succ {
+                            Some(succ) => {
+                                if (*succ.as_ptr()).predecessor == (*b.as_ptr()).last {
+                                    (*succ.as_ptr()).predecessor = (*a.as_ptr()).last;
+                                } else {
+                                    (*succ.as_ptr()).successor = (*a.as_ptr()).last;
+                                }
+                            }
+                            None => panic!("Missing pointer")
+                        }
+
+                        (*la.as_ptr()).successor = b_succ;
+                        (*lb.as_ptr()).successor = a_succ;
+                    }
+                    _ => panic!("Missing pointers")
+                }
+            }
+            (true, false) | (false, true) => {
+                match ((*a.as_ptr()).last, (*b.as_ptr()).first) {
+                    (Some(la), Some(fb)) => {
+                        let a_pred = (*la.as_ptr()).successor;
+                        let b_pred = (*fb.as_ptr()).predecessor;
+
+                        match a_pred {
+                            Some(pred) => {
+                                if (*pred.as_ptr()).predecessor == (*a.as_ptr()).last {
+                                    (*pred.as_ptr()).predecessor = (*b.as_ptr()).first;
+                                } else {
+                                    (*pred.as_ptr()).successor = (*b.as_ptr()).first;
+                                }
+                            }
+                            None => panic!("Missing pointer")
+                        }
+
+                        match b_pred {
+                            Some(pred) => {
+                                if (*pred.as_ptr()).predecessor == (*b.as_ptr()).first {
+                                    (*pred.as_ptr()).predecessor = (*a.as_ptr()).last;
+                                } else {
+                                    (*pred.as_ptr()).successor = (*a.as_ptr()).last;
+                                }
+                            }
+                            None => panic!("Missing pointer")
+                        }
+
+                        (*la.as_ptr()).successor = b_pred;
+                        (*fb.as_ptr()).predecessor = a_pred;
+                    }
+                    _ => panic!("Missing pointers")
+                }
+
+                match ((*a.as_ptr()).first, (*b.as_ptr()).last) {
+                    (Some(fa), Some(lb)) => {
+                        let a_succ = (*fa.as_ptr()).predecessor;
+                        let b_succ = (*lb.as_ptr()).successor;
+
+                        match a_succ {
+                            Some(pred) => {
+                                if (*pred.as_ptr()).predecessor == (*a.as_ptr()).first {
+                                    (*pred.as_ptr()).predecessor = (*b.as_ptr()).last;
+                                } else {
+                                    (*pred.as_ptr()).successor = (*b.as_ptr()).last;
+                                }
+                            }
+                            None => panic!("Missing pointer")
+                        }
+
+                        match b_succ {
+                            Some(pred) => {
+                                if (*pred.as_ptr()).predecessor == (*b.as_ptr()).last {
+                                    (*pred.as_ptr()).predecessor = (*a.as_ptr()).first;
+                                } else {
+                                    (*pred.as_ptr()).successor = (*a.as_ptr()).first;
+                                }
+                            }
+                            None => panic!("Missing pointer")
+                        }
+
+                        (*fa.as_ptr()).predecessor = b_succ;
+                        (*lb.as_ptr()).successor = a_succ;
+                    }
+                    _ => panic!("Missing pointers")
+                }
+            }
+        }
+        
+        (*a.as_ptr()).reverse();
+        (*b.as_ptr()).reverse();
+        
+        let tmpr = (*a.as_ptr()).rank;
+        (*a.as_ptr()).rank = (*b.as_ptr()).rank;
+        (*b.as_ptr()).rank = tmpr;
+
+        let tmp_ptr = (*a.as_ptr()).next;
+        (*a.as_ptr()).next = (*b.as_ptr()).next;
+        (*b.as_ptr()).next = tmp_ptr;
+
+        let tmp_ptr = (*a.as_ptr()).prev;
+        (*a.as_ptr()).prev = (*b.as_ptr()).prev;
+        (*b.as_ptr()).prev = tmp_ptr;
+
+        match (*from.as_ptr()).next {
+            Some(next) => a = next,
+            None => panic!("Missing next segment")
+        }
+        
+        match (*to.as_ptr()).prev {
+            Some(prev) => b = prev,
+            None => panic!("Missing prev segment")
+        }
+
+    }
+}
+
+// unsafe fn exchange()
