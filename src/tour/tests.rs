@@ -501,44 +501,98 @@ mod test_tll {
         test_tour_order(&tree, &TourOrder::new((0..n_nodes).collect()));
     }
 
-    // Test flip case: New paths consist of a sequence of consecutive segments.
-    // This test focuses on inner reverse.
     #[test]
-    fn test_flip_2() {
-        let n_nodes = 50;
+    fn test_flip_x() {
+        let n_nodes = 100;
         let container = create_container(n_nodes);
         let mut tree = TwoLevelList::new(&container, 10);
         tree.apply(&TourOrder::new((0..n_nodes).collect()));
 
         tree.flip_at(9, 10, 29, 30);
         let mut expected: Vec<usize> = (0..10).collect();
-        expected.append(&mut (20..30).rev().collect());
-        expected.append(&mut (10..20).rev().collect());
+        expected.append(&mut (10..30).rev().collect());
         expected.append(&mut (30..n_nodes).collect());
         test_tour_order(&tree, &TourOrder::new(expected));
 
         tree.flip_at(10, 30, 9, 29);
         test_tour_order(&tree, &TourOrder::new((0..n_nodes).collect()));
+    }
 
-        tree.flip_at(29, 30, 9, 10);
+    // Test flip case: New paths consist of a sequence of consecutive segments.
+    // This test focuses on inner reverse.
+    #[test]
+    fn test_flip_2() {
+        let n_nodes = 100;
+        let container = create_container(n_nodes);
+        let mut tree = TwoLevelList::new(&container, 10);
+        tree.apply(&TourOrder::new((0..n_nodes).collect()));
+
+        tree.flip_at(9, 10, 39, 40);
         let mut expected: Vec<usize> = (0..10).collect();
-        expected.append(&mut (20..30).rev().collect());
-        expected.append(&mut (10..20).rev().collect());
-        expected.append(&mut (30..n_nodes).collect());
+        expected.append(&mut (10..40).rev().collect());
+        expected.append(&mut (40..n_nodes).collect());
         test_tour_order(&tree, &TourOrder::new(expected));
 
-        tree.flip_at(9, 29, 10, 30);
+        tree.flip_at(10, 40, 9, 39);
+        test_tour_order(&tree, &TourOrder::new((0..n_nodes).collect()));
+
+        tree.flip_at(39, 40, 9, 10);
+        let mut expected: Vec<usize> = (0..10).collect();
+        expected.append(&mut (10..40).rev().collect());
+        expected.append(&mut (40..n_nodes).collect());
+        test_tour_order(&tree, &TourOrder::new(expected));
+
+        tree.flip_at(9, 39, 10, 40);
         test_tour_order(&tree, &TourOrder::new((0..n_nodes).collect()));
 
         unsafe {
             (*tree.segment(1).unwrap().unwrap().as_ptr()).reverse();
         }
 
-        tree.flip_at(9, 19, 29, 30);
+        tree.flip_at(9, 19, 39, 40);
         let mut expected: Vec<usize> = (0..10).collect();
-        expected.append(&mut (20..30).rev().collect());
+        expected.append(&mut (20..40).rev().collect());
         expected.append(&mut (10..20).collect());
-        expected.append(&mut (30..n_nodes).collect());
+        expected.append(&mut (40..n_nodes).collect());
+        test_tour_order(&tree, &TourOrder::new(expected));
+    }
+
+    // Test flip case: New paths consist of a sequence of consecutive segments.
+    // This test focuses on outer reverse.
+    #[test]
+    fn test_flip_3() {
+        let n_nodes = 100;
+        let container = create_container(n_nodes);
+        let mut tree = TwoLevelList::new(&container, 10);
+        tree.apply(&TourOrder::new((0..n_nodes).collect()));
+
+        let mut expected: Vec<usize> = (90..n_nodes).rev().collect();
+        expected.append(&mut (10..90).collect());
+        expected.append(&mut (0..10).rev().collect());
+        tree.flip_at(9, 10, 89, 90);
+        test_tour_order(&tree, &TourOrder::new(expected));
+
+        tree.flip_at(90, 10, 89, 9);
+        test_tour_order(&tree, &TourOrder::new((0..n_nodes).collect()));
+
+        let mut expected: Vec<usize> = (90..n_nodes).rev().collect();
+        expected.append(&mut (10..90).collect());
+        expected.append(&mut (0..10).rev().collect());
+        tree.flip_at(89, 90, 9, 10);
+        test_tour_order(&tree, &TourOrder::new(expected));
+
+        tree.flip_at(89, 9, 90, 10);
+        test_tour_order(&tree, &TourOrder::new((0..n_nodes).collect()));
+
+        unsafe {
+            (*tree.segment(8).unwrap().unwrap().as_ptr()).reverse();
+        }
+
+        let mut expected: Vec<usize> = (80..90).collect();
+        expected.append(&mut (10..80).collect());
+        expected.append(&mut (0..10).rev().collect());
+        expected.append(&mut (90..n_nodes).rev().collect());
+        tree.flip_at(9, 10, 79, 89);
         test_tour_order(&tree, &TourOrder::new(expected));
     }
 }

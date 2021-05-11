@@ -185,7 +185,7 @@ impl<'a> Tour for TwoLevelList<'a> {
     }
 
     fn distance_at(&self, a: usize, b: usize) -> crate::Scalar {
-        todo!()
+        self.container.distance_at(a, b)
     }
 
     fn flip_at(&mut self, from_a: usize, to_a: usize, from_b: usize, to_b: usize) {
@@ -250,32 +250,24 @@ impl<'a> Tour for TwoLevelList<'a> {
                                 (*stb.as_ptr()).rank,
                             );
 
-                            let (diff1, is_inner1) = if sta_r <= sfb_r {
-                                (sfb_r - sta_r, true)
+                            let diff1 = if sta_r <= sfb_r {
+                                sfb_r - sta_r
                             } else {
-                                (self.segments.len() - sta_r + sfb_r, false)
+                                self.segments.len() - sta_r + sfb_r
                             };
 
-                            let (diff2, is_inner2) = if stb_r <= sfa_r {
-                                (sfa_r - stb_r, true)
+                            let diff2 = if stb_r <= sfa_r {
+                                sfa_r - stb_r
                             } else {
-                                (self.segments.len() - stb_r + sfa_r, false)
+                                self.segments.len() - stb_r + sfa_r
                             };
 
                             if diff1 <= diff2 {
                                 // Reverses the path (to_a, from_b).
-                                if is_inner1 {
-                                    return reverse_segs(&sta, &sfb);
-                                } else {
-                                    todo!()
-                                }
+                                return reverse_segs(&sta, &sfb);
                             } else {
                                 // Reverses the path (to_b, from_a).
-                                if is_inner2 {
-                                    return reverse_segs(&stb, &sfa);
-                                } else {
-                                    todo!()
-                                }
+                                return reverse_segs(&stb, &sfa);
                             };
                         }
                         _ => panic!("Node without segment while flipping."),
@@ -299,10 +291,27 @@ impl<'a> Tour for TwoLevelList<'a> {
         }
     }
 
-    fn successor(&self, kin: &Self::TourNode) -> Option<&Self::TourNode> {
-        todo!()
+    #[inline]
+    fn successor(&self, node: &Self::TourNode) -> Option<&Self::TourNode> {
+        match &node.segment {
+            Some(seg) => unsafe {
+                if (*seg.as_ptr()).reverse {
+                    match &node.predecessor {
+                        Some(p) => Some(&(*p.as_ptr())),
+                        None => panic!("No predecessor"),
+                    }
+                } else {
+                    match node.successor {
+                        Some(s) => Some(&(*s.as_ptr())),
+                        None => panic!("No successor"),
+                    }
+                }
+            },
+            None => panic!("Node not assigned to any segment."),
+        }
     }
 
+    #[inline]
     fn successor_at(&self, kin_index: usize) -> Option<&Self::TourNode> {
         match self.vertices.get(kin_index) {
             Some(kin) => match kin {
@@ -330,8 +339,23 @@ impl<'a> Tour for TwoLevelList<'a> {
         }
     }
 
-    fn predecessor(&self, kin: &Self::TourNode) -> Option<&Self::TourNode> {
-        todo!()
+    fn predecessor(&self, node: &Self::TourNode) -> Option<&Self::TourNode> {
+        match &node.segment {
+            Some(seg) => unsafe {
+                if (*seg.as_ptr()).reverse {
+                    match &node.successor {
+                        Some(s) => Some(&(*s.as_ptr())),
+                        None => panic!("No successor"),
+                    }
+                } else {
+                    match node.predecessor {
+                        Some(p) => Some(&(*p.as_ptr())),
+                        None => panic!("No predecessor"),
+                    }
+                }
+            },
+            None => panic!("Node not assigned to any segment."),
+        }
     }
 
     fn predecessor_at(&self, kin_index: usize) -> Option<&Self::TourNode> {
@@ -370,11 +394,20 @@ impl<'a> Tour for TwoLevelList<'a> {
     }
 
     fn total_distance(&self) -> crate::Scalar {
-        todo!()
+        self.total_dist
     }
 
-    fn visited_at(&mut self, kin_index: usize, flag: bool) {
-        todo!()
+    // TODO: better panic message.
+    fn visited_at(&mut self, node_index: usize, flag: bool) {
+        match self.vertices.get(node_index) {
+            Some(opt) => match opt {
+                Some(node) => unsafe {
+                    (*node.as_ptr()).visited(flag);
+                },
+                None => panic!("Missing pointer."),
+            },
+            None => {}
+        }
     }
 }
 
@@ -382,6 +415,7 @@ impl<'a> Tour for TwoLevelList<'a> {
 pub struct TllNode {
     data: Node,
     rank: i32,
+    visited: bool,
     segment: Option<NonNull<Segment>>,
     predecessor: Option<NonNull<TllNode>>,
     successor: Option<NonNull<TllNode>>,
@@ -392,6 +426,7 @@ impl TllNode {
         Self {
             data: node.clone(),
             rank: i32::MAX,
+            visited: false,
             segment: None,
             predecessor: None,
             successor: None,
@@ -404,12 +439,14 @@ impl Vertex for TllNode {
         self.data.index()
     }
 
+    #[inline]
     fn is_visited(&self) -> bool {
-        todo!()
+        self.visited
     }
 
+    #[inline]
     fn visited(&mut self, flag: bool) {
-        todo!()
+        self.visited = flag;
     }
 }
 
@@ -422,6 +459,7 @@ pub struct Segment {
     last: Option<NonNull<TllNode>>,
     next: Option<NonNull<Segment>>,
     prev: Option<NonNull<Segment>>,
+    name: usize,
 }
 
 impl Segment {
@@ -434,6 +472,7 @@ impl Segment {
             last: None,
             next: None,
             prev: None,
+            name: rank,
         }
     }
 
@@ -544,18 +583,13 @@ unsafe fn reverse_int_seg(seg: &NonNull<Segment>, a: &NonNull<TllNode>, b: &NonN
 // TODO: better panic msg.
 // TODO: this fn is a bomb. needs an intensive care.
 unsafe fn reverse_segs(from: &NonNull<Segment>, to: &NonNull<Segment>) {
-    let nel = (*to.as_ptr()).rank - (*from.as_ptr()).rank;
-    let nel = nel + nel % 2;
-
     let mut a = *from;
     let mut b = *to;
 
-    let mut count = 0;
-    while count <= nel {
-        count += 1;
+    loop {
         if a == b {
             (*a.as_ptr()).reverse();
-            continue;
+            break;
         }
 
         match ((*a.as_ptr()).reverse, (*b.as_ptr()).reverse) {
@@ -573,7 +607,7 @@ unsafe fn reverse_segs(from: &NonNull<Segment>, to: &NonNull<Segment>) {
                                     (*pred.as_ptr()).successor = (*b.as_ptr()).first;
                                 }
                             }
-                            None => panic!("Missing pointer")
+                            None => panic!("Missing pointer"),
                         }
 
                         match b_pred {
@@ -584,13 +618,13 @@ unsafe fn reverse_segs(from: &NonNull<Segment>, to: &NonNull<Segment>) {
                                     (*pred.as_ptr()).successor = (*a.as_ptr()).first;
                                 }
                             }
-                            None => panic!("Missing pointer")
+                            None => panic!("Missing pointer"),
                         }
 
                         (*fa.as_ptr()).predecessor = b_pred;
                         (*fb.as_ptr()).predecessor = a_pred;
                     }
-                    _ => panic!("Missing pointers")
+                    _ => panic!("Missing pointers"),
                 }
 
                 match ((*a.as_ptr()).last, (*b.as_ptr()).last) {
@@ -606,7 +640,7 @@ unsafe fn reverse_segs(from: &NonNull<Segment>, to: &NonNull<Segment>) {
                                     (*succ.as_ptr()).successor = (*b.as_ptr()).last;
                                 }
                             }
-                            None => panic!("Missing pointer")
+                            None => panic!("Missing pointer"),
                         }
 
                         match b_succ {
@@ -617,13 +651,13 @@ unsafe fn reverse_segs(from: &NonNull<Segment>, to: &NonNull<Segment>) {
                                     (*succ.as_ptr()).successor = (*a.as_ptr()).last;
                                 }
                             }
-                            None => panic!("Missing pointer")
+                            None => panic!("Missing pointer"),
                         }
 
                         (*la.as_ptr()).successor = b_succ;
                         (*lb.as_ptr()).successor = a_succ;
                     }
-                    _ => panic!("Missing pointers")
+                    _ => panic!("Missing pointers"),
                 }
             }
             (true, false) | (false, true) => {
@@ -640,7 +674,7 @@ unsafe fn reverse_segs(from: &NonNull<Segment>, to: &NonNull<Segment>) {
                                     (*pred.as_ptr()).successor = (*b.as_ptr()).first;
                                 }
                             }
-                            None => panic!("Missing pointer")
+                            None => panic!("Missing pointer"),
                         }
 
                         match b_pred {
@@ -651,13 +685,13 @@ unsafe fn reverse_segs(from: &NonNull<Segment>, to: &NonNull<Segment>) {
                                     (*pred.as_ptr()).successor = (*a.as_ptr()).last;
                                 }
                             }
-                            None => panic!("Missing pointer")
+                            None => panic!("Missing pointer"),
                         }
 
                         (*la.as_ptr()).successor = b_pred;
                         (*fb.as_ptr()).predecessor = a_pred;
                     }
-                    _ => panic!("Missing pointers")
+                    _ => panic!("Missing pointers"),
                 }
 
                 match ((*a.as_ptr()).first, (*b.as_ptr()).last) {
@@ -673,7 +707,7 @@ unsafe fn reverse_segs(from: &NonNull<Segment>, to: &NonNull<Segment>) {
                                     (*pred.as_ptr()).successor = (*b.as_ptr()).last;
                                 }
                             }
-                            None => panic!("Missing pointer")
+                            None => panic!("Missing pointer"),
                         }
 
                         match b_succ {
@@ -684,43 +718,48 @@ unsafe fn reverse_segs(from: &NonNull<Segment>, to: &NonNull<Segment>) {
                                     (*pred.as_ptr()).successor = (*a.as_ptr()).first;
                                 }
                             }
-                            None => panic!("Missing pointer")
+                            None => panic!("Missing pointer"),
                         }
 
                         (*fa.as_ptr()).predecessor = b_succ;
                         (*lb.as_ptr()).successor = a_succ;
                     }
-                    _ => panic!("Missing pointers")
+                    _ => panic!("Missing pointers"),
                 }
             }
         }
-        
+
         (*a.as_ptr()).reverse();
         (*b.as_ptr()).reverse();
-        
+
         let tmpr = (*a.as_ptr()).rank;
         (*a.as_ptr()).rank = (*b.as_ptr()).rank;
         (*b.as_ptr()).rank = tmpr;
 
-        let tmp_ptr = (*a.as_ptr()).next;
+        let tmp_next = (*a.as_ptr()).next;
+        let tmp_prev = (*b.as_ptr()).prev;
+
         (*a.as_ptr()).next = (*b.as_ptr()).next;
-        (*b.as_ptr()).next = tmp_ptr;
+        (*b.as_ptr()).prev = (*a.as_ptr()).prev;
 
-        let tmp_ptr = (*a.as_ptr()).prev;
-        (*a.as_ptr()).prev = (*b.as_ptr()).prev;
-        (*b.as_ptr()).prev = tmp_ptr;
+        if tmp_next == Some(b) {
+            // a is the neighbour directly in front of b.
+            (*b.as_ptr()).next = Some(a);
+            (*a.as_ptr()).prev = Some(b);
+            break;
+        } else {
+            (*b.as_ptr()).next = tmp_next;
+            (*a.as_ptr()).prev = tmp_prev;
+        }
 
-        match (*from.as_ptr()).next {
+        match tmp_next {
             Some(next) => a = next,
-            None => panic!("Missing next segment")
-        }
-        
-        match (*to.as_ptr()).prev {
-            Some(prev) => b = prev,
-            None => panic!("Missing prev segment")
+            None => panic!("Missing next segment"),
         }
 
+        match tmp_prev {
+            Some(prev) => b = prev,
+            None => panic!("Missing prev segment"),
+        }
     }
 }
-
-// unsafe fn exchange()
