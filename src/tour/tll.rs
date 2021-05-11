@@ -105,37 +105,30 @@ impl<'a> Tour for TwoLevelList<'a> {
                         let el_next = self.vertices.get(order[(iv + 1) % v_len]).unwrap();
                         let el_prev = self.vertices.get(order[(v_len + iv - 1) % v_len]).unwrap();
 
-                        match el_v {
-                            Some(vtx) => {
+                        match (el_v, el_next, el_prev) {
+                            (Some(vtx), Some(vtx_nxt), Some(vtx_prv)) => {
                                 (*vtx.as_ptr()).predecessor = *el_prev;
                                 (*vtx.as_ptr()).successor = *el_next;
                                 (*vtx.as_ptr()).rank = (iv - beg_seg) as i32;
                                 (*vtx.as_ptr()).segment = *els;
-                            }
-                            None => {}
-                        }
 
-                        match el_next {
-                            Some(vtx) => {
-                                (*vtx.as_ptr()).predecessor = *el_v;
-                            }
-                            None => {}
-                        }
+                                (*vtx_nxt.as_ptr()).predecessor = *el_v;
+                                (*vtx_prv.as_ptr()).successor = *el_v;
 
-                        match el_prev {
-                            Some(vtx) => {
-                                (*vtx.as_ptr()).successor = *el_v;
+                                self.total_dist += self
+                                    .container
+                                    .distance(&(*vtx.as_ptr()).data, &(*vtx_nxt.as_ptr()).data);
                             }
-                            None => {}
+                            _ => panic!("Nodes not found"),
                         }
 
                         if (*seg.as_ptr()).last.is_none() {
                             (*seg.as_ptr()).first = *el_v;
                         }
-                        (*seg.as_ptr()).last = *el_v
+                        (*seg.as_ptr()).last = *el_v;
                     }
                 },
-                None => {}
+                None => panic!("Segment not found"),
             }
         }
     }

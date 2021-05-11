@@ -10,7 +10,9 @@ mod tlt;
 pub use tlt::TltVertex;
 pub use tlt::TwoLevelTree;
 
-pub mod tll;
+mod tll;
+pub use tll::TllNode;
+pub use tll::TwoLevelList;
 
 mod tests;
 

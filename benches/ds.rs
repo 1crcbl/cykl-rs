@@ -7,11 +7,10 @@ use cykl_rs::metric::MetricKind;
 use cykl_rs::node::Container;
 use cykl_rs::tour::Array;
 use cykl_rs::tour::Tour;
+use cykl_rs::tour::TwoLevelList;
 use cykl_rs::tour::TwoLevelTree;
 use cykl_rs::tour::Vertex;
 use cykl_rs::Scalar;
-
-use cykl_rs::tour::tll::TwoLevelList;
 
 const INDEX: usize = 987_654;
 
