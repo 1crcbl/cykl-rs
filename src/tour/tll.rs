@@ -10,7 +10,7 @@ use super::{between, Tour, TourOrder, Vertex};
 #[derive(Debug)]
 pub struct TwoLevelList<'a> {
     container: &'a Container,
-    segments: Vec<Option<NonNull<Segment>>>,
+    pub(crate) segments: Vec<Option<NonNull<Segment>>>,
     vertices: Vec<Option<NonNull<TllNode>>>,
     total_dist: Scalar,
 }
@@ -72,15 +72,6 @@ impl<'a> TwoLevelList<'a> {
         result.apply(&TourOrder::new((0..container.size()).collect()));
         result
     }
-
-    fn get_nn(&self, index: usize) -> Option<&Option<NonNull<TllNode>>> {
-        self.vertices.get(index)
-    }
-
-    #[allow(dead_code)]
-    pub(super) fn segment(&self, index: usize) -> Option<&Option<NonNull<Segment>>> {
-        self.segments.get(index)
-    }
 }
 
 impl<'a> Tour for TwoLevelList<'a> {
@@ -95,6 +86,7 @@ impl<'a> Tour for TwoLevelList<'a> {
             match els {
                 Some(seg) => unsafe {
                     (*seg.as_ptr()).reset();
+                    (*seg.as_ptr()).rank = sidx;
 
                     let max_len = seg.as_ref().max_len;
                     let beg_seg = sidx * max_len;
@@ -133,6 +125,7 @@ impl<'a> Tour for TwoLevelList<'a> {
         }
     }
 
+    #[inline]
     fn between(&self, from: &Self::TourNode, mid: &Self::TourNode, to: &Self::TourNode) -> bool {
         match (&from.segment, &mid.segment, &to.segment) {
             (Some(sf), Some(sm), Some(st)) => {
@@ -166,6 +159,7 @@ impl<'a> Tour for TwoLevelList<'a> {
         }
     }
 
+    #[inline]
     fn between_at(&self, from_index: usize, mid_index: usize, to_index: usize) -> bool {
         match (
             self.get(from_index),
@@ -177,16 +171,17 @@ impl<'a> Tour for TwoLevelList<'a> {
         }
     }
 
+    #[inline]
     fn distance_at(&self, a: usize, b: usize) -> crate::Scalar {
         self.container.distance_at(a, b)
     }
 
     fn flip_at(&mut self, from_a: usize, to_a: usize, from_b: usize, to_b: usize) {
         if let (Some(ofan), Some(otan), Some(ofbn), Some(otbn)) = (
-            self.get_nn(from_a),
-            self.get_nn(to_a),
-            self.get_nn(from_b),
-            self.get_nn(to_b),
+            self.vertices.get(from_a),
+            self.vertices.get(to_a),
+            self.vertices.get(from_b),
+            self.vertices.get(to_b),
         ) {
             match (ofan, otan, ofbn, otbn) {
                 (Some(fan), Some(tan), Some(fbn), Some(tbn)) => unsafe {
@@ -234,6 +229,24 @@ impl<'a> Tour for TwoLevelList<'a> {
                             // of their segments. To tackle this case, we will rearrange affected
                             // vertices by splitting their corresponding segments so that the
                             // requirements for case 1 or 2 are satisfied.
+
+                            // Check for case 3.
+                            let mut split = false;
+                            if sfa == sta {
+                                // split a
+                                split = true;
+                                (*sfa.as_ptr()).split(tan);
+                            }
+
+                            if sfb == stb {
+                                // split b
+                                split = true;
+                                (*sfb.as_ptr()).split(tbn);
+                            }
+
+                            if split {
+                                return self.flip_at(from_a, to_a, from_b, to_b);
+                            }
 
                             // Logic to handle case 2.
                             let (sfa_r, sta_r, sfb_r, stb_r) = (
@@ -296,11 +309,11 @@ impl<'a> Tour for TwoLevelList<'a> {
                 } else {
                     match node.successor {
                         Some(s) => Some(&(*s.as_ptr())),
-                        None => panic!("No successor"),
+                        None => None,
                     }
                 }
             },
-            None => panic!("Node not assigned to any segment."),
+            None => None,
         }
     }
 
@@ -332,25 +345,27 @@ impl<'a> Tour for TwoLevelList<'a> {
         }
     }
 
+    #[inline]
     fn predecessor(&self, node: &Self::TourNode) -> Option<&Self::TourNode> {
         match &node.segment {
             Some(seg) => unsafe {
                 if (*seg.as_ptr()).reverse {
                     match &node.successor {
                         Some(s) => Some(&(*s.as_ptr())),
-                        None => panic!("No successor"),
+                        None => None,
                     }
                 } else {
                     match node.predecessor {
                         Some(p) => Some(&(*p.as_ptr())),
-                        None => panic!("No predecessor"),
+                        None => None,
                     }
                 }
             },
-            None => panic!("Node not assigned to any segment."),
+            None => None,
         }
     }
 
+    #[inline]
     fn predecessor_at(&self, kin_index: usize) -> Option<&Self::TourNode> {
         match self.vertices.get(kin_index) {
             Some(kin) => match kin {
@@ -382,15 +397,18 @@ impl<'a> Tour for TwoLevelList<'a> {
         todo!()
     }
 
+    #[inline]
     fn len(&self) -> usize {
         self.vertices.len()
     }
 
+    #[inline]
     fn total_distance(&self) -> crate::Scalar {
         self.total_dist
     }
 
     // TODO: better panic message.
+    #[inline]
     fn visited_at(&mut self, node_index: usize, flag: bool) {
         match self.vertices.get(node_index) {
             Some(opt) => match opt {
@@ -452,7 +470,6 @@ pub struct Segment {
     last: Option<NonNull<TllNode>>,
     next: Option<NonNull<Segment>>,
     prev: Option<NonNull<Segment>>,
-    name: usize,
 }
 
 impl Segment {
@@ -465,7 +482,6 @@ impl Segment {
             last: None,
             next: None,
             prev: None,
-            name: rank,
         }
     }
 
@@ -474,13 +490,14 @@ impl Segment {
         self.reverse = false;
         self.first = None;
         self.last = None;
+        self.rank = 0;
     }
 
     #[inline]
-    pub(super) fn reverse(&mut self) {
+    unsafe fn reverse(&mut self) {
         // TODO: better panic message.
         match (&self.first, &self.last) {
-            (Some(first), Some(last)) => unsafe {
+            (Some(first), Some(last)) => {
                 match (&(*first.as_ptr()).predecessor, &(*last.as_ptr()).successor) {
                     (Some(p), Some(s)) => {
                         if &(*p.as_ptr()).predecessor == &self.first {
@@ -500,10 +517,263 @@ impl Segment {
                 let tmp = (*first.as_ptr()).predecessor;
                 (*first.as_ptr()).predecessor = (*last.as_ptr()).successor;
                 (*last.as_ptr()).successor = tmp;
-            },
+            }
             _ => panic!("Empty first or last pointers in segment."),
         }
         self.reverse ^= true;
+    }
+
+    unsafe fn split(&mut self, node: &NonNull<TllNode>) {
+        match (self.first, self.last) {
+            (Some(first), Some(last)) => {
+                let d1 = (*node.as_ptr()).rank - (*first.as_ptr()).rank;
+                let d2 = (*last.as_ptr()).rank - (*node.as_ptr()).rank + 1;
+
+                if d1 <= d2 {
+                    if self.reverse {
+                        match self.next {
+                            Some(next) => {
+                                (*next.as_ptr()).move_front(
+                                    self.first,
+                                    (*node.as_ptr()).predecessor,
+                                    d1,
+                                    self.reverse,
+                                );
+                            }
+                            None => panic!("No next"),
+                        }
+                    } else {
+                        match self.prev {
+                            Some(prev) => {
+                                (*prev.as_ptr()).move_back(
+                                    self.first,
+                                    (*node.as_ptr()).predecessor,
+                                    d1,
+                                    self.reverse,
+                                );
+                            }
+                            None => panic!("No prev"),
+                        }
+                    }
+                    self.first = Some(*node);
+                } else {
+                    if self.reverse {
+                        match self.prev {
+                            Some(prev) => {
+                                (*prev.as_ptr()).move_back(
+                                    Some(*node),
+                                    self.last,
+                                    d2,
+                                    self.reverse,
+                                );
+                            }
+                            None => panic!("No prev"),
+                        }
+                    } else {
+                        match self.next {
+                            Some(next) => {
+                                (*next.as_ptr()).move_front(
+                                    Some(*node),
+                                    self.last,
+                                    d2,
+                                    self.reverse,
+                                );
+                            }
+                            None => panic!("No next"),
+                        }
+                    }
+                    self.last = (*node.as_ptr()).predecessor;
+                }
+            }
+            _ => panic!("Missing first/last"),
+        }
+    }
+
+    unsafe fn move_back(
+        &mut self,
+        head: Option<NonNull<TllNode>>,
+        tail: Option<NonNull<TllNode>>,
+        el_cnt: i32,
+        reverse: bool,
+    ) {
+        let mut rank = 1;
+        if self.reverse {
+            match self.first {
+                Some(first) => {
+                    let first_rank = (*first.as_ptr()).rank;
+                    let seg = (*first.as_ptr()).segment;
+
+                    if reverse {
+                        let mut opt = tail;
+                        while rank <= el_cnt {
+                            match opt {
+                                Some(node) => {
+                                    opt = (*node.as_ptr()).predecessor;
+                                    (*node.as_ptr()).rank = first_rank - rank;
+                                    (*node.as_ptr()).segment = seg;
+                                }
+                                None => panic!("Nullpointer"),
+                            }
+                            rank += 1;
+                        }
+                        self.first = head;
+                    } else {
+                        let mut opt = head;
+                        while rank <= el_cnt {
+                            match opt {
+                                Some(node) => {
+                                    opt = (*node.as_ptr()).successor;
+                                    (*node.as_ptr()).rank = first_rank - rank;
+                                    (*node.as_ptr()).segment = seg;
+                                    let tmp_ptr = (*node.as_ptr()).successor;
+                                    (*node.as_ptr()).successor = (*node.as_ptr()).predecessor;
+                                    (*node.as_ptr()).predecessor = tmp_ptr;
+                                }
+                                None => panic!("Nullpointer"),
+                            }
+                            rank += 1;
+                        }
+                        self.first = tail;
+                    }
+                }
+                None => panic!("First not found"),
+            }
+        } else {
+            match self.last {
+                Some(last) => {
+                    let last_rank = (*last.as_ptr()).rank;
+                    let seg = (*last.as_ptr()).segment;
+
+                    if reverse {
+                        let mut opt = tail;
+                        while rank <= el_cnt {
+                            match opt {
+                                Some(node) => {
+                                    opt = (*node.as_ptr()).predecessor;
+                                    (*node.as_ptr()).rank = last_rank + rank;
+                                    (*node.as_ptr()).segment = seg;
+                                    let tmp_ptr = (*node.as_ptr()).successor;
+                                    (*node.as_ptr()).successor = (*node.as_ptr()).predecessor;
+                                    (*node.as_ptr()).predecessor = tmp_ptr;
+                                }
+                                None => panic!("Nullpointer"),
+                            }
+                            rank += 1;
+                        }
+                        self.last = head;
+                    } else {
+                        let mut opt = head;
+                        while rank <= el_cnt {
+                            match opt {
+                                Some(node) => {
+                                    opt = (*node.as_ptr()).successor;
+                                    (*node.as_ptr()).rank = last_rank + rank;
+                                    (*node.as_ptr()).segment = seg;
+                                }
+                                None => panic!("Nullpointer"),
+                            }
+                            rank += 1;
+                        }
+                        self.last = tail;
+                    }
+                }
+                None => panic!("Last not found"),
+            }
+        }
+    }
+
+    unsafe fn move_front(
+        &mut self,
+        head: Option<NonNull<TllNode>>,
+        tail: Option<NonNull<TllNode>>,
+        el_cnt: i32,
+        reverse: bool,
+    ) {
+        let mut rank = 1;
+
+        if self.reverse {
+            match self.last {
+                Some(last) => {
+                    let last_rank = (*last.as_ptr()).rank;
+                    let seg = (*last.as_ptr()).segment;
+
+                    if reverse {
+                        let mut opt = head;
+                        while rank <= el_cnt {
+                            match opt {
+                                Some(node) => {
+                                    opt = (*node.as_ptr()).successor;
+                                    (*node.as_ptr()).rank = last_rank + rank;
+                                    (*node.as_ptr()).segment = seg;
+                                }
+                                None => panic!("Nullpointer"),
+                            }
+                            rank += 1;
+                        }
+                        self.last = tail;
+                    } else {
+                        let mut opt = tail;
+                        while rank <= el_cnt {
+                            match opt {
+                                Some(node) => {
+                                    opt = (*node.as_ptr()).predecessor;
+                                    (*node.as_ptr()).rank = last_rank + rank;
+                                    (*node.as_ptr()).segment = seg;
+                                    let tmp_ptr = (*node.as_ptr()).successor;
+                                    (*node.as_ptr()).successor = (*node.as_ptr()).predecessor;
+                                    (*node.as_ptr()).predecessor = tmp_ptr;
+                                }
+                                None => panic!("Nullpointer"),
+                            }
+                            rank += 1;
+                        }
+                        self.last = head;
+                    }
+                }
+                None => panic!("Last not found"),
+            }
+        } else {
+            match self.first {
+                Some(first) => {
+                    let first_rank = (*first.as_ptr()).rank;
+                    let seg = (*first.as_ptr()).segment;
+
+                    if reverse {
+                        let mut opt = head;
+                        while rank <= el_cnt {
+                            match opt {
+                                Some(node) => {
+                                    opt = (*node.as_ptr()).successor;
+                                    (*node.as_ptr()).rank = first_rank - rank;
+                                    (*node.as_ptr()).segment = seg;
+                                    let tmp_ptr = (*node.as_ptr()).successor;
+                                    (*node.as_ptr()).successor = (*node.as_ptr()).predecessor;
+                                    (*node.as_ptr()).predecessor = tmp_ptr;
+                                }
+                                None => panic!("Nullpointer"),
+                            }
+                            rank += 1;
+                        }
+                        self.first = tail;
+                    } else {
+                        let mut opt = tail;
+                        while rank <= el_cnt {
+                            match opt {
+                                Some(node) => {
+                                    opt = (*node.as_ptr()).predecessor;
+                                    (*node.as_ptr()).rank = first_rank - rank;
+                                    (*node.as_ptr()).segment = seg;
+                                }
+                                None => panic!("Nullpointer"),
+                            }
+                            rank += 1;
+                        }
+                        self.first = head;
+                    }
+                }
+                None => panic!("First not found"),
+            }
+        }
     }
 }
 

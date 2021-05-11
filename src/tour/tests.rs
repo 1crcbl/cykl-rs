@@ -116,27 +116,6 @@ mod tests_tlt {
         test_suite::flip(&mut tour);
     }
 
-    // Test flip case: Vertices are positioned in the middle of segments.
-    #[test]
-    fn test_flip_4() {
-        let n_nodes = 100;
-        let container = create_container(n_nodes);
-        let mut tree = TwoLevelTree::with_default_order(&container, 10);
-
-        tree.flip_at(15, 16, 25, 26);
-        let mut expected: Vec<usize> = (0..16).collect();
-        expected.append(&mut (16..26).rev().collect());
-        expected.append(&mut (26..n_nodes).collect());
-        test_tour_order(&tree, &TourOrder::new(expected));
-
-        let mut tree = TwoLevelTree::with_default_order(&container, 10);
-        tree.flip_at(12, 13, 92, 93);
-        let mut expected: Vec<usize> = (0..13).rev().collect();
-        expected.append(&mut (93..n_nodes).rev().collect());
-        expected.append(&mut (13..93).collect());
-        test_tour_order(&tree, &TourOrder::new(expected));
-    }
-
     #[test]
     fn test_segment_reverse() {
         let n_nodes = 10;
@@ -297,6 +276,7 @@ mod test_suite {
         flip_1(tour);
         flip_2(tour);
         flip_3(tour);
+        flip_4(tour);
     }
 
     // Test flip case: New paths lie within the same segment.
@@ -392,6 +372,39 @@ mod test_suite {
         expected.append(&mut (10..80).collect());
         expected.append(&mut (0..10).rev().collect());
         expected.append(&mut (90..n_nodes).rev().collect());
+        test_tour_order(tour, &TourOrder::new(expected));
+    }
+
+    // Test flip case: Vertices are positioned in the middle of segments.
+    fn flip_4(tour: &mut impl Tour) {
+        let n_nodes = 100;
+        assert_eq!(n_nodes, tour.len());
+        let order0 = TourOrder::new((0..n_nodes).collect());
+        tour.apply(&order0);
+        test_tour_order(tour, &order0);
+
+        tour.flip_at(15, 16, 25, 26);
+        let mut expected: Vec<usize> = (0..16).collect();
+        expected.append(&mut (16..26).rev().collect());
+        expected.append(&mut (26..n_nodes).collect());
+        test_tour_order(tour, &TourOrder::new(expected));
+
+        tour.flip_at(15, 25, 16, 26);
+        test_tour_order(tour, &order0);
+
+        tour.flip_at(24, 25, 55, 56);
+        let mut expected: Vec<usize> = (0..25).collect();
+        expected.append(&mut (25..56).rev().collect());
+        expected.append(&mut (56..n_nodes).collect());
+        test_tour_order(tour, &TourOrder::new(expected));
+
+        tour.flip_at(24, 55, 25, 56);
+        test_tour_order(tour, &order0);
+
+        tour.flip_at(12, 13, 92, 93);
+        let mut expected: Vec<usize> = (0..13).rev().collect();
+        expected.append(&mut (93..n_nodes).rev().collect());
+        expected.append(&mut (13..93).collect());
         test_tour_order(tour, &TourOrder::new(expected));
     }
 }
