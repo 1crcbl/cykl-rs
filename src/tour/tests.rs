@@ -18,7 +18,7 @@ pub fn test_tour_order(tour: &impl Tour, expected: &TourOrder) {
     let expected = &expected.order;
     let len = expected.len();
 
-    assert_eq!(tour.len(), len);
+    assert_eq!(tour.len(), len, "Test tour len");
 
     for ii in 0..(expected.len() - 1) {
         assert_eq!(
@@ -330,13 +330,13 @@ mod test_suite {
         tour.flip_at(10, 40, 9, 39);
         test_tour_order(tour, &TourOrder::new((0..n_nodes).collect()));
 
-        tour.flip_at(39, 40, 9, 10);
+        tour.flip_at(29, 30, 9, 10);
         let mut expected: Vec<usize> = (0..10).collect();
-        expected.append(&mut (10..40).rev().collect());
-        expected.append(&mut (40..n_nodes).collect());
+        expected.append(&mut (10..30).rev().collect());
+        expected.append(&mut (30..n_nodes).collect());
         test_tour_order(tour, &TourOrder::new(expected));
 
-        tour.flip_at(9, 39, 10, 40);
+        tour.flip_at(9, 29, 10, 30);
         test_tour_order(tour, &TourOrder::new((0..n_nodes).collect()));
     }
 
@@ -383,28 +383,114 @@ mod test_suite {
         tour.apply(&order0);
         test_tour_order(tour, &order0);
 
-        tour.flip_at(15, 16, 25, 26);
-        let mut expected: Vec<usize> = (0..16).collect();
-        expected.append(&mut (16..26).rev().collect());
-        expected.append(&mut (26..n_nodes).collect());
-        test_tour_order(tour, &TourOrder::new(expected));
+        flip_4_d1_forward_move_back(tour);
+        flip_4_d1_reverse_move_front(tour);
+        flip_4_d2_forward_move_front(tour);
+        flip_4_d2_reverse_move_back(tour);
+    }
 
-        tour.flip_at(15, 25, 16, 26);
-        test_tour_order(tour, &order0);
+    // Called by flip_4().
+    // d1 <= d2 in both from- and to-sides and the segments are forward.
+    // Affected nodes will be moved to corresponding prev-segments.
+    // prev of from-side: forward
+    // prev of to-side: reverse
+    fn flip_4_d1_forward_move_back(tour: &mut impl Tour) {
+        tour.apply(&TourOrder::new((0..tour.len()).collect()));
+        test_tour_order(tour, &TourOrder::new((0..tour.len()).collect()));
 
-        tour.flip_at(24, 25, 55, 56);
-        let mut expected: Vec<usize> = (0..25).collect();
-        expected.append(&mut (25..56).rev().collect());
-        expected.append(&mut (56..n_nodes).collect());
-        test_tour_order(tour, &TourOrder::new(expected));
+        // Reverse prev of to-side.
+        tour.flip_at(59, 60, 69, 70);
 
-        tour.flip_at(24, 55, 25, 56);
-        test_tour_order(tour, &order0);
+        tour.flip_at(33, 34, 72, 73);
 
-        tour.flip_at(12, 13, 92, 93);
-        let mut expected: Vec<usize> = (0..13).rev().collect();
-        expected.append(&mut (93..n_nodes).rev().collect());
-        expected.append(&mut (13..93).collect());
+        let mut expected: Vec<usize> = (0..34).collect();
+        expected.append(&mut (70..73).rev().collect());
+        expected.append(&mut (60..70).collect());
+        expected.append(&mut (34..60).rev().collect());
+        expected.append(&mut (73..tour.len()).collect());
         test_tour_order(tour, &TourOrder::new(expected));
     }
+
+    // Called by flip_4().
+    // Corresponds to d1 <= d2 in both from- and to-sides and the segments are reversed.
+    // Affected nodes will be moved to corresponding next-segments.
+    // next of from-side: forward
+    // next of to-side: reverse
+    fn flip_4_d1_reverse_move_front(tour: &mut impl Tour) {
+        tour.apply(&TourOrder::new((0..tour.len()).collect()));
+        test_tour_order(tour, &TourOrder::new((0..tour.len()).collect()));
+
+        // Reverse from- and to-side.
+        tour.flip_at(29, 30, 39, 40);
+        tour.flip_at(59, 60, 69, 70);
+
+        // Reverse next of to-side.
+        tour.flip_at(60, 70, 79, 80);
+
+        // Flip operation.
+        tour.flip_at(34, 33, 63, 62);
+
+        let mut expected: Vec<usize> = (0..30).collect();
+        expected.append(&mut (34..40).rev().collect());
+        expected.append(&mut (63..70).collect());
+        expected.append(&mut (40..60).rev().collect());
+        expected.append(&mut (30..34).collect());
+        expected.append(&mut (60..63).rev().collect());
+        expected.append(&mut (70..80).rev().collect());
+        expected.append(&mut (80..tour.len()).collect());
+        test_tour_order(tour, &TourOrder::new(expected));
+    }
+
+    // Called by flip_4().
+    // d1 > d2 in both from- and to-sides and the segments are forward.
+    // Affected nodes will be moved to corresponding next-segments.
+    // next of from-side: forward
+    // next of to-side: reverse
+    fn flip_4_d2_forward_move_front(tour: &mut impl Tour) {
+        tour.apply(&TourOrder::new((0..tour.len()).collect()));
+        test_tour_order(tour, &TourOrder::new((0..tour.len()).collect()));
+
+        // Reverse next of to-side.
+        tour.flip_at(69, 70, 79, 80);
+
+        tour.flip_at(36, 37, 67, 68);
+
+        let mut expected: Vec<usize> = (0..37).collect();
+        expected.append(&mut (37..68).rev().collect());
+        expected.append(&mut (68..70).collect());
+        expected.append(&mut (70..80).rev().collect());
+        expected.append(&mut (80..tour.len()).collect());
+        test_tour_order(tour, &TourOrder::new(expected));
+    }
+
+    // Called by flip_4().
+    // Corresponds to d1 > d2 in both from- and to-sides and the segments are reversed.
+    // Affected nodes will be moved to corresponding prev-segments.
+    // prev of from-side: forward
+    // prev of to-side: reverse
+    fn flip_4_d2_reverse_move_back(tour: &mut impl Tour) {
+        tour.apply(&TourOrder::new((0..tour.len()).collect()));
+        test_tour_order(tour, &TourOrder::new((0..tour.len()).collect()));
+
+        // Reverse from- and to-side.
+        tour.flip_at(29, 30, 39, 40);
+        tour.flip_at(69, 70, 79, 80);
+
+        // Reverse prev of to-side.
+        tour.flip_at(59, 60, 69, 79);
+
+        // Flip operation.
+        tour.flip_at(37, 36, 68, 67);
+
+        let mut expected: Vec<usize> = (0..30).collect();
+        expected.append(&mut (37..40).rev().collect());
+        expected.append(&mut (68..70).collect());
+        expected.append(&mut (40..60).rev().collect());
+        expected.append(&mut (30..37).collect());
+        expected.append(&mut (60..68).rev().collect());
+        expected.append(&mut (70..80).rev().collect());
+        expected.append(&mut (80..tour.len()).collect());
+        test_tour_order(tour, &TourOrder::new(expected));
+    }
+    
 }

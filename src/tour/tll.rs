@@ -80,6 +80,7 @@ impl<'a> Tour for TwoLevelList<'a> {
     fn apply(&mut self, tour: &super::TourOrder) {
         let order = tour.order();
         let v_len = self.vertices.len();
+        let s_len = self.segments.len();
 
         self.total_dist = 0.;
         for (sidx, els) in self.segments.iter().enumerate() {
@@ -87,6 +88,8 @@ impl<'a> Tour for TwoLevelList<'a> {
                 Some(seg) => unsafe {
                     (*seg.as_ptr()).reset();
                     (*seg.as_ptr()).rank = sidx;
+                    (*seg.as_ptr()).next = self.segments[(sidx + 1) % s_len];
+                    (*seg.as_ptr()).prev = self.segments[(s_len + sidx - 1) % s_len];
 
                     let max_len = seg.as_ref().max_len;
                     let beg_seg = sidx * max_len;
@@ -446,6 +449,7 @@ impl TllNode {
 }
 
 impl Vertex for TllNode {
+    #[inline]
     fn index(&self) -> usize {
         self.data.index()
     }
@@ -490,6 +494,8 @@ impl Segment {
         self.reverse = false;
         self.first = None;
         self.last = None;
+        self.next = None;
+        self.prev = None;
         self.rank = 0;
     }
 
@@ -526,22 +532,30 @@ impl Segment {
     unsafe fn split(&mut self, node: &NonNull<TllNode>) {
         match (self.first, self.last) {
             (Some(first), Some(last)) => {
-                let d1 = (*node.as_ptr()).rank - (*first.as_ptr()).rank;
-                let d2 = (*last.as_ptr()).rank - (*node.as_ptr()).rank + 1;
+                let (f1, f2) = if self.reverse {
+                    (1, 0)
+                } else {
+                    (0, 1)
+                };
+
+                let d1 = (*node.as_ptr()).rank - (*first.as_ptr()).rank + f1;
+                let d2 = (*last.as_ptr()).rank - (*node.as_ptr()).rank + f2;
 
                 if d1 <= d2 {
                     if self.reverse {
+                        let tmp_ptr = (*node.as_ptr()).successor;
                         match self.next {
                             Some(next) => {
                                 (*next.as_ptr()).move_front(
                                     self.first,
-                                    (*node.as_ptr()).predecessor,
+                                    Some(*node),
                                     d1,
                                     self.reverse,
                                 );
                             }
                             None => panic!("No next"),
                         }
+                        self.first = tmp_ptr;
                     } else {
                         match self.prev {
                             Some(prev) => {
@@ -554,14 +568,14 @@ impl Segment {
                             }
                             None => panic!("No prev"),
                         }
+                        self.first = Some(*node);
                     }
-                    self.first = Some(*node);
                 } else {
                     if self.reverse {
                         match self.prev {
                             Some(prev) => {
                                 (*prev.as_ptr()).move_back(
-                                    Some(*node),
+                                    (*node.as_ptr()).successor,
                                     self.last,
                                     d2,
                                     self.reverse,
@@ -569,7 +583,9 @@ impl Segment {
                             }
                             None => panic!("No prev"),
                         }
+                        self.last = Some(*node);
                     } else {
+                        let tmp_ptr = (*node.as_ptr()).predecessor;
                         match self.next {
                             Some(next) => {
                                 (*next.as_ptr()).move_front(
@@ -581,8 +597,8 @@ impl Segment {
                             }
                             None => panic!("No next"),
                         }
+                        self.last = tmp_ptr;
                     }
-                    self.last = (*node.as_ptr()).predecessor;
                 }
             }
             _ => panic!("Missing first/last"),
