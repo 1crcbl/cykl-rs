@@ -1,7 +1,7 @@
 use std::ptr::NonNull;
 
 use crate::{
-    node::{Container, Node},
+    Repo, DataNode,
     Scalar,
 };
 
@@ -9,16 +9,16 @@ use super::{between, STree, Tour, TourOrder, Vertex};
 
 #[derive(Debug)]
 pub struct TwoLevelList<'a> {
-    container: &'a Container,
+    repo: &'a Repo,
     pub(crate) segments: Vec<Option<NonNull<Segment>>>,
     nodes: Vec<Option<NonNull<TllNode>>>,
     total_dist: Scalar,
 }
 
 impl<'a> TwoLevelList<'a> {
-    pub fn new(container: &'a Container, max_grouplen: usize) -> Self {
-        let mut n_segments = container.size() / max_grouplen;
-        if container.size() % max_grouplen != 0 {
+    pub fn new(repo: &'a Repo, max_grouplen: usize) -> Self {
+        let mut n_segments = repo.size() / max_grouplen;
+        if repo.size() % max_grouplen != 0 {
             n_segments += 1;
         }
 
@@ -54,22 +54,22 @@ impl<'a> TwoLevelList<'a> {
             segments.push(s);
         }
 
-        let nodes = container
+        let nodes = repo
             .into_iter()
             .map(|node| to_nonnull(TllNode::new(node)))
             .collect();
 
         Self {
-            container,
+            repo,
             nodes: nodes,
             segments: segments,
             total_dist: 0.,
         }
     }
 
-    pub fn with_default_order(container: &'a Container, max_grouplen: usize) -> Self {
-        let mut result = Self::new(container, max_grouplen);
-        result.apply(&TourOrder::new((0..container.size()).collect()));
+    pub fn with_default_order(repo: &'a Repo, max_grouplen: usize) -> Self {
+        let mut result = Self::new(repo, max_grouplen);
+        result.apply(&TourOrder::new((0..repo.size()).collect()));
         result
     }
 }
@@ -111,7 +111,7 @@ impl<'a> Tour for TwoLevelList<'a> {
                                 (*vtx_prv.as_ptr()).successor = *el_v;
 
                                 self.total_dist += self
-                                    .container
+                                    .repo
                                     .distance(&(*vtx.as_ptr()).data, &(*vtx_nxt.as_ptr()).data);
                             }
                             _ => panic!("Nodes not found"),
@@ -176,7 +176,7 @@ impl<'a> Tour for TwoLevelList<'a> {
 
     #[inline]
     fn distance_at(&self, a: usize, b: usize) -> crate::Scalar {
-        self.container.distance_at(a, b)
+        self.repo.distance_at(a, b)
     }
 
     fn flip_at(&mut self, from_a: usize, to_a: usize, from_b: usize, to_b: usize) {
@@ -279,7 +279,7 @@ impl<'a> Tour for TwoLevelList<'a> {
                                 return reverse_segs(&stb, &sfa);
                             };
                         }
-                        _ => panic!("Node without segment while flipping."),
+                        _ => panic!("DataNode without segment while flipping."),
                     }
                 },
                 _ => panic!("Nullpointer"),
@@ -427,7 +427,7 @@ impl<'a> Tour for TwoLevelList<'a> {
 
 #[derive(Debug, PartialEq)]
 pub struct TllNode {
-    data: Node,
+    data: DataNode,
     /// Flag indicating whether a node is already visisted/processed by an algorithm.
     visited: bool,
     /// The parent segment in a tour to which a node belongs.
@@ -445,7 +445,7 @@ pub struct TllNode {
 }
 
 impl TllNode {
-    pub fn new(node: &Node) -> Self {
+    pub fn new(node: &DataNode) -> Self {
         Self {
             data: node.clone(),
             rank: i32::MAX,

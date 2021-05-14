@@ -1,8 +1,8 @@
-use crate::{metric::MetricKind, node::Container};
+use crate::{MetricKind, Repo};
 
 #[allow(dead_code)]
-fn load_burma_test() -> Container {
-    let mut container = Container::new(MetricKind::Geo);
+fn load_burma_test() -> Repo {
+    let mut container = Repo::new(MetricKind::Geo);
     container.add(16.47, 96.10, 0.);
     container.add(16.47, 94.44, 0.);
     container.add(20.09, 92.54, 0.);

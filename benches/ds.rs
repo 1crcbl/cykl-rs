@@ -3,8 +3,8 @@
 #[allow(unused_imports)]
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 
-use cykl_rs::metric::MetricKind;
-use cykl_rs::node::Container;
+use cykl_rs::MetricKind;
+use cykl_rs::Repo;
 use cykl_rs::tour::Array;
 use cykl_rs::tour::Tour;
 use cykl_rs::tour::TwoLevelList;
@@ -15,8 +15,8 @@ use cykl_rs::Scalar;
 const INDEX: usize = 987_654;
 
 #[allow(dead_code)]
-pub fn create_container(n_nodes: usize) -> Container {
-    let mut container = Container::new(MetricKind::Euc2d);
+pub fn create_container(n_nodes: usize) -> Repo {
+    let mut container = Repo::new(MetricKind::Euc2d);
     for ii in 0..n_nodes {
         container.add(ii as Scalar, ii as Scalar, ii as Scalar);
     }

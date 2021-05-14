@@ -1,5 +1,7 @@
-pub mod metric;
-pub mod node;
+mod base;
+pub use base::repo::Repo;
+pub use base::repo::DataNode;
+pub use base::repo::MetricKind;
 
 pub mod solver;
 pub mod tour;

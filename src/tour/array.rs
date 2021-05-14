@@ -1,9 +1,6 @@
 use getset::Getters;
 
-use crate::{
-    node::{Container, Node},
-    Scalar,
-};
+use crate::{DataNode, Repo, Scalar};
 
 use super::{between, Tour, TourOrder, Vertex};
 
@@ -20,19 +17,19 @@ use super::{between, Tour, TourOrder, Vertex};
 // Tracker:  | 4   | 5   | 1   | 2   | 0   | 3   |
 #[derive(Debug)]
 pub struct Array<'a> {
-    container: &'a Container,
+    repo: &'a Repo,
     vertices: Vec<ArrVertex>,
     tracker: Vec<usize>,
     total_dist: Scalar,
 }
 
 impl<'a> Array<'a> {
-    pub fn new(container: &'a Container) -> Self {
-        let vertices: Vec<ArrVertex> = container.into_iter().map(|n| ArrVertex::new(n)).collect();
+    pub fn new(repo: &'a Repo) -> Self {
+        let vertices: Vec<ArrVertex> = repo.into_iter().map(|n| ArrVertex::new(n)).collect();
         let tracker = (0..vertices.len()).collect();
 
         Self {
-            container,
+            repo,
             vertices,
             tracker,
             total_dist: 0.,
@@ -63,9 +60,9 @@ impl<'a> Tour for Array<'a> {
             self.vertices[ii].visited = false;
 
             if ii != tour.len() - 1 {
-                self.total_dist += self.container.distance_at(tour[ii], tour[ii + 1]);
+                self.total_dist += self.repo.distance_at(tour[ii], tour[ii + 1]);
             } else {
-                self.total_dist += self.container.distance_at(tour[ii], tour[0]);
+                self.total_dist += self.repo.distance_at(tour[ii], tour[0]);
             }
         }
     }
@@ -83,7 +80,7 @@ impl<'a> Tour for Array<'a> {
     #[inline]
     fn distance_at(&self, a: usize, b: usize) -> Scalar {
         // TODO: check if nodes belong to the group.
-        self.container
+        self.repo
             .distance(self.get(a).unwrap().node(), self.get(b).unwrap().node())
     }
 
@@ -114,7 +111,7 @@ impl<'a> Tour for Array<'a> {
 
     #[inline]
     fn successor(&self, node: &Self::TourNode) -> Option<&Self::TourNode> {
-        // TODO: check if a node belongs to this tour/container.
+        // TODO: check if a node belongs to this tour/repo.
         self.successor_at(node.index())
     }
 
@@ -130,7 +127,7 @@ impl<'a> Tour for Array<'a> {
 
     #[inline]
     fn predecessor(&self, node: &Self::TourNode) -> Option<&Self::TourNode> {
-        // TODO: check if a node belongs to this tour/container.
+        // TODO: check if a node belongs to this tour/repo.
         self.predecessor_at(node.index())
     }
 
@@ -193,12 +190,12 @@ impl<'a, 's> IntoIterator for &'s Array<'a> {
 #[derive(Debug, Getters, PartialEq)]
 pub struct ArrVertex {
     #[getset(get = "pub")]
-    node: Node,
+    node: DataNode,
     visited: bool,
 }
 
 impl ArrVertex {
-    pub fn new(node: &Node) -> Self {
+    pub fn new(node: &DataNode) -> Self {
         Self {
             node: node.clone(),
             visited: false,

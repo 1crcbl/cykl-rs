@@ -7,7 +7,7 @@ use std::{
 };
 
 use crate::{
-    node::{Container, Node},
+    Repo, DataNode,
     Scalar,
 };
 
@@ -20,20 +20,20 @@ type WeakSegment = Weak<RefCell<Segment>>;
 
 #[derive(Debug)]
 pub struct TwoLevelTree<'a> {
-    container: &'a Container,
+    repo: &'a Repo,
     vertices: Vec<RcVertex>,
     segments: Vec<RcSegment>,
     total_dist: Scalar,
 }
 
 impl<'a> TwoLevelTree<'a> {
-    pub fn new(container: &'a Container, max_grouplen: usize) -> Self {
-        let mut n_segments = container.size() / max_grouplen;
-        if container.size() % max_grouplen != 0 {
+    pub fn new(repo: &'a Repo, max_grouplen: usize) -> Self {
+        let mut n_segments = repo.size() / max_grouplen;
+        if repo.size() % max_grouplen != 0 {
             n_segments += 1;
         }
 
-        let vertices = container
+        let vertices = repo
             .into_iter()
             .map(|n| TltVertex::new(n).to_rc())
             .collect();
@@ -54,16 +54,16 @@ impl<'a> TwoLevelTree<'a> {
         }
 
         Self {
-            container,
+            repo,
             vertices,
             segments,
             total_dist: 0.,
         }
     }
 
-    pub fn with_default_order(container: &'a Container, max_grouplen: usize) -> Self {
-        let mut result = Self::new(container, max_grouplen);
-        result.apply(&TourOrder::new((0..container.size()).collect()));
+    pub fn with_default_order(repo: &'a Repo, max_grouplen: usize) -> Self {
+        let mut result = Self::new(repo, max_grouplen);
+        result.apply(&TourOrder::new((0..repo.size()).collect()));
         result
     }
 
@@ -204,7 +204,7 @@ impl<'a> Tour for TwoLevelTree<'a> {
                 let next_v = self.vertices.get(tour[(iv + 1) % v_len]).unwrap();
 
                 self.total_dist += self
-                    .container
+                    .repo
                     .distance(&v.borrow().node, &next_v.borrow().node);
 
                 v.borrow_mut().visited = false;
@@ -250,7 +250,7 @@ impl<'a> Tour for TwoLevelTree<'a> {
     }
 
     fn distance_at(&self, a: usize, b: usize) -> Scalar {
-        self.container.distance_at(a, b)
+        self.repo.distance_at(a, b)
     }
 
     fn flip_at(&mut self, from_a: usize, to_a: usize, from_b: usize, to_b: usize) {
@@ -412,7 +412,7 @@ pub struct TltVertex {
     rank: usize,
     /// Reference to a data node that a vertex represents in a tour.
     #[getset(get = "pub")]
-    node: Node,
+    node: DataNode,
     /// Flag indicating whether a vertex has been visited/processed.
     visited: bool,
     /// Weak reference to a node's segment.
@@ -421,7 +421,7 @@ pub struct TltVertex {
 }
 
 impl TltVertex {
-    pub fn new(node: &Node) -> Self {
+    pub fn new(node: &DataNode) -> Self {
         Self {
             node: node.clone(),
             rank: usize::MAX,

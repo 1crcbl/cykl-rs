@@ -1,12 +1,12 @@
 #[allow(unused_imports)]
 use crate::tour::between;
-use crate::{metric::MetricKind, node::Container, Scalar};
+use crate::{MetricKind, Repo, Scalar};
 
 use super::{Tour, TourOrder};
 
 #[allow(dead_code)]
-pub fn create_container(n_nodes: usize) -> Container {
-    let mut container = Container::new(MetricKind::Euc2d);
+pub fn create_container(n_nodes: usize) -> Repo {
+    let mut container = Repo::new(MetricKind::Euc2d);
     for ii in 0..n_nodes {
         container.add(ii as Scalar, ii as Scalar, ii as Scalar);
     }
