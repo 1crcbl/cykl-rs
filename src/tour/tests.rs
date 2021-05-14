@@ -175,12 +175,17 @@ mod tests_tlt {
 
 #[allow(dead_code, unused_imports)]
 mod test_tll {
+    use std::collections::HashMap;
+
     use super::*;
 
-    use crate::tour::{
-        tests::{create_repo, test_tour_order},
-        tll::TwoLevelList,
-        Tour, TourOrder,
+    use crate::{
+        tour::{
+            tests::{create_repo, test_tour_order},
+            tll::TwoLevelList,
+            STree, Tour, TourOrder, Vertex,
+        },
+        MatrixKind,
     };
 
     #[test]
@@ -209,6 +214,60 @@ mod test_tll {
         let repo = create_repo(100);
         let mut tour = TwoLevelList::new(&repo, 10);
         test_suite::flip(&mut tour);
+    }
+
+    #[test]
+    fn test_build_mst() {
+        // Data is taken from Wikipedia article for MST.
+        // https://en.wikipedia.org/wiki/Minimum_spanning_tree
+
+        let costs = vec![
+            vec![0., 1., 0., 4., 3., 0.],
+            vec![0., 0., 4., 2., 0.],
+            vec![0., 0., 4., 5.],
+            vec![0., 4., 0.],
+            vec![0., 7.],
+            vec![0.],
+        ];
+
+        let repo = RepoBuilder::new(MetricKind::Euc2d)
+            .costs(costs, MatrixKind::Upper)
+            .build();
+
+        let mut tour = TwoLevelList::new(&repo, 6);
+        tour.build_mst();
+
+        let mut result = HashMap::new();
+
+        for (idx, nopt) in tour.into_iter().enumerate() {
+            assert!(nopt.is_some());
+            unsafe {
+                let node = nopt.unwrap();
+                if idx == 0 {
+                    result.insert(idx, None);
+                } else {
+                    let parent = &(*node.as_ptr()).mst_parent;
+                    assert!(parent.is_some());
+                    result.insert(idx, Some((*parent.unwrap().as_ptr()).index()));
+                }
+            }
+        }
+
+        // There are many possiblities of MST for a given graph.
+        // Here we use the second MST output shown in the Wikipedia article.
+        let expected: HashMap<usize, Option<usize>> = [
+            (0, None),
+            (1, Some(0)),
+            (4, Some(1)),
+            (3, Some(0)),
+            (2, Some(4)),
+            (5, Some(2)),
+        ]
+        .iter()
+        .cloned()
+        .collect();
+
+        assert_eq!(expected, result);
     }
 }
 

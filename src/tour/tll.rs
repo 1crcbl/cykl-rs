@@ -1,4 +1,4 @@
-use std::ptr::NonNull;
+use std::{ptr::NonNull, vec::IntoIter};
 
 use crate::{DataNode, Repo, Scalar};
 
@@ -438,7 +438,7 @@ pub struct TllNode {
     /// Number of edges that are incident to the node.
     degree: usize,
     /// The parent of a node in a minimum spanning tree.
-    mst_parent: Option<NonNull<TllNode>>,
+    pub(super) mst_parent: Option<NonNull<TllNode>>,
 }
 
 impl TllNode {
@@ -454,6 +454,12 @@ impl TllNode {
             mst_parent: None,
         }
     }
+
+    // #[allow(dead_code)]
+    // #[inline]
+    // pub(super) fn mst_parent(&self) -> &Option<NonNull<TllNode>> {
+    //     &self.mst_parent
+    // }
 }
 
 impl Vertex for TllNode {
@@ -1055,6 +1061,15 @@ impl<'a> STree for TwoLevelList<'a> {
         let mut selected = vec![false; n_nodes];
         let mut processed = 0;
 
+        for nopt in &self.nodes {
+            match nopt {
+                Some(node) => unsafe {
+                    (*node.as_ptr()).mst_parent = None;
+                },
+                None => panic!("Nullpointer"),
+            }
+        }
+
         selected[0] = true;
 
         while processed != n_nodes - 1 {
@@ -1092,5 +1107,23 @@ impl<'a> STree for TwoLevelList<'a> {
 
     fn cost_m1t(&self) {
         todo!()
+    }
+}
+
+impl<'a> IntoIterator for TwoLevelList<'a> {
+    type Item = Option<NonNull<TllNode>>;
+    type IntoIter = IntoIter<Option<NonNull<TllNode>>>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.nodes.into_iter()
+    }
+}
+
+impl<'a, 's> IntoIterator for &'s TwoLevelList<'a> {
+    type Item = &'s Option<NonNull<TllNode>>;
+    type IntoIter = std::slice::Iter<'s, Option<NonNull<TllNode>>>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.nodes.iter()
     }
 }

@@ -131,49 +131,30 @@ impl RepoBuilder {
         let (hm, nodes) = match (&self.mat_kind, &self.costs) {
             (Some(kind), Some(costs)) => {
                 let mut hm = HashMap::new();
-                match kind {
-                    MatrixKind::Full => {
-                        let n_nodes = costs.len();
-                        let nodes: Vec<DataNode> = (0..n_nodes)
-                            .map(|id| DataNode::new(id, 0., 0., 0.))
-                            .collect();
+                let n_nodes = costs.len();
+                let nodes: Vec<DataNode> = (0..n_nodes)
+                    .map(|id| DataNode::new(id, 0., 0., 0.))
+                    .collect();
 
-                        for (ridx, row) in costs.iter().enumerate() {
-                            for (cidx, val) in row.iter().enumerate() {
-                                if cidx <= ridx {
-                                    continue;
-                                }
+                let make_key_pair = match kind {
+                    MatrixKind::Full => |row: usize, col: usize| -> (usize, usize) { (row, col) },
+                    MatrixKind::Upper => |row: usize, col: usize| -> (usize, usize) {
+                        let new_col = col + row;
+                        (row, new_col)
+                    },
+                    MatrixKind::Lower => |row: usize, col: usize| -> (usize, usize) { (col, row) },
+                };
 
-                                let col = cidx + ridx;
-                                hm.insert((ridx, col), *val);
-                            }
+                for (ridx, row) in costs.iter().enumerate() {
+                    for (cidx, val) in row.iter().enumerate() {
+                        let key = make_key_pair(ridx, cidx);
+                        if key.0 < key.1 {
+                            hm.insert(key, *val);
                         }
-
-                        (hm, Some(nodes))
-                    }
-                    MatrixKind::Upper => {
-                        let n_nodes = costs.len();
-                        let nodes: Vec<DataNode> = (0..n_nodes)
-                            .map(|id| DataNode::new(id, 0., 0., 0.))
-                            .collect();
-
-                        for (ridx, row) in costs.iter().enumerate() {
-                            for (cidx, val) in row.iter().enumerate() {
-                                if cidx == ridx {
-                                    continue;
-                                }
-
-                                let col = cidx + ridx;
-                                hm.insert((ridx, col), *val);
-                            }
-                        }
-
-                        (hm, Some(nodes))
-                    }
-                    _ => {
-                        todo!()
                     }
                 }
+
+                (hm, Some(nodes))
             }
             _ => (HashMap::new(), None),
         };
