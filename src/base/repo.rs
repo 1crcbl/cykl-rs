@@ -1,8 +1,6 @@
 use std::{cell::RefCell, collections::HashMap, f64::consts::PI, fmt, rc::Rc};
 
-use crate::{
-    Scalar,
-};
+use crate::Scalar;
 
 const EARTH_RADIUS: Scalar = 6378.388;
 
@@ -26,7 +24,7 @@ impl Repo {
             nodes: Vec::new(),
             cache: Rc::new(RefCell::new(HashMap::new())),
             kind,
-            func
+            func,
         }
     }
 
@@ -42,7 +40,7 @@ impl Repo {
             nodes: Vec::with_capacity(capacity),
             cache: Rc::new(RefCell::new(HashMap::new())),
             kind,
-            func
+            func,
         }
     }
 
@@ -95,7 +93,7 @@ impl Repo {
                 } else {
                     (index_a, index_b)
                 };
-        
+
                 match self.cache.borrow().get(&key) {
                     Some(d) => return *d,
                     None => {}
@@ -104,7 +102,7 @@ impl Repo {
                 let d = self.func.as_ref()(a, b);
                 self.cache.borrow_mut().insert(key, d);
                 d
-            },
+            }
             _ => 0.,
         }
     }

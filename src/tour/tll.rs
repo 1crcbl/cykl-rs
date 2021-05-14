@@ -1,9 +1,6 @@
 use std::ptr::NonNull;
 
-use crate::{
-    Repo, DataNode,
-    Scalar,
-};
+use crate::{DataNode, Repo, Scalar};
 
 use super::{between, STree, Tour, TourOrder, Vertex};
 

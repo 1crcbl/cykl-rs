@@ -6,10 +6,7 @@ use std::{
     rc::{Rc, Weak},
 };
 
-use crate::{
-    Repo, DataNode,
-    Scalar,
-};
+use crate::{DataNode, Repo, Scalar};
 
 use super::{between, Tour, TourOrder, Vertex};
 
@@ -203,9 +200,7 @@ impl<'a> Tour for TwoLevelTree<'a> {
 
                 let next_v = self.vertices.get(tour[(iv + 1) % v_len]).unwrap();
 
-                self.total_dist += self
-                    .repo
-                    .distance(&v.borrow().node, &next_v.borrow().node);
+                self.total_dist += self.repo.distance(&v.borrow().node, &next_v.borrow().node);
 
                 v.borrow_mut().visited = false;
             }

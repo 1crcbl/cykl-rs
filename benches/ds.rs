@@ -3,13 +3,13 @@
 #[allow(unused_imports)]
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 
-use cykl_rs::MetricKind;
-use cykl_rs::Repo;
 use cykl_rs::tour::Array;
 use cykl_rs::tour::Tour;
 use cykl_rs::tour::TwoLevelList;
 use cykl_rs::tour::TwoLevelTree;
 use cykl_rs::tour::Vertex;
+use cykl_rs::MetricKind;
+use cykl_rs::Repo;
 use cykl_rs::Scalar;
 
 const INDEX: usize = 987_654;

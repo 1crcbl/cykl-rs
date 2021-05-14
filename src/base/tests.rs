@@ -1,7 +1,7 @@
 #[allow(dead_code, unused_imports)]
 mod metric_tests {
-    use crate::{Scalar, base::repo::DataNode};
     use crate::base::repo::{dist_euc_2d, dist_euc_3d};
+    use crate::{base::repo::DataNode, Scalar};
 
     #[test]
     fn test_euc_2d() {
