@@ -5,13 +5,13 @@ use crate::{
     Scalar,
 };
 
-use super::{between, Tour, TourOrder, Vertex};
+use super::{between, STree, Tour, TourOrder, Vertex};
 
 #[derive(Debug)]
 pub struct TwoLevelList<'a> {
     container: &'a Container,
     pub(crate) segments: Vec<Option<NonNull<Segment>>>,
-    vertices: Vec<Option<NonNull<TllNode>>>,
+    nodes: Vec<Option<NonNull<TllNode>>>,
     total_dist: Scalar,
 }
 
@@ -54,14 +54,14 @@ impl<'a> TwoLevelList<'a> {
             segments.push(s);
         }
 
-        let vertices = container
+        let nodes = container
             .into_iter()
             .map(|node| to_nonnull(TllNode::new(node)))
             .collect();
 
         Self {
             container,
-            vertices: vertices,
+            nodes: nodes,
             segments: segments,
             total_dist: 0.,
         }
@@ -79,7 +79,7 @@ impl<'a> Tour for TwoLevelList<'a> {
 
     fn apply(&mut self, tour: &super::TourOrder) {
         let order = tour.order();
-        let v_len = self.vertices.len();
+        let v_len = self.nodes.len();
         let s_len = self.segments.len();
 
         self.total_dist = 0.;
@@ -96,9 +96,9 @@ impl<'a> Tour for TwoLevelList<'a> {
                     let end_seg = (beg_seg + max_len).min(v_len);
 
                     for iv in beg_seg..end_seg {
-                        let el_v = self.vertices.get(order[iv]).unwrap();
-                        let el_next = self.vertices.get(order[(iv + 1) % v_len]).unwrap();
-                        let el_prev = self.vertices.get(order[(v_len + iv - 1) % v_len]).unwrap();
+                        let el_v = self.nodes.get(order[iv]).unwrap();
+                        let el_next = self.nodes.get(order[(iv + 1) % v_len]).unwrap();
+                        let el_prev = self.nodes.get(order[(v_len + iv - 1) % v_len]).unwrap();
 
                         match (el_v, el_next, el_prev) {
                             (Some(vtx), Some(vtx_nxt), Some(vtx_prv)) => {
@@ -181,10 +181,10 @@ impl<'a> Tour for TwoLevelList<'a> {
 
     fn flip_at(&mut self, from_a: usize, to_a: usize, from_b: usize, to_b: usize) {
         if let (Some(ofan), Some(otan), Some(ofbn), Some(otbn)) = (
-            self.vertices.get(from_a),
-            self.vertices.get(to_a),
-            self.vertices.get(from_b),
-            self.vertices.get(to_b),
+            self.nodes.get(from_a),
+            self.nodes.get(to_a),
+            self.nodes.get(from_b),
+            self.nodes.get(to_b),
         ) {
             match (ofan, otan, ofbn, otbn) {
                 (Some(fan), Some(tan), Some(fbn), Some(tbn)) => unsafe {
@@ -223,14 +223,14 @@ impl<'a> Tour for TwoLevelList<'a> {
 
                             // Case 2: Both paths (to_b, from_a) AND (to_a, from_b) consist of a
                             // sequence of consecutive segments. Since to_a and to_b are direct
-                            // successors of from_a and from_b, this means that all vertices are
+                            // successors of from_a and from_b, this means that all nodes are
                             // either at the head or the tail of their corresponding segments.
                             // Thus, we only need to reverse these segments.
                             //
-                            // Case 1 and 2 are special arrangements of vertices in the tour. A more
-                            // general case is when vertices are positioned somewhere in the middle
+                            // Case 1 and 2 are special arrangements of nodes in the tour. A more
+                            // general case is when nodes are positioned somewhere in the middle
                             // of their segments. To tackle this case, we will rearrange affected
-                            // vertices by splitting their corresponding segments so that the
+                            // nodes by splitting their corresponding segments so that the
                             // requirements for case 1 or 2 are satisfied.
 
                             // Check for case 3.
@@ -291,7 +291,7 @@ impl<'a> Tour for TwoLevelList<'a> {
 
     #[inline]
     fn get(&self, index: usize) -> Option<&Self::TourNode> {
-        match self.vertices.get(index) {
+        match self.nodes.get(index) {
             Some(v) => match v {
                 Some(n) => unsafe { Some(n.as_ref()) },
                 None => None,
@@ -322,7 +322,7 @@ impl<'a> Tour for TwoLevelList<'a> {
 
     #[inline]
     fn successor_at(&self, kin_index: usize) -> Option<&Self::TourNode> {
-        match self.vertices.get(kin_index) {
+        match self.nodes.get(kin_index) {
             Some(kin) => match kin {
                 Some(vtx) => unsafe {
                     match &(*vtx.as_ptr()).segment {
@@ -370,7 +370,7 @@ impl<'a> Tour for TwoLevelList<'a> {
 
     #[inline]
     fn predecessor_at(&self, kin_index: usize) -> Option<&Self::TourNode> {
-        match self.vertices.get(kin_index) {
+        match self.nodes.get(kin_index) {
             Some(kin) => match kin {
                 Some(vtx) => unsafe {
                     match &(*vtx.as_ptr()).segment {
@@ -402,7 +402,7 @@ impl<'a> Tour for TwoLevelList<'a> {
 
     #[inline]
     fn len(&self) -> usize {
-        self.vertices.len()
+        self.nodes.len()
     }
 
     #[inline]
@@ -413,7 +413,7 @@ impl<'a> Tour for TwoLevelList<'a> {
     // TODO: better panic message.
     #[inline]
     fn visited_at(&mut self, node_index: usize, flag: bool) {
-        match self.vertices.get(node_index) {
+        match self.nodes.get(node_index) {
             Some(opt) => match opt {
                 Some(node) => unsafe {
                     (*node.as_ptr()).visited(flag);
@@ -428,11 +428,20 @@ impl<'a> Tour for TwoLevelList<'a> {
 #[derive(Debug, PartialEq)]
 pub struct TllNode {
     data: Node,
-    rank: i32,
+    /// Flag indicating whether a node is already visisted/processed by an algorithm.
     visited: bool,
+    /// The parent segment in a tour to which a node belongs.
     segment: Option<NonNull<Segment>>,
+    /// The rank of a node in its parent segment.
+    rank: i32,
+    /// The directly preceding neighbour of a node in a tour.
     predecessor: Option<NonNull<TllNode>>,
+    /// The directly succeeding neighbour of a node in a tour.
     successor: Option<NonNull<TllNode>>,
+    /// Number of edges that are incident to the node.
+    degree: usize,
+    /// The parent of a node in a minimum spanning tree.
+    mst_parent: Option<NonNull<TllNode>>,
 }
 
 impl TllNode {
@@ -444,6 +453,8 @@ impl TllNode {
             segment: None,
             predecessor: None,
             successor: None,
+            degree: 0,
+            mst_parent: None,
         }
     }
 }
@@ -532,11 +543,7 @@ impl Segment {
     unsafe fn split(&mut self, node: &NonNull<TllNode>) {
         match (self.first, self.last) {
             (Some(first), Some(last)) => {
-                let (f1, f2) = if self.reverse {
-                    (1, 0)
-                } else {
-                    (0, 1)
-                };
+                let (f1, f2) = if self.reverse { (1, 0) } else { (0, 1) };
 
                 let d1 = (*node.as_ptr()).rank - (*first.as_ptr()).rank + f1;
                 let d2 = (*last.as_ptr()).rank - (*node.as_ptr()).rank + f2;
@@ -1040,5 +1047,53 @@ unsafe fn reverse_segs(from: &NonNull<Segment>, to: &NonNull<Segment>) {
             Some(prev) => b = prev,
             None => panic!("Missing prev segment"),
         }
+    }
+}
+
+impl<'a> STree for TwoLevelList<'a> {
+    fn build_mst(&mut self) {
+        // A naive implementation of Prim's algorithm. Runtime is O(N^2).
+        // https://en.wikipedia.org/wiki/Prim%27s_algorithm
+        let n_nodes = self.nodes.len();
+        let mut selected = vec![false; n_nodes];
+        let mut processed = 0;
+
+        selected[0] = true;
+
+        while processed != n_nodes - 1 {
+            let (mut v_cand, mut w_cand, mut cost_cand) = (0, 0, Scalar::MAX);
+            for (v_idx, v_sel) in selected.iter().enumerate() {
+                if *v_sel {
+                    for (w_idx, w_sel) in selected.iter().enumerate() {
+                        // The edge (v, w) is forbidden if its cost is equal to 0.
+                        let c = self.distance_at(v_idx, w_idx);
+                        if !*w_sel && c > 0. && c < cost_cand {
+                            v_cand = v_idx;
+                            w_cand = w_idx;
+                            cost_cand = c;
+                        }
+                    }
+                }
+            }
+
+            let (vo, wo) = (self.nodes.get(v_cand), self.nodes.get(w_cand));
+            match (vo, wo) {
+                (Some(v), Some(w)) => match w {
+                    Some(vtx) => unsafe {
+                        (*vtx.as_ptr()).mst_parent = *v;
+                    },
+                    None => panic!("Nullpointer"),
+                },
+                _ => panic!("Nodes not found"),
+            }
+
+            selected[w_cand] = true;
+
+            processed += 1;
+        }
+    }
+
+    fn cost_m1t(&self) {
+        todo!()
     }
 }

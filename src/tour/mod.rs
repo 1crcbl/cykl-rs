@@ -115,6 +115,12 @@ pub trait Tour {
     fn visited_at(&mut self, kin_index: usize, flag: bool);
 }
 
+pub trait STree {
+    fn build_mst(&mut self);
+
+    fn cost_m1t(&self);
+}
+
 pub trait Vertex {
     fn index(&self) -> usize;
 

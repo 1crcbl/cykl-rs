@@ -492,5 +492,4 @@ mod test_suite {
         expected.append(&mut (80..tour.len()).collect());
         test_tour_order(tour, &TourOrder::new(expected));
     }
-    
 }
