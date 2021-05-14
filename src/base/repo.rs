@@ -12,38 +12,6 @@ pub struct Repo {
 }
 
 impl Repo {
-    pub fn new(kind: MetricKind) -> Self {
-        let func: Box<dyn Fn(&DataNode, &DataNode) -> Scalar> = match &kind {
-            MetricKind::Euc2d => Box::new(dist_euc_2d),
-            MetricKind::Euc3d => Box::new(dist_euc_3d),
-            MetricKind::Geo => Box::new(dist_geo),
-            _ => unimplemented!(),
-        };
-
-        Self {
-            nodes: Vec::new(),
-            cache: Rc::new(RefCell::new(HashMap::new())),
-            kind,
-            func,
-        }
-    }
-
-    pub fn with_capacity(kind: MetricKind, capacity: usize) -> Self {
-        let func: Box<dyn Fn(&DataNode, &DataNode) -> Scalar> = match &kind {
-            MetricKind::Euc2d => Box::new(dist_euc_2d),
-            MetricKind::Euc3d => Box::new(dist_euc_3d),
-            MetricKind::Geo => Box::new(dist_geo),
-            _ => unimplemented!(),
-        };
-
-        Self {
-            nodes: Vec::with_capacity(capacity),
-            cache: Rc::new(RefCell::new(HashMap::new())),
-            kind,
-            func,
-        }
-    }
-
     /// Adds a new node to the container.
     #[inline]
     pub fn add(&mut self, x: Scalar, y: Scalar, z: Scalar) {
@@ -139,6 +107,120 @@ impl<'s> IntoIterator for &'s Repo {
     fn into_iter(self) -> Self::IntoIter {
         self.nodes.iter()
     }
+}
+
+#[derive(Debug)]
+pub struct RepoBuilder {
+    met_kind: MetricKind,
+    capacity: Option<usize>,
+    costs: Option<Vec<Vec<Scalar>>>,
+    mat_kind: Option<MatrixKind>,
+}
+
+impl RepoBuilder {
+    pub fn new(kind: MetricKind) -> Self {
+        Self {
+            met_kind: kind,
+            capacity: None,
+            costs: None,
+            mat_kind: None,
+        }
+    }
+
+    pub fn build(self) -> Repo {
+        let (hm, nodes) = match (&self.mat_kind, &self.costs) {
+            (Some(kind), Some(costs)) => {
+                let mut hm = HashMap::new();
+                match kind {
+                    MatrixKind::Full => {
+                        let n_nodes = costs.len();
+                        let nodes: Vec<DataNode> = (0..n_nodes)
+                            .map(|id| DataNode::new(id, 0., 0., 0.))
+                            .collect();
+
+                        for (ridx, row) in costs.iter().enumerate() {
+                            for (cidx, val) in row.iter().enumerate() {
+                                if cidx <= ridx {
+                                    continue;
+                                }
+
+                                let col = cidx + ridx;
+                                hm.insert((ridx, col), *val);
+                            }
+                        }
+
+                        (hm, Some(nodes))
+                    }
+                    MatrixKind::Upper => {
+                        let n_nodes = costs.len();
+                        let nodes: Vec<DataNode> = (0..n_nodes)
+                            .map(|id| DataNode::new(id, 0., 0., 0.))
+                            .collect();
+
+                        for (ridx, row) in costs.iter().enumerate() {
+                            for (cidx, val) in row.iter().enumerate() {
+                                if cidx == ridx {
+                                    continue;
+                                }
+
+                                let col = cidx + ridx;
+                                hm.insert((ridx, col), *val);
+                            }
+                        }
+
+                        (hm, Some(nodes))
+                    }
+                    _ => {
+                        todo!()
+                    }
+                }
+            }
+            _ => (HashMap::new(), None),
+        };
+
+        let nodes = match (&self.capacity, nodes) {
+            (Some(cap), Some(mut tmp_nodes)) => {
+                let mut v = Vec::with_capacity(std::cmp::max(*cap, tmp_nodes.len()));
+                v.append(&mut tmp_nodes);
+                v
+            }
+            (Some(cap), None) => Vec::with_capacity(*cap),
+            (None, Some(tmp_nodes)) => tmp_nodes,
+            (None, None) => Vec::new(),
+        };
+
+        let func: Box<dyn Fn(&DataNode, &DataNode) -> Scalar> = match &self.met_kind {
+            MetricKind::Euc2d => Box::new(dist_euc_2d),
+            MetricKind::Euc3d => Box::new(dist_euc_3d),
+            MetricKind::Geo => Box::new(dist_geo),
+            _ => unimplemented!(),
+        };
+
+        Repo {
+            nodes,
+            cache: Rc::new(RefCell::new(hm)),
+            kind: self.met_kind,
+            func,
+        }
+    }
+
+    pub fn capacity(mut self, capacity: usize) -> Self {
+        self.capacity = Some(capacity);
+        self
+    }
+
+    pub fn costs(mut self, costs: Vec<Vec<Scalar>>, kind: MatrixKind) -> Self {
+        self.costs = Some(costs);
+        self.mat_kind = Some(kind);
+        self
+    }
+}
+
+#[derive(Debug)]
+pub enum MatrixKind {
+    Full,
+    Upper,
+    Lower,
 }
 
 #[derive(Clone, Debug)]

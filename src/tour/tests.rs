@@ -1,16 +1,17 @@
 #[allow(unused_imports)]
 use crate::tour::between;
-use crate::{MetricKind, Repo, Scalar};
+use crate::{MetricKind, Repo, RepoBuilder, Scalar};
 
 use super::{Tour, TourOrder};
 
 #[allow(dead_code)]
-pub fn create_container(n_nodes: usize) -> Repo {
-    let mut container = Repo::new(MetricKind::Euc2d);
+pub fn create_repo(n_nodes: usize) -> Repo {
+    let builder = RepoBuilder::new(MetricKind::Euc2d).capacity(n_nodes);
+    let mut repo = builder.build();
     for ii in 0..n_nodes {
-        container.add(ii as Scalar, ii as Scalar, ii as Scalar);
+        repo.add(ii as Scalar, ii as Scalar, ii as Scalar);
     }
-    container
+    repo
 }
 
 #[allow(dead_code)]
@@ -53,31 +54,31 @@ mod tests_array {
 
     #[test]
     fn test_apply() {
-        let container = create_container(10);
-        let mut tour = Array::new(&container);
+        let repo = create_repo(10);
+        let mut tour = Array::new(&repo);
         test_suite::apply(&mut tour);
     }
 
     #[test]
     fn test_total_dist() {
-        let container = create_container(4);
-        let mut tour = Array::new(&container);
+        let repo = create_repo(4);
+        let mut tour = Array::new(&repo);
         test_suite::total_dist(&mut tour);
     }
 
     #[test]
     #[ignore = "requires reimpl"]
     fn test_between() {
-        let container = create_container(10);
-        let mut tour = Array::new(&container);
+        let repo = create_repo(10);
+        let mut tour = Array::new(&repo);
         test_suite::between(&mut tour);
     }
 
     #[test]
     #[ignore = "requires reimpl"]
     fn test_flip_cases() {
-        let container = create_container(100);
-        let mut tour = Array::new(&container);
+        let repo = create_repo(100);
+        let mut tour = Array::new(&repo);
         test_suite::flip(&mut tour);
     }
 }
@@ -90,37 +91,37 @@ mod tests_tlt {
 
     #[test]
     fn test_apply() {
-        let container = create_container(10);
-        let mut tour = TwoLevelTree::new(&container, 4);
+        let repo = create_repo(10);
+        let mut tour = TwoLevelTree::new(&repo, 4);
         test_suite::apply(&mut tour);
     }
 
     #[test]
     fn test_total_dist() {
-        let container = create_container(4);
-        let mut tour = TwoLevelTree::new(&container, 3);
+        let repo = create_repo(4);
+        let mut tour = TwoLevelTree::new(&repo, 3);
         test_suite::total_dist(&mut tour);
     }
 
     #[test]
     fn test_between() {
-        let container = create_container(10);
-        let mut tour = TwoLevelTree::new(&container, 3);
+        let repo = create_repo(10);
+        let mut tour = TwoLevelTree::new(&repo, 3);
         test_suite::between(&mut tour);
     }
 
     #[test]
     fn test_flip_cases() {
-        let container = create_container(100);
-        let mut tour = TwoLevelTree::new(&container, 10);
+        let repo = create_repo(100);
+        let mut tour = TwoLevelTree::new(&repo, 10);
         test_suite::flip(&mut tour);
     }
 
     #[test]
     fn test_segment_reverse() {
         let n_nodes = 10;
-        let container = create_container(n_nodes);
-        let mut tree = TwoLevelTree::new(&container, 3);
+        let repo = create_repo(n_nodes);
+        let mut tree = TwoLevelTree::new(&repo, 3);
 
         tree.apply(&TourOrder::new((0..n_nodes).collect()));
 
@@ -145,8 +146,8 @@ mod tests_tlt {
     #[test]
     fn test_split_segment() {
         let n_nodes = 15;
-        let container = create_container(n_nodes);
-        let mut tree = TwoLevelTree::with_default_order(&container, 5);
+        let repo = create_repo(n_nodes);
+        let mut tree = TwoLevelTree::with_default_order(&repo, 5);
         //tree.apply(&TourOrder::new((0..n_nodes).collect()));
 
         // Original: [0 1 2 3 4] [5 6 7 >8< 9] [10 11 12 13 14]
@@ -177,36 +178,36 @@ mod test_tll {
     use super::*;
 
     use crate::tour::{
-        tests::{create_container, test_tour_order},
+        tests::{create_repo, test_tour_order},
         tll::TwoLevelList,
         Tour, TourOrder,
     };
 
     #[test]
     fn test_apply() {
-        let container = create_container(10);
-        let mut tour = TwoLevelList::new(&container, 4);
+        let repo = create_repo(10);
+        let mut tour = TwoLevelList::new(&repo, 4);
         test_suite::apply(&mut tour);
     }
 
     #[test]
     fn test_total_dist() {
-        let container = create_container(4);
-        let mut tour = TwoLevelList::new(&container, 3);
+        let repo = create_repo(4);
+        let mut tour = TwoLevelList::new(&repo, 3);
         test_suite::total_dist(&mut tour);
     }
 
     #[test]
     fn test_between() {
-        let container = create_container(10);
-        let mut tour = TwoLevelList::new(&container, 3);
+        let repo = create_repo(10);
+        let mut tour = TwoLevelList::new(&repo, 3);
         test_suite::between(&mut tour);
     }
 
     #[test]
     fn test_flip_cases() {
-        let container = create_container(100);
-        let mut tour = TwoLevelList::new(&container, 10);
+        let repo = create_repo(100);
+        let mut tour = TwoLevelList::new(&repo, 10);
         test_suite::flip(&mut tour);
     }
 }

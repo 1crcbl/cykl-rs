@@ -3,7 +3,6 @@
 #[allow(unused_imports)]
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 
-use cykl_rs::tour::Array;
 use cykl_rs::tour::Tour;
 use cykl_rs::tour::TwoLevelList;
 use cykl_rs::tour::TwoLevelTree;
@@ -11,23 +10,26 @@ use cykl_rs::tour::Vertex;
 use cykl_rs::MetricKind;
 use cykl_rs::Repo;
 use cykl_rs::Scalar;
+use cykl_rs::{tour::Array, RepoBuilder};
 
 const INDEX: usize = 987_654;
 
 #[allow(dead_code)]
-pub fn create_container(n_nodes: usize) -> Repo {
-    let mut container = Repo::new(MetricKind::Euc2d);
+pub fn create_repo(n_nodes: usize) -> Repo {
+    let mut repo = RepoBuilder::new(MetricKind::Euc2d)
+        .capacity(n_nodes)
+        .build();
     for ii in 0..n_nodes {
-        container.add(ii as Scalar, ii as Scalar, ii as Scalar);
+        repo.add(ii as Scalar, ii as Scalar, ii as Scalar);
     }
-    container
+    repo
 }
 
 fn benchmark_get(c: &mut Criterion) {
-    let container_1mil = create_container(1_000_000);
-    let arr_1mil = Array::new(&container_1mil);
-    let tlt_1mil = TwoLevelTree::with_default_order(&container_1mil, 100);
-    let tll_1mil = TwoLevelList::with_default_order(&container_1mil, 100);
+    let repo_1mil = create_repo(1_000_000);
+    let arr_1mil = Array::new(&repo_1mil);
+    let tlt_1mil = TwoLevelTree::with_default_order(&repo_1mil, 100);
+    let tll_1mil = TwoLevelList::with_default_order(&repo_1mil, 100);
     c.bench_function("Array 1M Get", |b| {
         b.iter(|| arr_1mil.get(black_box(INDEX - 1)))
     });
@@ -40,10 +42,10 @@ fn benchmark_get(c: &mut Criterion) {
 }
 
 fn benchmark_successor(c: &mut Criterion) {
-    let container_1mil = create_container(1_000_000);
-    let arr_1mil = Array::new(&container_1mil);
-    let tlt_1mil = TwoLevelTree::with_default_order(&container_1mil, 100);
-    let tll_1mil = TwoLevelList::with_default_order(&container_1mil, 100);
+    let repo_1mil = create_repo(1_000_000);
+    let arr_1mil = Array::new(&repo_1mil);
+    let tlt_1mil = TwoLevelTree::with_default_order(&repo_1mil, 100);
+    let tll_1mil = TwoLevelList::with_default_order(&repo_1mil, 100);
     c.bench_function("Array 1M Successor", |b| {
         b.iter(|| arr_1mil.successor_at(black_box(INDEX - 1)))
     });
@@ -56,10 +58,10 @@ fn benchmark_successor(c: &mut Criterion) {
 }
 
 fn benchmark_predecessor(c: &mut Criterion) {
-    let container_1mil = create_container(1_000_000);
-    let arr_1mil = Array::new(&container_1mil);
-    let tlt_1mil = TwoLevelTree::with_default_order(&container_1mil, 100);
-    let tll_1mil = TwoLevelList::with_default_order(&container_1mil, 100);
+    let repo_1mil = create_repo(1_000_000);
+    let arr_1mil = Array::new(&repo_1mil);
+    let tlt_1mil = TwoLevelTree::with_default_order(&repo_1mil, 100);
+    let tll_1mil = TwoLevelList::with_default_order(&repo_1mil, 100);
     c.bench_function("Array 1M Predecessor", |b| {
         b.iter(|| arr_1mil.get(black_box(INDEX - 1)))
     });
@@ -72,10 +74,10 @@ fn benchmark_predecessor(c: &mut Criterion) {
 }
 
 fn benchmark_between(c: &mut Criterion) {
-    let container_1mil = create_container(1_000_000);
-    let arr_1mil = Array::new(&container_1mil);
-    let tlt_1mil = TwoLevelTree::with_default_order(&container_1mil, 100);
-    let tll_1mil = TwoLevelList::with_default_order(&container_1mil, 100);
+    let repo_1mil = create_repo(1_000_000);
+    let arr_1mil = Array::new(&repo_1mil);
+    let tlt_1mil = TwoLevelTree::with_default_order(&repo_1mil, 100);
+    let tll_1mil = TwoLevelList::with_default_order(&repo_1mil, 100);
     c.bench_function("Array 1M Between", |b| {
         b.iter(|| arr_1mil.between_at(black_box(1), black_box(500_000), black_box(1_000_000 - 1)))
     });
@@ -97,10 +99,10 @@ fn benchmark_flip_case_1(c: &mut Criterion) {
         tour.flip_at(left, next_left, right, next_right);
     }
 
-    let container_1mil = create_container(1_000_000);
-    let mut arr_1mil = Array::new(&container_1mil);
-    let mut tlt_1mil = TwoLevelTree::with_default_order(&container_1mil, 100);
-    let mut tll_1mil = TwoLevelList::with_default_order(&container_1mil, 100);
+    let repo_1mil = create_repo(1_000_000);
+    let mut arr_1mil = Array::new(&repo_1mil);
+    let mut tlt_1mil = TwoLevelTree::with_default_order(&repo_1mil, 100);
+    let mut tll_1mil = TwoLevelList::with_default_order(&repo_1mil, 100);
     c.bench_function("Array 1M Flip - Case 1", |b| b.iter(|| flip(&mut arr_1mil)));
     c.bench_function("TLT   1M Flip - Case 1", |b| b.iter(|| flip(&mut tlt_1mil)));
     c.bench_function("TLL   1M Flip - Case 1", |b| b.iter(|| flip(&mut tll_1mil)));
@@ -116,10 +118,10 @@ fn benchmark_flip_case_2(c: &mut Criterion) {
         tour.flip_at(left, next_left, right, next_right);
     }
 
-    let container_1mil = create_container(1_000_000);
-    let mut arr_1mil = Array::new(&container_1mil);
-    let mut tlt_1mil = TwoLevelTree::with_default_order(&container_1mil, 100);
-    let mut tll_1mil = TwoLevelList::with_default_order(&container_1mil, 100);
+    let repo_1mil = create_repo(1_000_000);
+    let mut arr_1mil = Array::new(&repo_1mil);
+    let mut tlt_1mil = TwoLevelTree::with_default_order(&repo_1mil, 100);
+    let mut tll_1mil = TwoLevelList::with_default_order(&repo_1mil, 100);
     c.bench_function("Array 1M Flip - Case 2", |b| b.iter(|| flip(&mut arr_1mil)));
     c.bench_function("TLT   1M Flip - Case 2", |b| b.iter(|| flip(&mut tlt_1mil)));
     c.bench_function("TLL   1M Flip - Case 2", |b| b.iter(|| flip(&mut tll_1mil)));
@@ -135,10 +137,10 @@ fn benchmark_flip_case_3(c: &mut Criterion) {
         tour.flip_at(left, next_left, right, next_right);
     }
 
-    let container_1mil = create_container(1_000_000);
-    let mut arr_1mil = Array::new(&container_1mil);
-    let mut tlt_1mil = TwoLevelTree::with_default_order(&container_1mil, 100);
-    let mut tll_1mil = TwoLevelList::with_default_order(&container_1mil, 100);
+    let repo_1mil = create_repo(1_000_000);
+    let mut arr_1mil = Array::new(&repo_1mil);
+    let mut tlt_1mil = TwoLevelTree::with_default_order(&repo_1mil, 100);
+    let mut tll_1mil = TwoLevelList::with_default_order(&repo_1mil, 100);
     c.bench_function("Array 1M Flip - Case 3", |b| b.iter(|| flip(&mut arr_1mil)));
     c.bench_function("TLT   1M Flip - Case 3", |b| b.iter(|| flip(&mut tlt_1mil)));
     c.bench_function("TLL   1M Flip - Case 3", |b| b.iter(|| flip(&mut tll_1mil)));
