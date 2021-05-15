@@ -490,6 +490,52 @@ pub struct Segment {
     prev: Option<NonNull<Segment>>,
 }
 
+macro_rules! move_node {
+    ($s:expr, $target:ident, $kin1:ident, $kin2:ident, $reverse:expr, $head:ident, $tail:ident, $el_cnt:ident, $op:tt) => {
+        match $s.$target {
+            Some(target_node) => {
+                let mut rank = 1;
+                let target_rank = (*target_node.as_ptr()).rank;
+                let seg = (*target_node.as_ptr()).segment;
+
+                if $reverse {
+                    let mut opt = $head;
+                    while rank <= $el_cnt {
+                        match opt {
+                            Some(node) => {
+                                opt = (*node.as_ptr()).$kin2;
+                                (*node.as_ptr()).rank = target_rank $op rank;
+                                (*node.as_ptr()).segment = seg;
+                                let tmp_ptr = (*node.as_ptr()).successor;
+                                (*node.as_ptr()).successor = (*node.as_ptr()).predecessor;
+                                (*node.as_ptr()).predecessor = tmp_ptr;
+                            }
+                            None => panic!("Nullpointer"),
+                        }
+                        rank += 1;
+                    }
+                    $s.$target = $tail;
+                } else {
+                    let mut opt = $tail;
+                    while rank <= $el_cnt {
+                        match opt {
+                            Some(node) => {
+                                opt = (*node.as_ptr()).$kin1;
+                                (*node.as_ptr()).rank = target_rank $op rank;
+                                (*node.as_ptr()).segment = seg;
+                            }
+                            None => panic!("Nullpointer"),
+                        }
+                        rank += 1;
+                    }
+                    $s.$target = $head;
+                }
+            }
+            None => panic!("First not found"),
+        }
+    };
+}
+
 impl Segment {
     pub fn new(rank: usize, max_len: usize) -> Self {
         Self {
@@ -622,89 +668,10 @@ impl Segment {
         el_cnt: i32,
         reverse: bool,
     ) {
-        let mut rank = 1;
         if self.reverse {
-            match self.first {
-                Some(first) => {
-                    let first_rank = (*first.as_ptr()).rank;
-                    let seg = (*first.as_ptr()).segment;
-
-                    if reverse {
-                        let mut opt = tail;
-                        while rank <= el_cnt {
-                            match opt {
-                                Some(node) => {
-                                    opt = (*node.as_ptr()).predecessor;
-                                    (*node.as_ptr()).rank = first_rank - rank;
-                                    (*node.as_ptr()).segment = seg;
-                                }
-                                None => panic!("Nullpointer"),
-                            }
-                            rank += 1;
-                        }
-                        self.first = head;
-                    } else {
-                        let mut opt = head;
-                        while rank <= el_cnt {
-                            match opt {
-                                Some(node) => {
-                                    opt = (*node.as_ptr()).successor;
-                                    (*node.as_ptr()).rank = first_rank - rank;
-                                    (*node.as_ptr()).segment = seg;
-                                    let tmp_ptr = (*node.as_ptr()).successor;
-                                    (*node.as_ptr()).successor = (*node.as_ptr()).predecessor;
-                                    (*node.as_ptr()).predecessor = tmp_ptr;
-                                }
-                                None => panic!("Nullpointer"),
-                            }
-                            rank += 1;
-                        }
-                        self.first = tail;
-                    }
-                }
-                None => panic!("First not found"),
-            }
+            move_node!(self, first, predecessor, successor, !reverse, head, tail, el_cnt, -);
         } else {
-            match self.last {
-                Some(last) => {
-                    let last_rank = (*last.as_ptr()).rank;
-                    let seg = (*last.as_ptr()).segment;
-
-                    if reverse {
-                        let mut opt = tail;
-                        while rank <= el_cnt {
-                            match opt {
-                                Some(node) => {
-                                    opt = (*node.as_ptr()).predecessor;
-                                    (*node.as_ptr()).rank = last_rank + rank;
-                                    (*node.as_ptr()).segment = seg;
-                                    let tmp_ptr = (*node.as_ptr()).successor;
-                                    (*node.as_ptr()).successor = (*node.as_ptr()).predecessor;
-                                    (*node.as_ptr()).predecessor = tmp_ptr;
-                                }
-                                None => panic!("Nullpointer"),
-                            }
-                            rank += 1;
-                        }
-                        self.last = head;
-                    } else {
-                        let mut opt = head;
-                        while rank <= el_cnt {
-                            match opt {
-                                Some(node) => {
-                                    opt = (*node.as_ptr()).successor;
-                                    (*node.as_ptr()).rank = last_rank + rank;
-                                    (*node.as_ptr()).segment = seg;
-                                }
-                                None => panic!("Nullpointer"),
-                            }
-                            rank += 1;
-                        }
-                        self.last = tail;
-                    }
-                }
-                None => panic!("Last not found"),
-            }
+            move_node!(self, last, successor, predecessor, reverse, tail, head, el_cnt, +);
         }
     }
 
@@ -715,90 +682,10 @@ impl Segment {
         el_cnt: i32,
         reverse: bool,
     ) {
-        let mut rank = 1;
-
         if self.reverse {
-            match self.last {
-                Some(last) => {
-                    let last_rank = (*last.as_ptr()).rank;
-                    let seg = (*last.as_ptr()).segment;
-
-                    if reverse {
-                        let mut opt = head;
-                        while rank <= el_cnt {
-                            match opt {
-                                Some(node) => {
-                                    opt = (*node.as_ptr()).successor;
-                                    (*node.as_ptr()).rank = last_rank + rank;
-                                    (*node.as_ptr()).segment = seg;
-                                }
-                                None => panic!("Nullpointer"),
-                            }
-                            rank += 1;
-                        }
-                        self.last = tail;
-                    } else {
-                        let mut opt = tail;
-                        while rank <= el_cnt {
-                            match opt {
-                                Some(node) => {
-                                    opt = (*node.as_ptr()).predecessor;
-                                    (*node.as_ptr()).rank = last_rank + rank;
-                                    (*node.as_ptr()).segment = seg;
-                                    let tmp_ptr = (*node.as_ptr()).successor;
-                                    (*node.as_ptr()).successor = (*node.as_ptr()).predecessor;
-                                    (*node.as_ptr()).predecessor = tmp_ptr;
-                                }
-                                None => panic!("Nullpointer"),
-                            }
-                            rank += 1;
-                        }
-                        self.last = head;
-                    }
-                }
-                None => panic!("Last not found"),
-            }
+            move_node!(self, last, successor, predecessor, !reverse, tail, head, el_cnt, +);
         } else {
-            match self.first {
-                Some(first) => {
-                    let first_rank = (*first.as_ptr()).rank;
-                    let seg = (*first.as_ptr()).segment;
-
-                    if reverse {
-                        let mut opt = head;
-                        while rank <= el_cnt {
-                            match opt {
-                                Some(node) => {
-                                    opt = (*node.as_ptr()).successor;
-                                    (*node.as_ptr()).rank = first_rank - rank;
-                                    (*node.as_ptr()).segment = seg;
-                                    let tmp_ptr = (*node.as_ptr()).successor;
-                                    (*node.as_ptr()).successor = (*node.as_ptr()).predecessor;
-                                    (*node.as_ptr()).predecessor = tmp_ptr;
-                                }
-                                None => panic!("Nullpointer"),
-                            }
-                            rank += 1;
-                        }
-                        self.first = tail;
-                    } else {
-                        let mut opt = tail;
-                        while rank <= el_cnt {
-                            match opt {
-                                Some(node) => {
-                                    opt = (*node.as_ptr()).predecessor;
-                                    (*node.as_ptr()).rank = first_rank - rank;
-                                    (*node.as_ptr()).segment = seg;
-                                }
-                                None => panic!("Nullpointer"),
-                            }
-                            rank += 1;
-                        }
-                        self.first = head;
-                    }
-                }
-                None => panic!("First not found"),
-            }
+            move_node!(self, first, predecessor, successor, reverse, head, tail, el_cnt, -);
         }
     }
 }
@@ -807,6 +694,21 @@ impl Segment {
 fn to_nonnull<T>(x: T) -> Option<NonNull<T>> {
     let boxed = Box::new(x);
     Some(Box::leak(boxed).into())
+}
+
+macro_rules! change_kin {
+    ($target:ident, $cond_kin:ident, $new_kin:ident) => {
+        match $target {
+            Some(node) => {
+                if (*node.as_ptr()).predecessor == Some(*$cond_kin) {
+                    (*node.as_ptr()).predecessor = Some(*$new_kin);
+                } else {
+                    (*node.as_ptr()).successor = Some(*$new_kin);
+                }
+            }
+            None => panic!("No predecessor when attempting to reverse segment."),
+        }
+    };
 }
 
 /// Reverse a segment internally.
@@ -834,27 +736,8 @@ unsafe fn reverse_int_seg(seg: &NonNull<Segment>, a: &NonNull<TllNode>, b: &NonN
         }
     }
 
-    match a_pred {
-        Some(pred) => {
-            if (*pred.as_ptr()).predecessor == Some(*a) {
-                (*pred.as_ptr()).predecessor = Some(*b);
-            } else {
-                (*pred.as_ptr()).successor = Some(*b);
-            }
-        }
-        None => panic!("No predecessor when attempting to reverse segment."),
-    }
-
-    match b_succ {
-        Some(succ) => {
-            if (*succ.as_ptr()).predecessor == Some(*b) {
-                (*succ.as_ptr()).predecessor = Some(*a);
-            } else {
-                (*succ.as_ptr()).successor = Some(*a);
-            }
-        }
-        None => panic!("No predecessor when attempting to reverse segment."),
-    }
+    change_kin!(a_pred, a, b);
+    change_kin!(b_succ, b, a);
 
     if (*seg.as_ptr()).first == Some(*a) {
         (*seg.as_ptr()).first = Some(*b);
