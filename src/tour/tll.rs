@@ -869,6 +869,80 @@ unsafe fn reverse_int_seg(seg: &NonNull<Segment>, a: &NonNull<TllNode>, b: &NonN
     }
 }
 
+macro_rules! swap_sym {
+    ($head: ident, $tail:ident, $target:ident, $key:ident) => {
+        match ((*$head.as_ptr()).$target, (*$tail.as_ptr()).$target) {
+            (Some(node_a), Some(node_b)) => {
+                let kin_from_a = (*node_a.as_ptr()).$key;
+                let kin_from_b = (*node_b.as_ptr()).$key;
+
+                match kin_from_a {
+                    Some(kin) => {
+                        if (*kin.as_ptr()).predecessor == (*$head.as_ptr()).$target {
+                            (*kin.as_ptr()).predecessor = (*$tail.as_ptr()).$target;
+                        } else {
+                            (*kin.as_ptr()).successor = (*$tail.as_ptr()).$target;
+                        }
+                    }
+                    None => panic!("Missing pointer"),
+                }
+
+                match kin_from_b {
+                    Some(kin) => {
+                        if (*kin.as_ptr()).predecessor == (*$tail.as_ptr()).$target {
+                            (*kin.as_ptr()).predecessor = (*$head.as_ptr()).$target;
+                        } else {
+                            (*kin.as_ptr()).successor = (*$head.as_ptr()).$target;
+                        }
+                    }
+                    None => panic!("Missing pointer"),
+                }
+
+                (*node_a.as_ptr()).$key = kin_from_b;
+                (*node_b.as_ptr()).$key = kin_from_a;
+            }
+            _ => panic!("Missing pointers"),
+        }
+    };
+}
+
+macro_rules! swap_asym {
+    ($head:ident, $tail:ident) => {
+        match ((*$head.as_ptr()).first, (*$tail.as_ptr()).last) {
+            (Some(node_a), Some(node_b)) => {
+                let a_pred = (*node_a.as_ptr()).predecessor;
+                let b_succ = (*node_b.as_ptr()).successor;
+
+                match a_pred {
+                    Some(pred) => {
+                        if (*pred.as_ptr()).predecessor == (*$head.as_ptr()).first {
+                            (*pred.as_ptr()).predecessor = (*$tail.as_ptr()).last;
+                        } else {
+                            (*pred.as_ptr()).successor = (*$tail.as_ptr()).last;
+                        }
+                    }
+                    None => panic!("Missing pointer"),
+                }
+
+                match b_succ {
+                    Some(succ) => {
+                        if (*succ.as_ptr()).predecessor == (*$tail.as_ptr()).last {
+                            (*succ.as_ptr()).predecessor = (*$head.as_ptr()).first;
+                        } else {
+                            (*succ.as_ptr()).successor = (*$head.as_ptr()).first;
+                        }
+                    }
+                    None => panic!("Missing pointer"),
+                }
+
+                (*node_a.as_ptr()).predecessor = b_succ;
+                (*node_b.as_ptr()).successor = a_pred;
+            }
+            _ => panic!("Missing pointers"),
+        }
+    };
+}
+
 // TODO: better panic msg.
 // TODO: this fn is a bomb. needs an intensive care.
 unsafe fn reverse_segs(from: &NonNull<Segment>, to: &NonNull<Segment>) {
@@ -883,138 +957,12 @@ unsafe fn reverse_segs(from: &NonNull<Segment>, to: &NonNull<Segment>) {
 
         match ((*a.as_ptr()).reverse, (*b.as_ptr()).reverse) {
             (true, true) | (false, false) => {
-                match ((*a.as_ptr()).first, (*b.as_ptr()).first) {
-                    (Some(fa), Some(fb)) => {
-                        let a_pred = (*fa.as_ptr()).predecessor;
-                        let b_pred = (*fb.as_ptr()).predecessor;
-
-                        match a_pred {
-                            Some(pred) => {
-                                if (*pred.as_ptr()).predecessor == (*a.as_ptr()).first {
-                                    (*pred.as_ptr()).predecessor = (*b.as_ptr()).first;
-                                } else {
-                                    (*pred.as_ptr()).successor = (*b.as_ptr()).first;
-                                }
-                            }
-                            None => panic!("Missing pointer"),
-                        }
-
-                        match b_pred {
-                            Some(pred) => {
-                                if (*pred.as_ptr()).predecessor == (*b.as_ptr()).first {
-                                    (*pred.as_ptr()).predecessor = (*a.as_ptr()).first;
-                                } else {
-                                    (*pred.as_ptr()).successor = (*a.as_ptr()).first;
-                                }
-                            }
-                            None => panic!("Missing pointer"),
-                        }
-
-                        (*fa.as_ptr()).predecessor = b_pred;
-                        (*fb.as_ptr()).predecessor = a_pred;
-                    }
-                    _ => panic!("Missing pointers"),
-                }
-
-                match ((*a.as_ptr()).last, (*b.as_ptr()).last) {
-                    (Some(la), Some(lb)) => {
-                        let a_succ = (*la.as_ptr()).successor;
-                        let b_succ = (*lb.as_ptr()).successor;
-
-                        match a_succ {
-                            Some(succ) => {
-                                if (*succ.as_ptr()).predecessor == (*a.as_ptr()).last {
-                                    (*succ.as_ptr()).predecessor = (*b.as_ptr()).last;
-                                } else {
-                                    (*succ.as_ptr()).successor = (*b.as_ptr()).last;
-                                }
-                            }
-                            None => panic!("Missing pointer"),
-                        }
-
-                        match b_succ {
-                            Some(succ) => {
-                                if (*succ.as_ptr()).predecessor == (*b.as_ptr()).last {
-                                    (*succ.as_ptr()).predecessor = (*a.as_ptr()).last;
-                                } else {
-                                    (*succ.as_ptr()).successor = (*a.as_ptr()).last;
-                                }
-                            }
-                            None => panic!("Missing pointer"),
-                        }
-
-                        (*la.as_ptr()).successor = b_succ;
-                        (*lb.as_ptr()).successor = a_succ;
-                    }
-                    _ => panic!("Missing pointers"),
-                }
+                swap_sym!(a, b, first, predecessor);
+                swap_sym!(a, b, last, successor);
             }
             (true, false) | (false, true) => {
-                match ((*a.as_ptr()).last, (*b.as_ptr()).first) {
-                    (Some(la), Some(fb)) => {
-                        let a_pred = (*la.as_ptr()).successor;
-                        let b_pred = (*fb.as_ptr()).predecessor;
-
-                        match a_pred {
-                            Some(pred) => {
-                                if (*pred.as_ptr()).predecessor == (*a.as_ptr()).last {
-                                    (*pred.as_ptr()).predecessor = (*b.as_ptr()).first;
-                                } else {
-                                    (*pred.as_ptr()).successor = (*b.as_ptr()).first;
-                                }
-                            }
-                            None => panic!("Missing pointer"),
-                        }
-
-                        match b_pred {
-                            Some(pred) => {
-                                if (*pred.as_ptr()).predecessor == (*b.as_ptr()).first {
-                                    (*pred.as_ptr()).predecessor = (*a.as_ptr()).last;
-                                } else {
-                                    (*pred.as_ptr()).successor = (*a.as_ptr()).last;
-                                }
-                            }
-                            None => panic!("Missing pointer"),
-                        }
-
-                        (*la.as_ptr()).successor = b_pred;
-                        (*fb.as_ptr()).predecessor = a_pred;
-                    }
-                    _ => panic!("Missing pointers"),
-                }
-
-                match ((*a.as_ptr()).first, (*b.as_ptr()).last) {
-                    (Some(fa), Some(lb)) => {
-                        let a_succ = (*fa.as_ptr()).predecessor;
-                        let b_succ = (*lb.as_ptr()).successor;
-
-                        match a_succ {
-                            Some(pred) => {
-                                if (*pred.as_ptr()).predecessor == (*a.as_ptr()).first {
-                                    (*pred.as_ptr()).predecessor = (*b.as_ptr()).last;
-                                } else {
-                                    (*pred.as_ptr()).successor = (*b.as_ptr()).last;
-                                }
-                            }
-                            None => panic!("Missing pointer"),
-                        }
-
-                        match b_succ {
-                            Some(pred) => {
-                                if (*pred.as_ptr()).predecessor == (*b.as_ptr()).last {
-                                    (*pred.as_ptr()).predecessor = (*a.as_ptr()).first;
-                                } else {
-                                    (*pred.as_ptr()).successor = (*a.as_ptr()).first;
-                                }
-                            }
-                            None => panic!("Missing pointer"),
-                        }
-
-                        (*fa.as_ptr()).predecessor = b_succ;
-                        (*lb.as_ptr()).successor = a_succ;
-                    }
-                    _ => panic!("Missing pointers"),
-                }
+                swap_asym!(a, b);
+                swap_asym!(b, a);
             }
         }
 
