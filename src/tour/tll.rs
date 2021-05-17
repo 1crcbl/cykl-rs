@@ -1,6 +1,6 @@
 use std::{ptr::NonNull, vec::IntoIter};
 
-use crate::{DataNode, Repo, Scalar};
+use crate::{tour::HeldKarpBound, DataNode, Repo, Scalar};
 
 use super::{between, STree, Tour, TourOrder, Vertex};
 
@@ -169,6 +169,11 @@ impl<'a> Tour for TwoLevelList<'a> {
             (Some(from), Some(mid), Some(to)) => self.between(from, mid, to),
             _ => false,
         }
+    }
+
+    #[inline]
+    fn distance(&self, a: &Self::TourNode, b: &Self::TourNode) -> Scalar {
+        self.repo.distance(&a.data, &b.data)
     }
 
     #[inline]
@@ -436,7 +441,12 @@ pub struct TllNode {
     /// The directly succeeding neighbour of a node in a tour.
     successor: Option<NonNull<TllNode>>,
     /// Number of edges that are incident to the node.
-    degree: usize,
+    degree: i32,
+    /// Penalty value of a node in the ascent scheme. Corresponds to pi in LKH report.
+    penalty_weight: Scalar,
+    /// Edge with minimum distance that doesn't belong to the MST.
+    // TODO: better name
+    mst_final_edge: Option<NonNull<TllNode>>,
     /// The parent of a node in a minimum spanning tree.
     pub(super) mst_parent: Option<NonNull<TllNode>>,
 }
@@ -451,6 +461,8 @@ impl TllNode {
             predecessor: None,
             successor: None,
             degree: 0,
+            penalty_weight: 0.,
+            mst_final_edge: None,
             mst_parent: None,
         }
     }
@@ -896,6 +908,7 @@ impl<'a> STree for TwoLevelList<'a> {
             match nopt {
                 Some(node) => unsafe {
                     (*node.as_ptr()).mst_parent = None;
+                    (*node.as_ptr()).mst_final_edge = None;
                 },
                 None => panic!("Nullpointer"),
             }
@@ -936,8 +949,92 @@ impl<'a> STree for TwoLevelList<'a> {
         }
     }
 
-    fn cost_m1t(&self) {
-        todo!()
+    // Held-Karp lower bound
+    fn cost_m1t(&self) -> HeldKarpBound {
+        let (mut result, mut len_tree) = (0., 0.);
+        for nopt in &self.nodes {
+            match nopt {
+                Some(node) => unsafe {
+                    len_tree += (*node.as_ptr()).penalty_weight;
+                    (*node.as_ptr()).degree -= 2;
+
+                    match (*node.as_ptr()).mst_parent {
+                        Some(parent) => {
+                            (*node.as_ptr()).degree += 1;
+                            (*parent.as_ptr()).degree += 1;
+                            result += self.distance(node.as_ref(), parent.as_ref());
+                        }
+                        None => panic!("Nullpointer in mst_parent"),
+                    }
+                },
+                None => panic!("Nullpointer"),
+            }
+        }
+
+        let mut cand_d = Scalar::MAX;
+        let mut cand = None;
+
+        for nopt in &self.nodes {
+            match nopt {
+                Some(node) => unsafe {
+                    if (*node.as_ptr()).degree == -1 {
+                        for other_opt in &self.nodes {
+                            match other_opt {
+                                Some(other) => {
+                                    if node == other
+                                        || (*node.as_ptr()).mst_parent == *other_opt
+                                        || (*other.as_ptr()).mst_parent == *nopt
+                                    {
+                                        continue;
+                                    }
+
+                                    let d = self.distance(node.as_ref(), other.as_ref());
+                                    if d < cand_d {
+                                        cand_d = d;
+                                        (*node.as_ptr()).mst_final_edge = *other_opt;
+                                        cand = *nopt;
+                                    }
+                                }
+                                None => panic!("Nullpointer in mst_parent"),
+                            }
+                        }
+                    }
+                },
+                None => {
+                    panic!("Nullpointer")
+                }
+            }
+        }
+
+        match cand {
+            Some(node) => unsafe {
+                match (*node.as_ptr()).mst_parent {
+                    Some(parent) => {
+                        (*node.as_ptr()).degree += 1;
+                        (*parent.as_ptr()).degree += 1;
+                    }
+                    None => panic!("No mst parent"),
+                }
+            },
+            None => panic!("Nullpointer"),
+        }
+
+        let mut total_deg = 0;
+        for nopt in &self.nodes {
+            match nopt {
+                Some(node) => unsafe {
+                    total_deg += (*node.as_ptr()).degree * (*node.as_ptr()).degree;
+                },
+                None => panic!("Nullpointer"),
+            }
+        }
+
+        if total_deg == 0 {
+            HeldKarpBound::Optimal
+        } else {
+            result += len_tree * 2. + cand_d;
+            HeldKarpBound::Value(result)
+        }
     }
 }
 

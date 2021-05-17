@@ -31,6 +31,10 @@ pub trait Tour {
     /// before reaching the vertex `to_index` in its forward traversal.
     fn between_at(&self, from_index: usize, mid_index: usize, to_index: usize) -> bool;
 
+    fn distance(&self, a: &Self::TourNode, b: &Self::TourNode) -> Scalar {
+        self.distance_at(a.index(), b.index())
+    }
+
     /// Calculates the distance between two nodes at the given index.
     ///
     /// # Arguments
@@ -118,7 +122,12 @@ pub trait Tour {
 pub trait STree {
     fn build_mst(&mut self);
 
-    fn cost_m1t(&self);
+    fn cost_m1t(&self) -> HeldKarpBound;
+}
+
+pub enum HeldKarpBound {
+    Value(Scalar),
+    Optimal,
 }
 
 pub trait Vertex {

@@ -3,6 +3,8 @@ use crate::tour::{Tour, TourOrder};
 mod greedy;
 pub use greedy::Greedy;
 
+pub mod lkh;
+
 mod tests;
 
 pub trait Solver {
