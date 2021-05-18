@@ -1,18 +1,18 @@
 #[allow(dead_code, unused_imports)]
 mod metric_tests {
-    use crate::base::repo::{dist_euc_2d, dist_euc_3d};
+    use crate::base::repo::{euc_2d, euc_3d};
     use crate::{base::repo::DataNode, Scalar};
 
     #[test]
     fn test_euc_2d() {
         let (a, b) = create_node_pair();
-        assert_eq!((34 as Scalar).sqrt(), dist_euc_2d(&a, &b));
+        assert_eq!((34 as Scalar).sqrt(), euc_2d(&a, &b));
     }
 
     #[test]
     fn test_euc_3d() {
         let (a, b) = create_node_pair();
-        assert_eq!((35 as Scalar).sqrt(), dist_euc_3d(&a, &b));
+        assert_eq!((35 as Scalar).sqrt(), euc_3d(&a, &b));
     }
 
     fn create_node_pair() -> (DataNode, DataNode) {
