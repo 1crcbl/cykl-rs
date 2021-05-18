@@ -269,6 +269,31 @@ mod test_tll {
 
         assert_eq!(expected, result);
     }
+
+    #[test]
+    // TODO: test vec elements.
+    fn test_gen_cands() {
+        let repo = create_repo(20);
+        let mut tour = TwoLevelList::with_default_order(&repo, 10);
+
+        let k = 6;
+        tour.gen_cands(k);
+
+        for (_, node) in tour.into_iter().enumerate() {
+            assert!(node.is_some());
+            let base = node.unwrap();
+            let mut results = Vec::with_capacity(k);
+
+            unsafe {
+                for targ in &(*base.as_ptr()).cands {
+                    assert!(targ.is_some());
+                    results.push((*targ.unwrap().as_ptr()).index());
+                }
+            }
+
+            assert_eq!(k, results.len());
+        }
+    }
 }
 
 #[allow(dead_code)]
