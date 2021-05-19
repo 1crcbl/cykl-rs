@@ -5,6 +5,8 @@ pub use greedy::Greedy;
 
 pub mod lkh;
 
+pub mod nn;
+
 mod tests;
 
 pub trait Solver {

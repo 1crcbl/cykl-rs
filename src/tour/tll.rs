@@ -5,15 +5,15 @@ use crate::{tour::HeldKarpBound, DataNode, Repo, Scalar};
 use super::{between, STree, Tour, TourIter, TourOrder, Vertex};
 
 #[derive(Debug)]
-pub struct TwoLevelList<'a> {
-    repo: &'a Repo,
+pub struct TwoLevelList {
+    repo: Repo,
     pub(crate) segments: Vec<Option<NonNull<Segment>>>,
     nodes: Vec<Option<NonNull<TllNode>>>,
     total_dist: Scalar,
 }
 
-impl<'a> TwoLevelList<'a> {
-    pub fn new(repo: &'a Repo, max_grouplen: usize) -> Self {
+impl TwoLevelList {
+    pub fn new(repo: &Repo, max_grouplen: usize) -> Self {
         let mut n_segments = repo.size() / max_grouplen;
         if repo.size() % max_grouplen != 0 {
             n_segments += 1;
@@ -57,21 +57,25 @@ impl<'a> TwoLevelList<'a> {
             .collect();
 
         Self {
-            repo,
+            repo: repo.clone(),
             nodes: nodes,
             segments: segments,
             total_dist: 0.,
         }
     }
 
-    pub fn with_default_order(repo: &'a Repo, max_grouplen: usize) -> Self {
+    pub fn with_default_order(repo: &Repo, max_grouplen: usize) -> Self {
         let mut result = Self::new(repo, max_grouplen);
-        result.apply(&TourOrder::new((0..repo.size()).collect()));
+        result.apply(&TourOrder::with_ord((0..repo.size()).collect()));
         result
+    }
+
+    pub fn repo(&self) -> Repo {
+        self.repo.clone()
     }
 }
 
-impl<'a> Tour for TwoLevelList<'a> {
+impl Tour for TwoLevelList {
     type TourNode = TllNode;
 
     fn apply(&mut self, tour: &super::TourOrder) {
@@ -512,9 +516,35 @@ impl TllNode {
             cands: Vec::with_capacity(0),
         }
     }
+
+    pub fn cands_itr(&self) -> TllIter {
+        TllIter {
+            it: self.cands.iter(),
+        }
+    }
+
+    #[inline]
+    pub fn degree(&self) -> i32 {
+        self.degree
+    }
+
+    #[inline]
+    pub fn add_degree(&mut self) {
+        self.degree += 1;
+    }
+
+    #[inline]
+    pub fn rem_degree(&mut self) {
+        self.degree -= 1;
+    }
 }
 
 impl Vertex for TllNode {
+    #[inline]
+    fn data(&self) -> &DataNode {
+        &self.data
+    }
+
     #[inline]
     fn index(&self) -> usize {
         self.data.index()
@@ -936,7 +966,7 @@ unsafe fn reverse_segs(from: &NonNull<Segment>, to: &NonNull<Segment>) {
     }
 }
 
-impl<'a> STree for TwoLevelList<'a> {
+impl STree for TwoLevelList {
     fn build_mst(&mut self) {
         // A naive implementation of Prim's algorithm. Runtime is O(N^2).
         // https://en.wikipedia.org/wiki/Prim%27s_algorithm
@@ -1078,12 +1108,19 @@ impl<'a> STree for TwoLevelList<'a> {
     }
 }
 
-impl<'a, 's> TourIter<'s> for TwoLevelList<'a> {
+impl<'s> TourIter<'s> for TwoLevelList {
     type Iter = TllIter<'s>;
+    type IterMut = TllIterMut<'s>;
 
     fn itr(&'s self) -> Self::Iter {
         TllIter {
             it: self.nodes.iter(),
+        }
+    }
+
+    fn itr_mut(&'s mut self) -> Self::IterMut {
+        TllIterMut {
+            it: self.nodes.iter_mut(),
         }
     }
 }
@@ -1119,6 +1156,45 @@ impl<'s> Iterator for TllIter<'s> {
             Some(opt) => unsafe {
                 match opt {
                     Some(node) => Some(node.as_ref()),
+                    None => None,
+                }
+            },
+            None => None,
+        }
+    }
+}
+
+pub struct TllIterMut<'s> {
+    it: std::slice::IterMut<'s, Option<NonNull<TllNode>>>,
+}
+
+impl<'s> Iterator for TllIterMut<'s> {
+    type Item = &'s mut TllNode;
+
+    #[inline]
+    fn next(&mut self) -> Option<Self::Item> {
+        match self.it.next() {
+            Some(opt) => unsafe {
+                match opt {
+                    Some(node) => Some(node.as_mut()),
+                    None => None,
+                }
+            },
+            None => None,
+        }
+    }
+
+    #[inline]
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        (self.it.len(), Some(self.it.len()))
+    }
+
+    #[inline]
+    fn last(mut self) -> Option<Self::Item> {
+        match self.it.next_back() {
+            Some(opt) => unsafe {
+                match opt {
+                    Some(node) => Some(node.as_mut()),
                     None => None,
                 }
             },

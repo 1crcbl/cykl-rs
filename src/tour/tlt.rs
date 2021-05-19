@@ -57,7 +57,7 @@ impl<'a> TwoLevelTree<'a> {
 
     pub fn with_default_order(repo: &'a Repo, max_grouplen: usize) -> Self {
         let mut result = Self::new(repo, max_grouplen);
-        result.apply(&TourOrder::new((0..repo.size()).collect()));
+        result.apply(&TourOrder::with_ord((0..repo.size()).collect()));
         result
     }
 
@@ -450,6 +450,10 @@ impl Vertex for TltNode {
     fn visited(&mut self, flag: bool) {
         self.visited = flag;
     }
+
+    fn data(&self) -> &DataNode {
+        &self.node
+    }
 }
 
 impl PartialEq for TltNode {
@@ -730,20 +734,25 @@ impl Conduit {
 }
 
 impl<'a, 's> TourIter<'s> for TwoLevelTree<'a> {
-    type Iter = TllIter<'s>;
+    type Iter = TltIter<'s>;
+    type IterMut = TltIter<'s>;
 
     fn itr(&'s self) -> Self::Iter {
-        TllIter {
+        TltIter {
             it: self.nodes.iter(),
         }
     }
+
+    fn itr_mut(&'s mut self) -> Self::IterMut {
+        todo!()
+    }
 }
 
-pub struct TllIter<'s> {
+pub struct TltIter<'s> {
     it: std::slice::Iter<'s, Rc<RefCell<TltNode>>>,
 }
 
-impl<'s> Iterator for TllIter<'s> {
+impl<'s> Iterator for TltIter<'s> {
     type Item = &'s TltNode;
 
     #[inline]

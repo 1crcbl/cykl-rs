@@ -1,12 +1,17 @@
-use std::{cell::RefCell, collections::HashMap, f64::consts::PI, fmt, rc::Rc};
+use std::{cell::RefCell, collections::HashMap, f64::consts::PI, fmt, ptr::NonNull, rc::Rc};
 
 use crate::Scalar;
 
 const EARTH_RADIUS: Scalar = 6378.388;
 
+#[derive(Clone)]
 pub struct Repo {
+    inner: Option<NonNull<InnerRepo>>,
+}
+
+struct InnerRepo {
     nodes: Vec<DataNode>,
-    cache: Rc<RefCell<HashMap<(usize, usize), Scalar>>>,
+    cache: HashMap<(usize, usize), Scalar>,
     kind: MetricKind,
     func: Box<dyn Fn(&DataNode, &DataNode) -> Scalar>,
     func_lb: Box<dyn Fn(&DataNode, &DataNode) -> Scalar>,
@@ -16,13 +21,22 @@ impl Repo {
     /// Adds a new node to the container.
     #[inline]
     pub fn add(&mut self, x: Scalar, y: Scalar, z: Scalar) {
-        let node = DataNode::new(self.nodes.len(), x, y, z);
-        self.nodes.push(node);
+        match &self.inner {
+            Some(inner) => unsafe {
+                let ptr = inner.as_ptr();
+                let node = DataNode::new((*ptr).nodes.len(), x, y, z);
+                (*ptr).nodes.push(node);
+            },
+            None => panic!("Nullpointer"),
+        };
     }
 
     #[inline]
     pub fn get(&self, index: usize) -> Option<&DataNode> {
-        self.nodes.get(index)
+        match &self.inner {
+            Some(inner) => unsafe { (*inner.as_ptr()).nodes.get(index) },
+            None => panic!("Nullpointer"),
+        }
     }
 
     /// Calculates the distance between two nodes.
@@ -39,13 +53,21 @@ impl Repo {
             (a.index(), b.index())
         };
 
-        match self.cache.borrow().get(&key) {
-            Some(d) => return *d,
-            None => {}
+        match self.inner {
+            Some(inner) => unsafe {
+                let ptr = inner.as_ptr();
+                let val = (*ptr).cache.get(&key);
+                match val {
+                    Some(d) => *d,
+                    None => {
+                        let d = (*ptr).func.as_ref()(a, b);
+                        (*ptr).cache.insert(key, d);
+                        d
+                    }
+                }
+            },
+            None => panic!("Nullpointer"),
         }
-        let d = self.func.as_ref()(a, b);
-        self.cache.borrow_mut().insert(key, d);
-        d
     }
 
     /// Calculates the distance between two nodes at the given indices.
@@ -55,23 +77,8 @@ impl Repo {
             return 0.;
         }
 
-        match (self.nodes.get(index_a), self.nodes.get(index_b)) {
-            (Some(a), Some(b)) => {
-                let key = if index_a > index_b {
-                    (index_b, index_a)
-                } else {
-                    (index_a, index_b)
-                };
-
-                match self.cache.borrow().get(&key) {
-                    Some(d) => return *d,
-                    None => {}
-                }
-
-                let d = self.func.as_ref()(a, b);
-                self.cache.borrow_mut().insert(key, d);
-                d
-            }
+        match (self.get(index_a), self.get(index_b)) {
+            (Some(a), Some(b)) => self.distance(a, b),
             _ => 0.,
         }
     }
@@ -79,12 +86,14 @@ impl Repo {
     /// Calculates the lower bound of the distance between two nodes.
     #[inline]
     pub fn dist_lb(&self, a: &DataNode, b: &DataNode) -> Scalar {
-        // TODO: check whether a node with index belongs to this container.
         if a.index() == b.index() {
             return 0.;
         }
 
-        self.func_lb.as_ref()(a, b)
+        match self.inner {
+            Some(inner) => unsafe { (*inner.as_ptr()).func_lb.as_ref()(a, b) },
+            None => panic!("Nullpointer"),
+        }
     }
 
     /// Calculates the lower bound of the distance between two nodes at the given indices.
@@ -94,8 +103,8 @@ impl Repo {
             return 0.;
         }
 
-        match (self.nodes.get(index_a), self.nodes.get(index_b)) {
-            (Some(a), Some(b)) => self.func_lb.as_ref()(a, b),
+        match (self.get(index_a), self.get(index_b)) {
+            (Some(a), Some(b)) => self.dist_lb(a, b),
             _ => 0.,
         }
     }
@@ -103,25 +112,25 @@ impl Repo {
     /// Returns the number of nodes in the container.
     #[inline]
     pub fn size(&self) -> usize {
-        self.nodes.len()
+        match &self.inner {
+            Some(inner) => unsafe { (*inner.as_ptr()).nodes.len() },
+            None => panic!("Nullpointer"),
+        }
     }
 }
 
 impl fmt::Debug for Repo {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("Repo")
-            .field("kind", &self.kind)
-            .field("cache", &self.cache)
-            .finish()
-    }
-}
-
-impl IntoIterator for Repo {
-    type Item = DataNode;
-    type IntoIter = std::vec::IntoIter<DataNode>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        self.nodes.into_iter()
+        match &self.inner {
+            Some(inner) => unsafe {
+                let ptr = inner.as_ptr();
+                f.debug_struct("Repo")
+                    .field("kind", &(*ptr).kind)
+                    .field("cache", &(*ptr).cache)
+                    .finish()
+            },
+            None => f.debug_struct("Repo: null").finish(),
+        }
     }
 }
 
@@ -130,7 +139,10 @@ impl<'s> IntoIterator for &'s Repo {
     type IntoIter = std::slice::Iter<'s, DataNode>;
 
     fn into_iter(self) -> Self::IntoIter {
-        self.nodes.iter()
+        match &self.inner {
+            Some(inner) => unsafe { (*inner.as_ptr()).nodes.iter() },
+            None => panic!("Nullpointer"),
+        }
     }
 }
 
@@ -205,12 +217,16 @@ impl RepoBuilder {
             _ => unimplemented!(),
         };
 
-        Repo {
+        let inner = Box::new(InnerRepo {
             nodes,
-            cache: Rc::new(RefCell::new(hm)),
+            cache: hm,
             kind: self.met_kind,
             func,
             func_lb,
+        });
+
+        Repo {
+            inner: Some(Box::leak(inner).into()),
         }
     }
 

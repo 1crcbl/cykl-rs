@@ -1,6 +1,6 @@
 use getset::Getters;
 
-use crate::Scalar;
+use crate::{DataNode, Scalar};
 
 mod array;
 pub use array::ArrNode;
@@ -131,9 +131,12 @@ pub trait Tour {
 
 pub trait TourIter<'s> {
     type Iter: Iterator;
+    type IterMut: Iterator;
 
     /// Returns an iterator of nodes over the tour.
     fn itr(&'s self) -> Self::Iter;
+
+    fn itr_mut(&'s mut self) -> Self::IterMut;
 }
 
 pub trait STree {
@@ -148,6 +151,8 @@ pub enum HeldKarpBound {
 }
 
 pub trait Vertex {
+    fn data(&self) -> &DataNode;
+
     fn index(&self) -> usize;
 
     fn is_visited(&self) -> bool;
@@ -164,15 +169,37 @@ pub struct TourOrder {
 }
 
 impl TourOrder {
-    pub fn new(order: Vec<usize>) -> Self {
+    pub fn new() -> Self {
         Self {
-            order: order.clone(),
+            order: Vec::new(),
+            total_dist: 0.,
+        }
+    }
+
+    pub fn with_capacity(capacity: usize) -> Self {
+        Self {
+            order: Vec::with_capacity(capacity),
+            total_dist: 0.,
+        }
+    }
+
+    pub fn with_ord(order: Vec<usize>) -> Self {
+        Self {
+            order: order,
             total_dist: 0.,
         }
     }
 
     pub fn with_dist(order: Vec<usize>, total_dist: Scalar) -> Self {
         Self { order, total_dist }
+    }
+
+    pub fn len(&self) -> usize {
+        self.order.len()
+    }
+
+    pub fn add(&mut self, index: usize) {
+        self.order.push(index);
     }
 }
 

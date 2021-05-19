@@ -56,7 +56,7 @@ impl<'a> Tour for Array<'a> {
         self.total_dist = 0.;
 
         for ii in 0..tour.len() {
-            self.swap_at(tour[ii], *&self.nodes[ii].node().index());
+            self.swap_at(tour[ii], *&self.nodes[ii].data.index());
             self.nodes[ii].visited = false;
 
             if ii != tour.len() - 1 {
@@ -81,7 +81,7 @@ impl<'a> Tour for Array<'a> {
     fn distance_at(&self, a: usize, b: usize) -> Scalar {
         // TODO: check if nodes belong to the group.
         self.repo
-            .distance(self.get(a).unwrap().node(), self.get(b).unwrap().node())
+            .distance(&self.get(a).unwrap().data, &self.get(b).unwrap().data)
     }
 
     fn flip_at(&mut self, from_a: usize, to_a: usize, from_b: usize, to_b: usize) {
@@ -98,8 +98,8 @@ impl<'a> Tour for Array<'a> {
         let ato_a = self.tracker[to_a];
         let diff = (afrom_b - ato_a + 1) / 2;
         for ii in 0..diff {
-            let n1 = self.nodes[ato_a + ii].node().index();
-            let n2 = self.nodes[afrom_b - ii].node().index();
+            let n1 = self.nodes[ato_a + ii].data.index();
+            let n2 = self.nodes[afrom_b - ii].data.index();
             self.swap_at(n1, n2);
         }
     }
@@ -172,22 +172,26 @@ impl<'a> Tour for Array<'a> {
 #[derive(Debug, Getters, PartialEq)]
 pub struct ArrNode {
     #[getset(get = "pub")]
-    node: DataNode,
+    data: DataNode,
     visited: bool,
 }
 
 impl ArrNode {
-    pub fn new(node: &DataNode) -> Self {
+    pub fn new(data: &DataNode) -> Self {
         Self {
-            node: node.clone(),
+            data: data.clone(),
             visited: false,
         }
     }
 }
 
 impl Vertex for ArrNode {
+    fn data(&self) -> &DataNode {
+        &self.data
+    }
+
     fn index(&self) -> usize {
-        self.node.index()
+        self.data.index()
     }
 
     fn is_visited(&self) -> bool {
@@ -201,11 +205,16 @@ impl Vertex for ArrNode {
 
 impl<'a, 's> TourIter<'s> for Array<'a> {
     type Iter = TllIter<'s>;
+    type IterMut = TllIter<'s>;
 
     fn itr(&'s self) -> Self::Iter {
         TllIter {
             it: self.nodes.iter(),
         }
+    }
+
+    fn itr_mut(&'s mut self) -> Self::IterMut {
+        todo!()
     }
 }
 
