@@ -8,17 +8,17 @@ use std::{
 
 use crate::{DataNode, Repo, Scalar};
 
-use super::{between, Tour, TourOrder, Vertex};
+use super::{between, Tour, TourIter, TourOrder, Vertex};
 
-type RcVertex = Rc<RefCell<TltVertex>>;
-type WeakVertex = Weak<RefCell<TltVertex>>;
+type RcVertex = Rc<RefCell<TltNode>>;
+type WeakVertex = Weak<RefCell<TltNode>>;
 type RcSegment = Rc<RefCell<Segment>>;
 type WeakSegment = Weak<RefCell<Segment>>;
 
 #[derive(Debug)]
 pub struct TwoLevelTree<'a> {
     repo: &'a Repo,
-    vertices: Vec<RcVertex>,
+    nodes: Vec<RcVertex>,
     segments: Vec<RcSegment>,
     total_dist: Scalar,
 }
@@ -30,10 +30,7 @@ impl<'a> TwoLevelTree<'a> {
             n_segments += 1;
         }
 
-        let vertices = repo
-            .into_iter()
-            .map(|n| TltVertex::new(n).to_rc())
-            .collect();
+        let nodes = repo.into_iter().map(|n| TltNode::new(n).to_rc()).collect();
 
         let mut segments = Vec::with_capacity(n_segments);
         segments.push(Segment::new(0, max_grouplen).to_rc());
@@ -52,7 +49,7 @@ impl<'a> TwoLevelTree<'a> {
 
         Self {
             repo,
-            vertices,
+            nodes,
             segments,
             total_dist: 0.,
         }
@@ -165,13 +162,13 @@ impl<'a> TwoLevelTree<'a> {
 }
 
 impl<'a> Tour for TwoLevelTree<'a> {
-    type TourNode = TltVertex;
+    type TourNode = TltNode;
 
     fn apply(&mut self, tour: &super::TourOrder) {
         let tour = tour.order();
 
         let p_len = self.segments.len();
-        let v_len = self.vertices.len();
+        let v_len = self.nodes.len();
 
         self.total_dist = 0.;
 
@@ -184,7 +181,7 @@ impl<'a> Tour for TwoLevelTree<'a> {
             let end_seg = (beg_seg + p.borrow().max_len).min(v_len);
 
             for iv in beg_seg..end_seg {
-                let v = self.vertices.get(tour[iv]).unwrap();
+                let v = self.nodes.get(tour[iv]).unwrap();
                 v.borrow_mut().rank = iv - beg_seg;
                 v.borrow_mut().segment = Rc::downgrade(p);
 
@@ -198,7 +195,7 @@ impl<'a> Tour for TwoLevelTree<'a> {
 
                 p.borrow_mut().children.push_back(v.clone());
 
-                let next_v = self.vertices.get(tour[(iv + 1) % v_len]).unwrap();
+                let next_v = self.nodes.get(tour[(iv + 1) % v_len]).unwrap();
 
                 self.total_dist += self.repo.distance(&v.borrow().node, &next_v.borrow().node);
 
@@ -274,14 +271,14 @@ impl<'a> Tour for TwoLevelTree<'a> {
 
             // Case 2: Both paths (to_b, from_a) AND (to_a, from_b) consist of a sequence of
             // consecutive segments. Since to_a and to_b are direct successors of from_a and from_b,
-            // this means that all vertices are either at the head or the tail of their
+            // this means that all nodes are either at the head or the tail of their
             // corresponding segments. Thus, we only need to reverse these segments.
             //
-            // Case 1 and 2 are special arrangements of vertices in the data structure. A more
-            // general case is when vertices are positioned in the middle of their segments.
+            // Case 1 and 2 are special arrangements of nodes in the data structure. A more
+            // general case is when nodes are positioned in the middle of their segments.
             //
             // Thus in case 3, neither of the two cases above apply. To tackle this case, we will
-            // rearrange the vertices by splitting their corresponding segments so that the
+            // rearrange the nodes by splitting their corresponding segments so that the
             // requirements for case 1 or 2 are satisfied.
 
             // Check for case 3.
@@ -333,19 +330,22 @@ impl<'a> Tour for TwoLevelTree<'a> {
         }
     }
 
+    #[inline]
     fn get(&self, index: usize) -> Option<&Self::TourNode> {
-        match self.vertices.get(index) {
+        match self.nodes.get(index) {
             Some(v) => unsafe { v.as_ref().as_ptr().as_ref() },
             None => None,
         }
     }
 
+    #[inline]
     fn successor(&self, kin: &Self::TourNode) -> Option<&Self::TourNode> {
         self.successor_at(kin.index())
     }
 
+    #[inline]
     fn successor_at(&self, kin_index: usize) -> Option<&Self::TourNode> {
-        if let Some(kin) = self.vertices.get(kin_index) {
+        if let Some(kin) = self.nodes.get(kin_index) {
             let kin_borrow = kin.borrow();
             match kin_borrow.segment.upgrade() {
                 Some(p) => match p.borrow().next(kin_borrow.rank).upgrade() {
@@ -359,12 +359,14 @@ impl<'a> Tour for TwoLevelTree<'a> {
         }
     }
 
+    #[inline]
     fn predecessor(&self, kin: &Self::TourNode) -> Option<&Self::TourNode> {
         self.predecessor_at(kin.index())
     }
 
+    #[inline]
     fn predecessor_at(&self, kin_index: usize) -> Option<&Self::TourNode> {
-        if let Some(kin) = self.vertices.get(kin_index) {
+        if let Some(kin) = self.nodes.get(kin_index) {
             let kin_borrow = kin.borrow();
             match kin_borrow.segment.upgrade() {
                 Some(p) => match p.borrow().prev(kin_borrow.rank).upgrade() {
@@ -384,7 +386,7 @@ impl<'a> Tour for TwoLevelTree<'a> {
 
     #[inline]
     fn len(&self) -> usize {
-        self.vertices.len()
+        self.nodes.len()
     }
 
     #[inline]
@@ -393,14 +395,14 @@ impl<'a> Tour for TwoLevelTree<'a> {
     }
 
     fn visited_at(&mut self, kin_index: usize, flag: bool) {
-        if let Some(kin) = self.vertices.get(kin_index) {
+        if let Some(kin) = self.nodes.get(kin_index) {
             kin.borrow_mut().visited(flag);
         }
     }
 }
 
 #[derive(Debug, Getters)]
-pub struct TltVertex {
+pub struct TltNode {
     /// Sequential ID used inside a segment to which a vertex belongs.
     ///
     /// If a vertex is not attached to any segment, `usize::MAX` will be assigned.
@@ -415,7 +417,7 @@ pub struct TltVertex {
     segment: WeakSegment,
 }
 
-impl TltVertex {
+impl TltNode {
     pub fn new(node: &DataNode) -> Self {
         Self {
             node: node.clone(),
@@ -436,7 +438,7 @@ impl TltVertex {
     }
 }
 
-impl Vertex for TltVertex {
+impl Vertex for TltNode {
     fn index(&self) -> usize {
         self.node.index()
     }
@@ -450,7 +452,7 @@ impl Vertex for TltVertex {
     }
 }
 
-impl PartialEq for TltVertex {
+impl PartialEq for TltNode {
     fn eq(&self, other: &Self) -> bool {
         // TODO: expand comparison to pointer.
         self.node == other.node && self.visited == other.visited
@@ -724,5 +726,44 @@ impl Conduit {
 
     fn to_rc(self) -> Rc<RefCell<Self>> {
         Rc::new(RefCell::new(self))
+    }
+}
+
+impl<'a, 's> TourIter<'s> for TwoLevelTree<'a> {
+    type Iter = TllIter<'s>;
+
+    fn itr(&'s self) -> Self::Iter {
+        TllIter {
+            it: self.nodes.iter(),
+        }
+    }
+}
+
+pub struct TllIter<'s> {
+    it: std::slice::Iter<'s, Rc<RefCell<TltNode>>>,
+}
+
+impl<'s> Iterator for TllIter<'s> {
+    type Item = &'s TltNode;
+
+    #[inline]
+    fn next(&mut self) -> Option<Self::Item> {
+        match self.it.next() {
+            Some(rc) => unsafe { rc.as_ref().as_ptr().as_ref() },
+            None => None,
+        }
+    }
+
+    #[inline]
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        (self.it.len(), Some(self.it.len()))
+    }
+
+    #[inline]
+    fn last(self) -> Option<Self::Item> {
+        match self.it.last() {
+            Some(rc) => unsafe { rc.as_ref().as_ptr().as_ref() },
+            None => None,
+        }
     }
 }

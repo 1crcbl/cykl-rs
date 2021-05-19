@@ -3,11 +3,11 @@ use getset::Getters;
 use crate::Scalar;
 
 mod array;
-pub use array::ArrVertex;
+pub use array::ArrNode;
 pub use array::Array;
 
 mod tlt;
-pub use tlt::TltVertex;
+pub use tlt::TltNode;
 pub use tlt::TwoLevelTree;
 
 mod tll;
@@ -127,6 +127,13 @@ pub trait Tour {
     fn gen_cands(&mut self, _k: usize) {
         todo!()
     }
+}
+
+pub trait TourIter<'s> {
+    type Iter: Iterator;
+
+    /// Returns an iterator of nodes over the tour.
+    fn itr(&'s self) -> Self::Iter;
 }
 
 pub trait STree {

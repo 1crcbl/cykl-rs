@@ -2,7 +2,7 @@ use getset::Getters;
 
 use crate::{DataNode, Repo, Scalar};
 
-use super::{between, Tour, TourOrder, Vertex};
+use super::{between, Tour, TourIter, TourOrder, Vertex};
 
 //
 // Vertex[Tracker[ii]] = n_ii
@@ -18,26 +18,26 @@ use super::{between, Tour, TourOrder, Vertex};
 #[derive(Debug)]
 pub struct Array<'a> {
     repo: &'a Repo,
-    vertices: Vec<ArrVertex>,
+    nodes: Vec<ArrNode>,
     tracker: Vec<usize>,
     total_dist: Scalar,
 }
 
 impl<'a> Array<'a> {
     pub fn new(repo: &'a Repo) -> Self {
-        let vertices: Vec<ArrVertex> = repo.into_iter().map(|n| ArrVertex::new(n)).collect();
-        let tracker = (0..vertices.len()).collect();
+        let nodes: Vec<ArrNode> = repo.into_iter().map(|n| ArrNode::new(n)).collect();
+        let tracker = (0..nodes.len()).collect();
 
         Self {
             repo,
-            vertices,
+            nodes,
             tracker,
             total_dist: 0.,
         }
     }
 
     pub(crate) fn swap_at(&mut self, idx_a: usize, idx_b: usize) {
-        self.vertices.swap(self.tracker[idx_a], self.tracker[idx_b]);
+        self.nodes.swap(self.tracker[idx_a], self.tracker[idx_b]);
         self.tracker.swap(idx_a, idx_b);
     }
 
@@ -49,15 +49,15 @@ impl<'a> Array<'a> {
 }
 
 impl<'a> Tour for Array<'a> {
-    type TourNode = ArrVertex;
+    type TourNode = ArrNode;
 
     fn apply(&mut self, tour: &TourOrder) {
         let tour = tour.order();
         self.total_dist = 0.;
 
         for ii in 0..tour.len() {
-            self.swap_at(tour[ii], *&self.vertices[ii].node().index());
-            self.vertices[ii].visited = false;
+            self.swap_at(tour[ii], *&self.nodes[ii].node().index());
+            self.nodes[ii].visited = false;
 
             if ii != tour.len() - 1 {
                 self.total_dist += self.repo.distance_at(tour[ii], tour[ii + 1]);
@@ -98,15 +98,15 @@ impl<'a> Tour for Array<'a> {
         let ato_a = self.tracker[to_a];
         let diff = (afrom_b - ato_a + 1) / 2;
         for ii in 0..diff {
-            let n1 = self.vertices[ato_a + ii].node().index();
-            let n2 = self.vertices[afrom_b - ii].node().index();
+            let n1 = self.nodes[ato_a + ii].node().index();
+            let n2 = self.nodes[afrom_b - ii].node().index();
             self.swap_at(n1, n2);
         }
     }
 
     #[inline]
     fn get(&self, node_idx: usize) -> Option<&Self::TourNode> {
-        self.vertices.get(self.tracker[node_idx])
+        self.nodes.get(self.tracker[node_idx])
     }
 
     #[inline]
@@ -117,12 +117,12 @@ impl<'a> Tour for Array<'a> {
 
     #[inline]
     fn successor_at(&self, node_idx: usize) -> Option<&Self::TourNode> {
-        if node_idx > self.vertices.len() {
+        if node_idx > self.nodes.len() {
             return None;
         }
 
-        let next_idx = (self.tracker[node_idx] + 1) % self.vertices.len();
-        self.vertices.get(next_idx)
+        let next_idx = (self.tracker[node_idx] + 1) % self.nodes.len();
+        self.nodes.get(next_idx)
     }
 
     #[inline]
@@ -133,30 +133,30 @@ impl<'a> Tour for Array<'a> {
 
     #[inline]
     fn predecessor_at(&self, node_idx: usize) -> Option<&Self::TourNode> {
-        if node_idx > self.vertices.len() {
+        if node_idx > self.nodes.len() {
             return None;
         }
 
         let curr_idx = self.tracker[node_idx];
         let prev_idx = if curr_idx == 0 {
-            self.vertices.len() - 1
+            self.nodes.len() - 1
         } else {
             curr_idx - 1
         };
 
-        self.vertices.get(prev_idx)
+        self.nodes.get(prev_idx)
     }
 
     #[inline]
     fn reset(&mut self) {
-        for vt in &mut self.vertices {
+        for vt in &mut self.nodes {
             vt.visited(false);
         }
     }
 
     #[inline]
     fn len(&self) -> usize {
-        self.vertices.len()
+        self.nodes.len()
     }
 
     #[inline]
@@ -165,36 +165,18 @@ impl<'a> Tour for Array<'a> {
     }
 
     fn visited_at(&mut self, kin_index: usize, flag: bool) {
-        self.vertices[kin_index].visited(flag);
-    }
-}
-
-impl<'a> IntoIterator for Array<'a> {
-    type Item = ArrVertex;
-    type IntoIter = std::vec::IntoIter<Self::Item>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        self.vertices.into_iter()
-    }
-}
-
-impl<'a, 's> IntoIterator for &'s Array<'a> {
-    type Item = &'s ArrVertex;
-    type IntoIter = std::slice::Iter<'s, ArrVertex>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        self.vertices.iter()
+        self.nodes[kin_index].visited(flag);
     }
 }
 
 #[derive(Debug, Getters, PartialEq)]
-pub struct ArrVertex {
+pub struct ArrNode {
     #[getset(get = "pub")]
     node: DataNode,
     visited: bool,
 }
 
-impl ArrVertex {
+impl ArrNode {
     pub fn new(node: &DataNode) -> Self {
         Self {
             node: node.clone(),
@@ -203,7 +185,7 @@ impl ArrVertex {
     }
 }
 
-impl Vertex for ArrVertex {
+impl Vertex for ArrNode {
     fn index(&self) -> usize {
         self.node.index()
     }
@@ -214,5 +196,38 @@ impl Vertex for ArrVertex {
 
     fn visited(&mut self, flag: bool) {
         self.visited = flag;
+    }
+}
+
+impl<'a, 's> TourIter<'s> for Array<'a> {
+    type Iter = TllIter<'s>;
+
+    fn itr(&'s self) -> Self::Iter {
+        TllIter {
+            it: self.nodes.iter(),
+        }
+    }
+}
+
+pub struct TllIter<'s> {
+    it: std::slice::Iter<'s, ArrNode>,
+}
+
+impl<'s> Iterator for TllIter<'s> {
+    type Item = &'s ArrNode;
+
+    #[inline]
+    fn next(&mut self) -> Option<Self::Item> {
+        self.it.next()
+    }
+
+    #[inline]
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        (self.it.len(), Some(self.it.len()))
+    }
+
+    #[inline]
+    fn last(self) -> Option<Self::Item> {
+        self.it.last()
     }
 }

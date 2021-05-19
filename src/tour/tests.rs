@@ -183,7 +183,7 @@ mod test_tll {
         tour::{
             tests::{create_repo, test_tour_order},
             tll::TwoLevelList,
-            STree, Tour, TourOrder, Vertex,
+            STree, Tour, TourIter, TourOrder, Vertex,
         },
         MatrixKind,
     };
@@ -239,14 +239,12 @@ mod test_tll {
 
         let mut result = HashMap::new();
 
-        for (idx, nopt) in tour.into_iter().enumerate() {
-            assert!(nopt.is_some());
+        for (idx, node) in tour.itr().enumerate() {
             unsafe {
-                let node = nopt.unwrap();
                 if idx == 0 {
                     result.insert(idx, None);
                 } else {
-                    let parent = &(*node.as_ptr()).mst_parent;
+                    let parent = &node.mst_parent;
                     assert!(parent.is_some());
                     result.insert(idx, Some((*parent.unwrap().as_ptr()).index()));
                 }
@@ -279,13 +277,11 @@ mod test_tll {
         let k = 6;
         tour.gen_cands(k);
 
-        for (_, node) in tour.into_iter().enumerate() {
-            assert!(node.is_some());
-            let base = node.unwrap();
+        for base in tour.itr() {
             let mut results = Vec::with_capacity(k);
 
             unsafe {
-                for targ in &(*base.as_ptr()).cands {
+                for targ in &base.cands {
                     assert!(targ.is_some());
                     results.push((*targ.unwrap().as_ptr()).index());
                 }

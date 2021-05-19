@@ -1,8 +1,8 @@
-use std::{ptr::NonNull, vec::IntoIter};
+use std::ptr::NonNull;
 
 use crate::{tour::HeldKarpBound, DataNode, Repo, Scalar};
 
-use super::{between, STree, Tour, TourOrder, Vertex};
+use super::{between, STree, Tour, TourIter, TourOrder, Vertex};
 
 #[derive(Debug)]
 pub struct TwoLevelList<'a> {
@@ -1078,20 +1078,51 @@ impl<'a> STree for TwoLevelList<'a> {
     }
 }
 
-impl<'a> IntoIterator for TwoLevelList<'a> {
-    type Item = Option<NonNull<TllNode>>;
-    type IntoIter = IntoIter<Option<NonNull<TllNode>>>;
+impl<'a, 's> TourIter<'s> for TwoLevelList<'a> {
+    type Iter = TllIter<'s>;
 
-    fn into_iter(self) -> Self::IntoIter {
-        self.nodes.into_iter()
+    fn itr(&'s self) -> Self::Iter {
+        TllIter {
+            it: self.nodes.iter(),
+        }
     }
 }
 
-impl<'a, 's> IntoIterator for &'s TwoLevelList<'a> {
-    type Item = &'s Option<NonNull<TllNode>>;
-    type IntoIter = std::slice::Iter<'s, Option<NonNull<TllNode>>>;
+pub struct TllIter<'s> {
+    it: std::slice::Iter<'s, Option<NonNull<TllNode>>>,
+}
 
-    fn into_iter(self) -> Self::IntoIter {
-        self.nodes.iter()
+impl<'s> Iterator for TllIter<'s> {
+    type Item = &'s TllNode;
+
+    #[inline]
+    fn next(&mut self) -> Option<Self::Item> {
+        match self.it.next() {
+            Some(opt) => unsafe {
+                match opt {
+                    Some(node) => Some(node.as_ref()),
+                    None => None,
+                }
+            },
+            None => None,
+        }
+    }
+
+    #[inline]
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        (self.it.len(), Some(self.it.len()))
+    }
+
+    #[inline]
+    fn last(mut self) -> Option<Self::Item> {
+        match self.it.next_back() {
+            Some(opt) => unsafe {
+                match opt {
+                    Some(node) => Some(node.as_ref()),
+                    None => None,
+                }
+            },
+            None => None,
+        }
     }
 }
