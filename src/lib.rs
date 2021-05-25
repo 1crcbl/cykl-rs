@@ -5,7 +5,6 @@ pub use base::repo::MetricKind;
 pub use base::repo::Repo;
 pub use base::repo::RepoBuilder;
 
-pub mod solver;
 pub mod tour;
 
 pub type Scalar = f64;

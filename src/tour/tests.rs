@@ -93,7 +93,7 @@ mod test_tll {
         tour::{
             tests::{create_repo, test_tour_order},
             tll::TwoLevelList,
-            STree, Tour, TourIter, TourOrder,
+            STree, Tour, TourImpltor, TourIter, TourOrder,
         },
         MatrixKind,
     };

@@ -464,12 +464,28 @@ pub unsafe fn reverse_segs(from: &NonNull<Segment>, to: &NonNull<Segment>) {
         (*a.as_ptr()).reverse();
         (*b.as_ptr()).reverse();
 
+        let tmp_next = (*a.as_ptr()).next;
+        let tmp_prev = (*b.as_ptr()).prev;
+
         let tmpr = (*a.as_ptr()).rank;
         (*a.as_ptr()).rank = (*b.as_ptr()).rank;
         (*b.as_ptr()).rank = tmpr;
 
-        let tmp_next = (*a.as_ptr()).next;
-        let tmp_prev = (*b.as_ptr()).prev;
+        match ((*a.as_ptr()).prev, (*a.as_ptr()).next) {
+            (Some(prev), Some(next)) => {
+                (*prev.as_ptr()).next = Some(b);
+                (*next.as_ptr()).prev = Some(b);
+            }
+            _ => panic!("Nullpointer"),
+        };
+
+        match ((*b.as_ptr()).prev, (*b.as_ptr()).next) {
+            (Some(prev), Some(next)) => {
+                (*prev.as_ptr()).next = Some(a);
+                (*next.as_ptr()).prev = Some(a);
+            }
+            _ => panic!("Nullpointer"),
+        };
 
         (*a.as_ptr()).next = (*b.as_ptr()).next;
         (*b.as_ptr()).prev = (*a.as_ptr()).prev;

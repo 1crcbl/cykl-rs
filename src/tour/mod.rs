@@ -1,5 +1,6 @@
 use std::ptr::NonNull;
 
+use enum_dispatch::enum_dispatch;
 use getset::Getters;
 
 use crate::Scalar;
@@ -15,9 +16,15 @@ pub use node::TourNode;
 
 mod tests;
 
-pub trait Tour {
-    //type TourNode: Vertex + PartialEq + std::fmt::Debug;
+#[enum_dispatch]
+// TODO: better name
+pub enum TourImpltor {
+    Array,
+    TwoLevelList,
+}
 
+#[enum_dispatch(TourImpltor)]
+pub trait Tour {
     /// Rearranges the tour's vertices according to the given order.
     // TODO: should return Result<()>.
     fn apply(&mut self, order: &TourOrder);
