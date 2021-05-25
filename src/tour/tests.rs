@@ -84,99 +84,6 @@ mod tests_array {
 }
 
 #[allow(dead_code, unused_imports)]
-mod tests_tlt {
-    use crate::tour::TwoLevelTree;
-
-    use super::*;
-
-    #[test]
-    fn test_apply() {
-        let repo = create_repo(10);
-        let mut tour = TwoLevelTree::new(&repo, 4);
-        test_suite::apply(&mut tour);
-    }
-
-    #[test]
-    fn test_total_dist() {
-        let repo = create_repo(4);
-        let mut tour = TwoLevelTree::new(&repo, 3);
-        test_suite::total_dist(&mut tour);
-    }
-
-    #[test]
-    fn test_between() {
-        let repo = create_repo(10);
-        let mut tour = TwoLevelTree::new(&repo, 3);
-        test_suite::between(&mut tour);
-    }
-
-    #[test]
-    fn test_flip_cases() {
-        let repo = create_repo(100);
-        let mut tour = TwoLevelTree::new(&repo, 10);
-        test_suite::flip(&mut tour);
-    }
-
-    #[test]
-    fn test_segment_reverse() {
-        let n_nodes = 10;
-        let repo = create_repo(n_nodes);
-        let mut tree = TwoLevelTree::new(&repo, 3);
-
-        tree.apply(&TourOrder::with_ord((0..n_nodes).collect()));
-
-        // 0 -> 1 -> 2 -> 5 -> 4 -> 3 -> 6 -> 7 -> 8 -> 9
-        tree.segment(1).borrow_mut().reverse();
-        test_tour_order(
-            &tree,
-            &TourOrder::with_ord(vec![0, 1, 2, 5, 4, 3, 6, 7, 8, 9]),
-        );
-
-        // 0 -> 1 -> 2 -> 5 -> 4 -> 3 -> 8 -> 7 -> 6 -> 9
-        tree.segment(2).borrow_mut().reverse();
-        let order = TourOrder::with_ord(vec![0, 1, 2, 5, 4, 3, 8, 7, 6, 9]);
-        test_tour_order(&tree, &order);
-
-        tree.segment(3).borrow_mut().reverse();
-        test_tour_order(&tree, &order);
-
-        // 0 -> 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9
-        tree.segment(1).borrow_mut().reverse();
-        tree.segment(2).borrow_mut().reverse();
-        test_tour_order(&tree, &TourOrder::with_ord((0..10).collect()));
-    }
-
-    #[test]
-    fn test_split_segment() {
-        let n_nodes = 15;
-        let repo = create_repo(n_nodes);
-        let mut tree = TwoLevelTree::with_default_order(&repo, 5);
-        //tree.apply(&TourOrder::with_ord((0..n_nodes).collect()));
-
-        // Original: [0 1 2 3 4] [5 6 7 >8< 9] [10 11 12 13 14]
-        tree.split_seg(1, 3);
-        test_tour_order(&tree, &TourOrder::with_ord((0..n_nodes).collect()));
-        assert_eq!(5, tree.segment(0).borrow().len());
-        assert_eq!(3, tree.segment(1).borrow().len());
-        assert_eq!(7, tree.segment(2).borrow().len());
-
-        // Reverse a segment
-        tree.segment(2).borrow_mut().reverse();
-        let mut expected: Vec<usize> = (0..8).collect();
-        expected.append(&mut vec![14, 13, 12, 11, 10, 9, 8]);
-        let expected = TourOrder::with_ord(expected);
-        test_tour_order(&tree, &expected);
-
-        // [8 9 10 11 >12< 13 14] (Reverse)
-        tree.split_seg(2, 4);
-        test_tour_order(&tree, &expected);
-        assert_eq!(5, tree.segment(0).borrow().len());
-        assert_eq!(6, tree.segment(1).borrow().len());
-        assert_eq!(4, tree.segment(2).borrow().len());
-    }
-}
-
-#[allow(dead_code, unused_imports)]
 mod test_tll {
     use std::collections::HashMap;
 
@@ -186,7 +93,7 @@ mod test_tll {
         tour::{
             tests::{create_repo, test_tour_order},
             tll::TwoLevelList,
-            STree, Tour, TourIter, TourOrder, Vertex,
+            STree, Tour, TourIter, TourOrder,
         },
         MatrixKind,
     };

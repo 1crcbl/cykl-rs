@@ -1,23 +1,22 @@
+use std::ptr::NonNull;
+
 use getset::Getters;
 
-use crate::{DataNode, Scalar};
+use crate::Scalar;
 
 mod array;
-pub use array::ArrNode;
 pub use array::Array;
 
-mod tlt;
-pub use tlt::TltNode;
-pub use tlt::TwoLevelTree;
-
 mod tll;
-pub use tll::TllNode;
 pub use tll::TwoLevelList;
+
+mod node;
+pub use node::TourNode;
 
 mod tests;
 
 pub trait Tour {
-    type TourNode: Vertex + PartialEq + std::fmt::Debug;
+    //type TourNode: Vertex + PartialEq + std::fmt::Debug;
 
     /// Rearranges the tour's vertices according to the given order.
     // TODO: should return Result<()>.
@@ -25,13 +24,13 @@ pub trait Tour {
 
     /// Returns true iff the tour, starting at the vertex `from`, arrives at the vertex `mid`
     /// before reaching the vertex `to` in its forward traversal.
-    fn between(&self, from: &Self::TourNode, mid: &Self::TourNode, to: &Self::TourNode) -> bool;
+    fn between(&self, from: &TourNode, mid: &TourNode, to: &TourNode) -> bool;
 
     /// Returns true iff the tour, starting at the vertex `from_index`, arrives at the vertex `mid_index`
     /// before reaching the vertex `to_index` in its forward traversal.
     fn between_at(&self, from_index: usize, mid_index: usize, to_index: usize) -> bool;
 
-    fn distance(&self, a: &Self::TourNode, b: &Self::TourNode) -> Scalar {
+    fn distance(&self, a: &TourNode, b: &TourNode) -> Scalar {
         self.distance_at(a.index(), b.index())
     }
 
@@ -64,7 +63,7 @@ pub trait Tour {
     ///
     /// If a node is registered in the container of this tour, returns the reference to its
     /// corresponding vertex, otherwise returns `None`.
-    fn get(&self, index: usize) -> Option<&Self::TourNode>;
+    fn get(&self, index: usize) -> Option<&TourNode>;
 
     /// Returns a reference to a vertex which is the `kin`'s direct successor in the forward
     /// traversal of the tour.
@@ -74,7 +73,7 @@ pub trait Tour {
     ///
     /// Since a tour is a cycle, the direct successor of the last vertex is the first vertex
     /// in the forward traversal of the tour.
-    fn successor(&self, kin: &Self::TourNode) -> Option<&Self::TourNode>;
+    fn successor(&self, kin: &TourNode) -> Option<&TourNode>;
 
     /// Returns a reference to a vertex which is the direct successor of the vertex at the given
     /// index in the forward traversal of the tour.
@@ -84,7 +83,7 @@ pub trait Tour {
     ///
     /// Since a tour is a cycle, the direct successor of the last vertex is the first vertex
     /// in the forward traversal of the tour.
-    fn successor_at(&self, kin_index: usize) -> Option<&Self::TourNode>;
+    fn successor_at(&self, kin_index: usize) -> Option<&TourNode>;
 
     /// Returns a reference to a vertex which is the direct predecessor of the vertex at the given
     /// index in the forward traversal of the tour.
@@ -94,7 +93,7 @@ pub trait Tour {
     ///
     /// Since a tour is a cycle, the direct predecessor of the last vertex is the first vertex
     /// in the forward traversal of the tour.
-    fn predecessor(&self, kin: &Self::TourNode) -> Option<&Self::TourNode>;
+    fn predecessor(&self, kin: &TourNode) -> Option<&TourNode>;
 
     /// Returns a reference to a vertex which is the direct predecessor of the vertex at the given
     /// index in the forward traversal of the tour.
@@ -104,7 +103,7 @@ pub trait Tour {
     ///
     /// Since a tour is a cycle, the direct predecessor of the first vertex is the last vertex
     /// in the forward traversal of the tour.
-    fn predecessor_at(&self, kin_index: usize) -> Option<&Self::TourNode>;
+    fn predecessor_at(&self, kin_index: usize) -> Option<&TourNode>;
 
     /// Resets all the internal states of the tour and its vertices.
     fn reset(&mut self);
@@ -124,19 +123,59 @@ pub trait Tour {
     /// clustered to each other, triangulation algorithms will deliver a more superior result.
     /// https://en.wikipedia.org/wiki/Fortune%27s_algorithm
     /// Other option is the alpha-nearness. These algorithms will be implemented soon.
-    fn gen_cands(&mut self, _k: usize) {
-        todo!()
-    }
+    fn gen_cands(&mut self, k: usize);
+
+    fn itr(&self) -> TourIter;
 }
 
-pub trait TourIter<'s> {
-    type Iter: Iterator;
-    type IterMut: Iterator;
+pub enum TourIter<'s> {
+    ArrIter(std::slice::Iter<'s, TourNode>),
+    TllIter(std::slice::Iter<'s, Option<NonNull<TourNode>>>),
+}
 
-    /// Returns an iterator of nodes over the tour.
-    fn itr(&'s self) -> Self::Iter;
+impl<'s> Iterator for TourIter<'s> {
+    type Item = &'s TourNode;
 
-    fn itr_mut(&'s mut self) -> Self::IterMut;
+    #[inline]
+    fn next(&mut self) -> Option<Self::Item> {
+        match self {
+            TourIter::ArrIter(ai) => ai.next(),
+            TourIter::TllIter(ti) => match ti.next() {
+                Some(opt) => unsafe {
+                    match opt {
+                        Some(node) => Some(node.as_ref()),
+                        None => None,
+                    }
+                },
+                None => None,
+            },
+        }
+    }
+
+    #[inline]
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        match self {
+            TourIter::ArrIter(ai) => (ai.len(), Some(ai.len())),
+            TourIter::TllIter(ti) => (ti.len(), Some(ti.len())),
+        }
+    }
+
+    #[inline]
+    #[allow(unused_mut)]
+    fn last(mut self) -> Option<Self::Item> {
+        match self {
+            TourIter::ArrIter(mut ai) => ai.next_back(),
+            TourIter::TllIter(mut ti) => match ti.next_back() {
+                Some(opt) => unsafe {
+                    match opt {
+                        Some(node) => Some(node.as_ref()),
+                        None => None,
+                    }
+                },
+                None => None,
+            },
+        }
+    }
 }
 
 pub trait STree {
@@ -148,16 +187,6 @@ pub trait STree {
 pub enum HeldKarpBound {
     Value(Scalar),
     Optimal,
-}
-
-pub trait Vertex {
-    fn data(&self) -> &DataNode;
-
-    fn index(&self) -> usize;
-
-    fn is_visited(&self) -> bool;
-
-    fn visited(&mut self, flag: bool);
 }
 
 #[derive(Debug, Getters)]

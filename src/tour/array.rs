@@ -1,8 +1,6 @@
-use getset::Getters;
+use crate::{Repo, Scalar};
 
-use crate::{DataNode, Repo, Scalar};
-
-use super::{between, Tour, TourIter, TourOrder, Vertex};
+use super::{between, Tour, TourIter, TourNode, TourOrder};
 
 //
 // Vertex[Tracker[ii]] = n_ii
@@ -18,14 +16,14 @@ use super::{between, Tour, TourIter, TourOrder, Vertex};
 #[derive(Debug)]
 pub struct Array {
     repo: Repo,
-    nodes: Vec<ArrNode>,
+    nodes: Vec<TourNode>,
     tracker: Vec<usize>,
     total_dist: Scalar,
 }
 
 impl Array {
     pub fn new(repo: &Repo) -> Self {
-        let nodes: Vec<ArrNode> = repo.into_iter().map(|n| ArrNode::new(n)).collect();
+        let nodes: Vec<TourNode> = repo.into_iter().map(|n| TourNode::new(n)).collect();
         let tracker = (0..nodes.len()).collect();
 
         Self {
@@ -49,8 +47,6 @@ impl Array {
 }
 
 impl Tour for Array {
-    type TourNode = ArrNode;
-
     fn apply(&mut self, tour: &TourOrder) {
         let tour = tour.order();
         self.total_dist = 0.;
@@ -68,7 +64,7 @@ impl Tour for Array {
     }
 
     #[inline]
-    fn between(&self, from: &Self::TourNode, mid: &Self::TourNode, to: &Self::TourNode) -> bool {
+    fn between(&self, from: &TourNode, mid: &TourNode, to: &TourNode) -> bool {
         between(from.index(), mid.index(), to.index())
     }
 
@@ -105,18 +101,18 @@ impl Tour for Array {
     }
 
     #[inline]
-    fn get(&self, node_idx: usize) -> Option<&Self::TourNode> {
+    fn get(&self, node_idx: usize) -> Option<&TourNode> {
         self.nodes.get(self.tracker[node_idx])
     }
 
     #[inline]
-    fn successor(&self, node: &Self::TourNode) -> Option<&Self::TourNode> {
+    fn successor(&self, node: &TourNode) -> Option<&TourNode> {
         // TODO: check if a node belongs to this tour/repo.
         self.successor_at(node.index())
     }
 
     #[inline]
-    fn successor_at(&self, node_idx: usize) -> Option<&Self::TourNode> {
+    fn successor_at(&self, node_idx: usize) -> Option<&TourNode> {
         if node_idx > self.nodes.len() {
             return None;
         }
@@ -126,13 +122,13 @@ impl Tour for Array {
     }
 
     #[inline]
-    fn predecessor(&self, node: &Self::TourNode) -> Option<&Self::TourNode> {
+    fn predecessor(&self, node: &TourNode) -> Option<&TourNode> {
         // TODO: check if a node belongs to this tour/repo.
         self.predecessor_at(node.index())
     }
 
     #[inline]
-    fn predecessor_at(&self, node_idx: usize) -> Option<&Self::TourNode> {
+    fn predecessor_at(&self, node_idx: usize) -> Option<&TourNode> {
         if node_idx > self.nodes.len() {
             return None;
         }
@@ -167,76 +163,12 @@ impl Tour for Array {
     fn visited_at(&mut self, kin_index: usize, flag: bool) {
         self.nodes[kin_index].visited(flag);
     }
-}
 
-#[derive(Debug, Getters, PartialEq)]
-pub struct ArrNode {
-    #[getset(get = "pub")]
-    data: DataNode,
-    visited: bool,
-}
-
-impl ArrNode {
-    pub fn new(data: &DataNode) -> Self {
-        Self {
-            data: data.clone(),
-            visited: false,
-        }
-    }
-}
-
-impl Vertex for ArrNode {
-    fn data(&self) -> &DataNode {
-        &self.data
-    }
-
-    fn index(&self) -> usize {
-        self.data.index()
-    }
-
-    fn is_visited(&self) -> bool {
-        self.visited
-    }
-
-    fn visited(&mut self, flag: bool) {
-        self.visited = flag;
-    }
-}
-
-impl<'s> TourIter<'s> for Array {
-    type Iter = TllIter<'s>;
-    type IterMut = TllIter<'s>;
-
-    fn itr(&'s self) -> Self::Iter {
-        TllIter {
-            it: self.nodes.iter(),
-        }
-    }
-
-    fn itr_mut(&'s mut self) -> Self::IterMut {
+    fn gen_cands(&mut self, _k: usize) {
         todo!()
     }
-}
 
-pub struct TllIter<'s> {
-    it: std::slice::Iter<'s, ArrNode>,
-}
-
-impl<'s> Iterator for TllIter<'s> {
-    type Item = &'s ArrNode;
-
-    #[inline]
-    fn next(&mut self) -> Option<Self::Item> {
-        self.it.next()
-    }
-
-    #[inline]
-    fn size_hint(&self) -> (usize, Option<usize>) {
-        (self.it.len(), Some(self.it.len()))
-    }
-
-    #[inline]
-    fn last(self) -> Option<Self::Item> {
-        self.it.last()
+    fn itr(&self) -> TourIter {
+        TourIter::ArrIter(self.nodes.iter())
     }
 }
