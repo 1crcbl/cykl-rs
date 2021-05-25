@@ -16,15 +16,15 @@ type RcSegment = Rc<RefCell<Segment>>;
 type WeakSegment = Weak<RefCell<Segment>>;
 
 #[derive(Debug)]
-pub struct TwoLevelTree<'a> {
-    repo: &'a Repo,
+pub struct TwoLevelTree {
+    repo: Repo,
     nodes: Vec<RcVertex>,
     segments: Vec<RcSegment>,
     total_dist: Scalar,
 }
 
-impl<'a> TwoLevelTree<'a> {
-    pub fn new(repo: &'a Repo, max_grouplen: usize) -> Self {
+impl TwoLevelTree {
+    pub fn new(repo: &Repo, max_grouplen: usize) -> Self {
         let mut n_segments = repo.size() / max_grouplen;
         if repo.size() % max_grouplen != 0 {
             n_segments += 1;
@@ -48,14 +48,14 @@ impl<'a> TwoLevelTree<'a> {
         }
 
         Self {
-            repo,
+            repo: repo.clone(),
             nodes,
             segments,
             total_dist: 0.,
         }
     }
 
-    pub fn with_default_order(repo: &'a Repo, max_grouplen: usize) -> Self {
+    pub fn with_default_order(repo: &Repo, max_grouplen: usize) -> Self {
         let mut result = Self::new(repo, max_grouplen);
         result.apply(&TourOrder::with_ord((0..repo.size()).collect()));
         result
@@ -161,7 +161,7 @@ impl<'a> TwoLevelTree<'a> {
     }
 }
 
-impl<'a> Tour for TwoLevelTree<'a> {
+impl Tour for TwoLevelTree {
     type TourNode = TltNode;
 
     fn apply(&mut self, tour: &super::TourOrder) {
@@ -733,7 +733,7 @@ impl Conduit {
     }
 }
 
-impl<'a, 's> TourIter<'s> for TwoLevelTree<'a> {
+impl<'s> TourIter<'s> for TwoLevelTree {
     type Iter = TltIter<'s>;
     type IterMut = TltIter<'s>;
 

@@ -16,20 +16,20 @@ use super::{between, Tour, TourIter, TourOrder, Vertex};
 // Vertex:   | n_4 | n_2 | n_3 | n_5 | n_0 | n_1 |
 // Tracker:  | 4   | 5   | 1   | 2   | 0   | 3   |
 #[derive(Debug)]
-pub struct Array<'a> {
-    repo: &'a Repo,
+pub struct Array {
+    repo: Repo,
     nodes: Vec<ArrNode>,
     tracker: Vec<usize>,
     total_dist: Scalar,
 }
 
-impl<'a> Array<'a> {
-    pub fn new(repo: &'a Repo) -> Self {
+impl Array {
+    pub fn new(repo: &Repo) -> Self {
         let nodes: Vec<ArrNode> = repo.into_iter().map(|n| ArrNode::new(n)).collect();
         let tracker = (0..nodes.len()).collect();
 
         Self {
-            repo,
+            repo: repo.clone(),
             nodes,
             tracker,
             total_dist: 0.,
@@ -48,7 +48,7 @@ impl<'a> Array<'a> {
     }
 }
 
-impl<'a> Tour for Array<'a> {
+impl Tour for Array {
     type TourNode = ArrNode;
 
     fn apply(&mut self, tour: &TourOrder) {
@@ -203,7 +203,7 @@ impl Vertex for ArrNode {
     }
 }
 
-impl<'a, 's> TourIter<'s> for Array<'a> {
+impl<'s> TourIter<'s> for Array {
     type Iter = TllIter<'s>;
     type IterMut = TllIter<'s>;
 
