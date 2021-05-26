@@ -154,9 +154,9 @@ mod test_tll {
                 if idx == 0 {
                     result.insert(idx, None);
                 } else {
-                    let parent = &node.mst_parent;
+                    let parent = (*(node.inner.unwrap()).as_ptr()).mst_parent;
                     assert!(parent.is_some());
-                    result.insert(idx, Some((*parent.unwrap().as_ptr()).index()));
+                    result.insert(idx, Some((*parent.unwrap().as_ptr()).data.index()));
                 }
             }
         }
@@ -191,9 +191,9 @@ mod test_tll {
             let mut results = Vec::with_capacity(k);
 
             unsafe {
-                for targ in &base.cands {
+                for targ in &(*base.inner.unwrap().as_ptr()).cands {
                     assert!(targ.is_some());
-                    results.push((*targ.unwrap().as_ptr()).index());
+                    results.push((*targ.unwrap().as_ptr()).data.index());
                 }
             }
 

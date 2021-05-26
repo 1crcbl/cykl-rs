@@ -4,6 +4,46 @@ use crate::{DataNode, Scalar};
 
 #[derive(Debug, PartialEq)]
 pub struct TourNode {
+    pub(super) inner: Option<NonNull<InnerNode>>,
+}
+
+impl TourNode {
+    pub fn new(node: &DataNode) -> Self {
+        let inner = InnerNode::new(node);
+        Self {
+            inner: to_nonnull(inner),
+        }
+    }
+
+    #[inline]
+    pub fn visited(&mut self, flag: bool) {
+        match self.inner {
+            Some(inner) => unsafe {
+                (*inner.as_ptr()).visited = flag;
+            },
+            None => {}
+        }
+    }
+
+    #[inline]
+    pub fn index(&self) -> usize {
+        match self.inner {
+            Some(inner) => unsafe { inner.as_ref().data.index() },
+            None => 0,
+        }
+    }
+
+    #[inline]
+    pub(super) fn data(&self) -> &DataNode {
+        match self.inner {
+            Some(inner) => unsafe { &(*inner.as_ptr()).data },
+            None => panic!("Nullpointer"),
+        }
+    }
+}
+
+#[derive(Debug, PartialEq)]
+pub(super) struct InnerNode {
     pub(super) data: DataNode,
     /// Flag indicating whether a node is already visisted/processed by an algorithm.
     pub(super) visited: bool,
@@ -12,23 +52,23 @@ pub struct TourNode {
     /// The rank of a node in its parent segment.
     pub(super) rank: i32,
     /// The directly preceding neighbour of a node in a tour.
-    pub(super) predecessor: Option<NonNull<TourNode>>,
+    pub(super) predecessor: Option<NonNull<InnerNode>>,
     /// The directly succeeding neighbour of a node in a tour.
-    pub(super) successor: Option<NonNull<TourNode>>,
+    pub(super) successor: Option<NonNull<InnerNode>>,
     /// Number of edges that are incident to the node.
     pub(super) degree: i32,
     /// Penalty value of a node in the ascent scheme. Corresponds to pi in LKH report.
     pub(super) penalty_weight: Scalar,
     /// Edge with minimum distance that doesn't belong to the MST.
     // TODO: better name
-    pub(super) mst_final_edge: Option<NonNull<TourNode>>,
+    pub(super) mst_final_edge: Option<NonNull<InnerNode>>,
     /// The parent of a node in a minimum spanning tree.
-    pub(super) mst_parent: Option<NonNull<TourNode>>,
+    pub(super) mst_parent: Option<NonNull<InnerNode>>,
     /// Set of candidate nodes.
-    pub(super) cands: Vec<Option<NonNull<TourNode>>>,
+    pub(super) cands: Vec<Option<NonNull<InnerNode>>>,
 }
 
-impl TourNode {
+impl InnerNode {
     pub fn new(node: &DataNode) -> Self {
         Self {
             data: node.clone(),
@@ -45,42 +85,6 @@ impl TourNode {
         }
     }
 
-    pub fn cands_itr(&self) -> TourNodeIter {
-        TourNodeIter {
-            it: self.cands.iter(),
-        }
-    }
-
-    #[inline]
-    pub fn degree(&self) -> i32 {
-        self.degree
-    }
-
-    #[inline]
-    pub fn add_degree(&mut self) {
-        self.degree += 1;
-    }
-
-    #[inline]
-    pub fn rem_degree(&mut self) {
-        self.degree -= 1;
-    }
-
-    #[inline]
-    pub fn data(&self) -> &DataNode {
-        &self.data
-    }
-
-    #[inline]
-    pub fn index(&self) -> usize {
-        self.data.index()
-    }
-
-    #[inline]
-    pub fn is_visited(&self) -> bool {
-        self.visited
-    }
-
     #[inline]
     pub fn visited(&mut self, flag: bool) {
         self.visited = flag;
@@ -92,8 +96,8 @@ pub struct Segment {
     pub(super) rank: usize,
     pub(super) max_len: usize,
     pub(super) reverse: bool,
-    pub(super) first: Option<NonNull<TourNode>>,
-    pub(super) last: Option<NonNull<TourNode>>,
+    pub(super) first: Option<NonNull<InnerNode>>,
+    pub(super) last: Option<NonNull<InnerNode>>,
     pub(super) next: Option<NonNull<Segment>>,
     pub(super) prev: Option<NonNull<Segment>>,
 }
@@ -197,7 +201,7 @@ impl Segment {
         self.reverse ^= true;
     }
 
-    pub unsafe fn split(&mut self, node: &NonNull<TourNode>) {
+    pub(super) unsafe fn split(&mut self, node: &NonNull<InnerNode>) {
         match (self.first, self.last) {
             (Some(first), Some(last)) => {
                 let (f1, f2) = if self.reverse { (1, 0) } else { (0, 1) };
@@ -269,10 +273,10 @@ impl Segment {
         }
     }
 
-    pub unsafe fn move_back(
+    pub(super) unsafe fn move_back(
         &mut self,
-        head: Option<NonNull<TourNode>>,
-        tail: Option<NonNull<TourNode>>,
+        head: Option<NonNull<InnerNode>>,
+        tail: Option<NonNull<InnerNode>>,
         el_cnt: i32,
         reverse: bool,
     ) {
@@ -283,10 +287,10 @@ impl Segment {
         }
     }
 
-    pub unsafe fn move_front(
+    pub(super) unsafe fn move_front(
         &mut self,
-        head: Option<NonNull<TourNode>>,
-        tail: Option<NonNull<TourNode>>,
+        head: Option<NonNull<InnerNode>>,
+        tail: Option<NonNull<InnerNode>>,
         el_cnt: i32,
         reverse: bool,
     ) {
@@ -321,10 +325,10 @@ macro_rules! change_kin {
 
 /// Reverse a segment internally.
 // TODO: better panic msg.
-pub unsafe fn reverse_int_seg(
+pub(super) unsafe fn reverse_int_seg(
     seg: &NonNull<Segment>,
-    a: &NonNull<TourNode>,
-    b: &NonNull<TourNode>,
+    a: &NonNull<InnerNode>,
+    b: &NonNull<InnerNode>,
 ) {
     let a_pred = (*a.as_ptr()).predecessor;
     let b_succ = (*b.as_ptr()).successor;
@@ -512,80 +516,80 @@ pub unsafe fn reverse_segs(from: &NonNull<Segment>, to: &NonNull<Segment>) {
     }
 }
 
-pub struct TourNodeIter<'s> {
-    it: std::slice::Iter<'s, Option<NonNull<TourNode>>>,
-}
+// pub struct TourNodeIter<'s> {
+//     it: std::slice::Iter<'s, Option<NonNull<InnerNode>>>,
+// }
 
-impl<'s> Iterator for TourNodeIter<'s> {
-    type Item = &'s TourNode;
+// impl<'s> Iterator for TourNodeIter<'s> {
+//     type Item = &'s InnerNode;
 
-    #[inline]
-    fn next(&mut self) -> Option<Self::Item> {
-        match self.it.next() {
-            Some(opt) => unsafe {
-                match opt {
-                    Some(node) => Some(node.as_ref()),
-                    None => None,
-                }
-            },
-            None => None,
-        }
-    }
+//     #[inline]
+//     fn next(&mut self) -> Option<Self::Item> {
+//         match self.it.next() {
+//             Some(opt) => unsafe {
+//                 match opt {
+//                     Some(node) => Some(node.as_ref()),
+//                     None => None,
+//                 }
+//             },
+//             None => None,
+//         }
+//     }
 
-    #[inline]
-    fn size_hint(&self) -> (usize, Option<usize>) {
-        (self.it.len(), Some(self.it.len()))
-    }
+//     #[inline]
+//     fn size_hint(&self) -> (usize, Option<usize>) {
+//         (self.it.len(), Some(self.it.len()))
+//     }
 
-    #[inline]
-    fn last(mut self) -> Option<Self::Item> {
-        match self.it.next_back() {
-            Some(opt) => unsafe {
-                match opt {
-                    Some(node) => Some(node.as_ref()),
-                    None => None,
-                }
-            },
-            None => None,
-        }
-    }
-}
+//     #[inline]
+//     fn last(mut self) -> Option<Self::Item> {
+//         match self.it.next_back() {
+//             Some(opt) => unsafe {
+//                 match opt {
+//                     Some(node) => Some(node.as_ref()),
+//                     None => None,
+//                 }
+//             },
+//             None => None,
+//         }
+//     }
+// }
 
-pub struct TourNodeIterMut<'s> {
-    it: std::slice::IterMut<'s, Option<NonNull<TourNode>>>,
-}
+// pub struct TourNodeIterMut<'s> {
+//     it: std::slice::IterMut<'s, Option<NonNull<InnerNode>>>,
+// }
 
-impl<'s> Iterator for TourNodeIterMut<'s> {
-    type Item = &'s mut TourNode;
+// impl<'s> Iterator for TourNodeIterMut<'s> {
+//     type Item = &'s mut InnerNode;
 
-    #[inline]
-    fn next(&mut self) -> Option<Self::Item> {
-        match self.it.next() {
-            Some(opt) => unsafe {
-                match opt {
-                    Some(node) => Some(node.as_mut()),
-                    None => None,
-                }
-            },
-            None => None,
-        }
-    }
+//     #[inline]
+//     fn next(&mut self) -> Option<Self::Item> {
+//         match self.it.next() {
+//             Some(opt) => unsafe {
+//                 match opt {
+//                     Some(node) => Some(node.as_mut()),
+//                     None => None,
+//                 }
+//             },
+//             None => None,
+//         }
+//     }
 
-    #[inline]
-    fn size_hint(&self) -> (usize, Option<usize>) {
-        (self.it.len(), Some(self.it.len()))
-    }
+//     #[inline]
+//     fn size_hint(&self) -> (usize, Option<usize>) {
+//         (self.it.len(), Some(self.it.len()))
+//     }
 
-    #[inline]
-    fn last(mut self) -> Option<Self::Item> {
-        match self.it.next_back() {
-            Some(opt) => unsafe {
-                match opt {
-                    Some(node) => Some(node.as_mut()),
-                    None => None,
-                }
-            },
-            None => None,
-        }
-    }
-}
+//     #[inline]
+//     fn last(mut self) -> Option<Self::Item> {
+//         match self.it.next_back() {
+//             Some(opt) => unsafe {
+//                 match opt {
+//                     Some(node) => Some(node.as_mut()),
+//                     None => None,
+//                 }
+//             },
+//             None => None,
+//         }
+//     }
+// }

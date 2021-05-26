@@ -1,5 +1,3 @@
-use std::ptr::NonNull;
-
 use enum_dispatch::enum_dispatch;
 use getset::Getters;
 
@@ -66,11 +64,13 @@ pub trait Tour {
     /// * to_b - The index from the container of the head node in the second arc.
     fn flip_at(&mut self, from_a: usize, to_a: usize, from_b: usize, to_b: usize);
 
+    fn flip(&mut self, from_a: &TourNode, to_a: &TourNode, from_b: &TourNode, to_b: &TourNode);
+
     /// Returns a reference to a vertex representing a node in this tour.
     ///
     /// If a node is registered in the container of this tour, returns the reference to its
     /// corresponding vertex, otherwise returns `None`.
-    fn get(&self, index: usize) -> Option<&TourNode>;
+    fn get(&self, index: usize) -> Option<TourNode>;
 
     /// Returns a reference to a vertex which is the `kin`'s direct successor in the forward
     /// traversal of the tour.
@@ -80,7 +80,7 @@ pub trait Tour {
     ///
     /// Since a tour is a cycle, the direct successor of the last vertex is the first vertex
     /// in the forward traversal of the tour.
-    fn successor(&self, kin: &TourNode) -> Option<&TourNode>;
+    fn successor(&self, kin: &TourNode) -> Option<TourNode>;
 
     /// Returns a reference to a vertex which is the direct successor of the vertex at the given
     /// index in the forward traversal of the tour.
@@ -90,7 +90,7 @@ pub trait Tour {
     ///
     /// Since a tour is a cycle, the direct successor of the last vertex is the first vertex
     /// in the forward traversal of the tour.
-    fn successor_at(&self, kin_index: usize) -> Option<&TourNode>;
+    fn successor_at(&self, kin_index: usize) -> Option<TourNode>;
 
     /// Returns a reference to a vertex which is the direct predecessor of the vertex at the given
     /// index in the forward traversal of the tour.
@@ -100,7 +100,7 @@ pub trait Tour {
     ///
     /// Since a tour is a cycle, the direct predecessor of the last vertex is the first vertex
     /// in the forward traversal of the tour.
-    fn predecessor(&self, kin: &TourNode) -> Option<&TourNode>;
+    fn predecessor(&self, kin: &TourNode) -> Option<TourNode>;
 
     /// Returns a reference to a vertex which is the direct predecessor of the vertex at the given
     /// index in the forward traversal of the tour.
@@ -110,7 +110,7 @@ pub trait Tour {
     ///
     /// Since a tour is a cycle, the direct predecessor of the first vertex is the last vertex
     /// in the forward traversal of the tour.
-    fn predecessor_at(&self, kin_index: usize) -> Option<&TourNode>;
+    fn predecessor_at(&self, kin_index: usize) -> Option<TourNode>;
 
     /// Resets all the internal states of the tour and its vertices.
     fn reset(&mut self);
@@ -122,7 +122,17 @@ pub trait Tour {
     fn total_distance(&self) -> Scalar;
 
     /// Sets the flag `visited` for a vertex at the given index.
-    fn visited_at(&mut self, kin_index: usize, flag: bool);
+    fn visited_at(&mut self, kin_index: usize, flag: bool) {
+        match self.get(kin_index) {
+            Some(opt) => match opt.inner {
+                Some(node) => unsafe {
+                    (*node.as_ptr()).visited(flag);
+                },
+                None => panic!("Missing pointer."),
+            },
+            None => {}
+        }
+    }
 
     /// Generates a set of candidates for all nodes in a tour.
     /// Currently, only the k-nearest-neighbour generator is implemented. This generator can provide
@@ -135,9 +145,8 @@ pub trait Tour {
     fn itr(&self) -> TourIter;
 }
 
-pub enum TourIter<'s> {
-    ArrIter(std::slice::Iter<'s, TourNode>),
-    TllIter(std::slice::Iter<'s, Option<NonNull<TourNode>>>),
+pub struct TourIter<'s> {
+    it: std::slice::Iter<'s, TourNode>,
 }
 
 impl<'s> Iterator for TourIter<'s> {
@@ -145,43 +154,18 @@ impl<'s> Iterator for TourIter<'s> {
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
-        match self {
-            TourIter::ArrIter(ai) => ai.next(),
-            TourIter::TllIter(ti) => match ti.next() {
-                Some(opt) => unsafe {
-                    match opt {
-                        Some(node) => Some(node.as_ref()),
-                        None => None,
-                    }
-                },
-                None => None,
-            },
-        }
+        self.it.next()
     }
 
     #[inline]
     fn size_hint(&self) -> (usize, Option<usize>) {
-        match self {
-            TourIter::ArrIter(ai) => (ai.len(), Some(ai.len())),
-            TourIter::TllIter(ti) => (ti.len(), Some(ti.len())),
-        }
+        self.it.size_hint()
     }
 
     #[inline]
     #[allow(unused_mut)]
     fn last(mut self) -> Option<Self::Item> {
-        match self {
-            TourIter::ArrIter(mut ai) => ai.next_back(),
-            TourIter::TllIter(mut ti) => match ti.next_back() {
-                Some(opt) => unsafe {
-                    match opt {
-                        Some(node) => Some(node.as_ref()),
-                        None => None,
-                    }
-                },
-                None => None,
-            },
-        }
+        self.it.next_back()
     }
 }
 

@@ -34,6 +34,7 @@ impl Array {
         }
     }
 
+    #[inline]
     pub(crate) fn swap_at(&mut self, idx_a: usize, idx_b: usize) {
         self.nodes.swap(self.tracker[idx_a], self.tracker[idx_b]);
         self.tracker.swap(idx_a, idx_b);
@@ -52,8 +53,8 @@ impl Tour for Array {
         self.total_dist = 0.;
 
         for ii in 0..tour.len() {
-            self.swap_at(tour[ii], *&self.nodes[ii].data.index());
-            self.nodes[ii].visited = false;
+            self.swap_at(tour[ii], self.nodes[ii].data().index());
+            self.nodes[ii].visited(false);
 
             if ii != tour.len() - 1 {
                 self.total_dist += self.repo.distance_at(tour[ii], tour[ii + 1]);
@@ -77,7 +78,11 @@ impl Tour for Array {
     fn distance_at(&self, a: usize, b: usize) -> Scalar {
         // TODO: check if nodes belong to the group.
         self.repo
-            .distance(&self.get(a).unwrap().data, &self.get(b).unwrap().data)
+            .distance(&self.get(a).unwrap().data(), &self.get(b).unwrap().data())
+    }
+
+    fn flip(&mut self, from_a: &TourNode, to_a: &TourNode, from_b: &TourNode, to_b: &TourNode) {
+        self.flip_at(from_a.index(), to_a.index(), from_b.index(), to_b.index())
     }
 
     fn flip_at(&mut self, from_a: usize, to_a: usize, from_b: usize, to_b: usize) {
@@ -94,41 +99,47 @@ impl Tour for Array {
         let ato_a = self.tracker[to_a];
         let diff = (afrom_b - ato_a + 1) / 2;
         for ii in 0..diff {
-            let n1 = self.nodes[ato_a + ii].data.index();
-            let n2 = self.nodes[afrom_b - ii].data.index();
+            let n1 = self.nodes[ato_a + ii].index();
+            let n2 = self.nodes[afrom_b - ii].index();
             self.swap_at(n1, n2);
         }
     }
 
     #[inline]
-    fn get(&self, node_idx: usize) -> Option<&TourNode> {
-        self.nodes.get(self.tracker[node_idx])
+    fn get(&self, node_idx: usize) -> Option<TourNode> {
+        match self.nodes.get(self.tracker[node_idx]) {
+            Some(node) => Some(TourNode { inner: node.inner }),
+            None => None,
+        }
     }
 
     #[inline]
-    fn successor(&self, node: &TourNode) -> Option<&TourNode> {
+    fn successor(&self, node: &TourNode) -> Option<TourNode> {
         // TODO: check if a node belongs to this tour/repo.
         self.successor_at(node.index())
     }
 
     #[inline]
-    fn successor_at(&self, node_idx: usize) -> Option<&TourNode> {
+    fn successor_at(&self, node_idx: usize) -> Option<TourNode> {
         if node_idx > self.nodes.len() {
             return None;
         }
 
         let next_idx = (self.tracker[node_idx] + 1) % self.nodes.len();
-        self.nodes.get(next_idx)
+        match self.nodes.get(next_idx) {
+            Some(node) => Some(TourNode { inner: node.inner }),
+            None => None,
+        }
     }
 
     #[inline]
-    fn predecessor(&self, node: &TourNode) -> Option<&TourNode> {
+    fn predecessor(&self, node: &TourNode) -> Option<TourNode> {
         // TODO: check if a node belongs to this tour/repo.
         self.predecessor_at(node.index())
     }
 
     #[inline]
-    fn predecessor_at(&self, node_idx: usize) -> Option<&TourNode> {
+    fn predecessor_at(&self, node_idx: usize) -> Option<TourNode> {
         if node_idx > self.nodes.len() {
             return None;
         }
@@ -140,7 +151,10 @@ impl Tour for Array {
             curr_idx - 1
         };
 
-        self.nodes.get(prev_idx)
+        match self.nodes.get(prev_idx) {
+            Some(node) => Some(TourNode { inner: node.inner }),
+            None => None,
+        }
     }
 
     #[inline]
@@ -169,6 +183,8 @@ impl Tour for Array {
     }
 
     fn itr(&self) -> TourIter {
-        TourIter::ArrIter(self.nodes.iter())
+        TourIter {
+            it: self.nodes.iter(),
+        }
     }
 }
