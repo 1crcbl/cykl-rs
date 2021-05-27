@@ -24,18 +24,19 @@ paper [[3]](#3). The following operations are considered essential in the contex
 shouldn't be used to form a final decision. A real benchmark will be carried out once the main algorithm is fully implemented.
 - The unit for computation is *nanosecond (ns)* for all entries. The crate [criterion](https://crates.io/crates/criterion) is used to benchmark the performance of the implemented data structures.
 - In the table below ```ED``` denotes function invocation through enum-dispatch. In this library, we use the crate [enum_dispatch](https://crates.io/crates/enum_dispatch) to handle the code generation for such dispatch.
+- Update 27-May-2021: There are many breaking changes in the internal working of both data structures and some bug fixes for ```Array```. These changes helps improve ```Array```'s performance, in which the computation time for ```flip``` in all three cases are halved. However, the performance for ```TLL``` are a bit worsened in ```get```, ```successor``` and ```predecessor```. The benchmark is rerun with the following result:
 
 | |Array |Array (ED) | TLL | TLL (ED) |
 --- | --- | --- | --- | ---
-|**get**| 0.793 | 0.812 | 0.481 | 0.469
-|**successor**|3.367 | 3.324 | 0.938 | 1.144
-|**predecessor**|0.851 | 0.797 | 0.473 | 0.477
-|**between**| 0.948 | 0.942| 2.9533 | 2.989
-|**flip (case 1)**|447.75| 446.26| 106.64 | 106.99
-|**flip (case 2)**|458.51| 453.55| 14.303 | 15.247
-|**flip (case 3)**|4267.3 | 4329.2 | 69.806 | 72.694
+|**get**| 0.716 | 0.834 | 0.697 | 0.700
+|**successor**|3.233 | 3.211 | 1.155 | 1.135
+|**predecessor**|0.757 | 0.828 | 0.708 | 0.704
+|**between**| 0.218 | 2.295| 3.12 | 3.122
+|**flip (case 1)**|228.04| 237.45| 107.07 | 108.00
+|**flip (case 2)**|255.66| 260.53| 13.648 | 14.050
+|**flip (case 3)**|2152.2 | 2118.9 | 69.441 | 69.891
 
-The benchmark shows that TLL outperforms Array in most of the cases. This is due to some of optimisations for TLL implementation and also partly due to Rust's optimisation for [NonNull](https://doc.rust-lang.org/std/ptr/struct.NonNull.html) pointer, while Array implementation is only a naive one. We will try to optimise Array in the future.
+The benchmark shows that ```TLL``` outperforms ```Array``` in most of the cases.
 
 ## References
 <a id="1">[1]</a> S. Lin; B. W. Kernighan(1973). "An Effective Heuristic Algorithm for the Traveling-Salesman Problem". Operations Research. 21 (2): 498–516. [doi:10.1287/opre.21.2.498](https://pubsonline.informs.org/doi/abs/10.1287/opre.21.2.498).

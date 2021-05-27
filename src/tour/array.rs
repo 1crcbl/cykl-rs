@@ -71,7 +71,12 @@ impl Tour for Array {
 
     #[inline]
     fn between_at(&self, from_idx: usize, mid_idx: usize, to_idx: usize) -> bool {
-        between(from_idx, mid_idx, to_idx)
+        match (self.tracker.get(from_idx), self.tracker.get(mid_idx), self.tracker.get(to_idx)) {
+            (Some(f), Some(m), Some(t)) => {
+                between(*f, *m, *t)
+            },
+            _ => false,
+        }
     }
 
     #[inline]
@@ -85,23 +90,36 @@ impl Tour for Array {
         self.flip_at(from_a.index(), to_a.index(), from_b.index(), to_b.index())
     }
 
-    fn flip_at(&mut self, from_a: usize, to_a: usize, from_b: usize, to_b: usize) {
-        // TODO: this is only a basic implementation.
-        // Optimisation on which direction to perform the flip, so that the number of flips
-        // is minimised, is not taken into account.
-        // (from_a, to_a) - (from_b, to_b) -> (from_a, from_b) - (to_a, to_b)
-        if from_a > from_b {
-            return self.flip_at(from_b, to_b, from_a, to_a);
+    fn flip_at(&mut self, from_a: usize, _to_a: usize, from_b: usize, _to_b: usize) {
+        let len = self.tracker.len();
+
+        let mut tfa = self.tracker[from_a];
+        let mut tfb = self.tracker[from_b];
+
+        if tfb < tfa {
+            std::mem::swap(&mut tfa, &mut tfb);
         }
 
-        // Converts from node index to internal array index.
-        let afrom_b = self.tracker[from_b];
-        let ato_a = self.tracker[to_a];
-        let diff = (afrom_b - ato_a + 1) / 2;
-        for ii in 0..diff {
-            let n1 = self.nodes[ato_a + ii].index();
-            let n2 = self.nodes[afrom_b - ii].index();
-            self.swap_at(n1, n2);
+        let tta = (tfa + 1) % len;
+        let ttb = (tfb + 1) % len;
+
+        let d1 = tfb - tta + 1;
+        let d2 = len - d1;
+
+        if d1 <= d2 {
+            let d1 = d1 / 2;
+            for ii in 0..d1 {
+                let n1 = self.nodes[tta + ii].index();
+                let n2 = self.nodes[tfb - ii].index();
+                self.swap_at(n1, n2);
+            }
+        } else {
+            let d2 = d2 / 2;
+            for ii in 0..d2 {
+                let n1 = self.nodes[(len + tfa - ii) % len].index();
+                let n2 = self.nodes[(ttb + ii) % len].index();
+                self.swap_at(n1, n2);
+            }
         }
     }
 
@@ -113,8 +131,19 @@ impl Tour for Array {
         }
     }
 
-    fn relation(&self, _base: &TourNode, _targ: &TourNode) -> NodeRel {
-        todo!()
+    fn relation(&self, base: &TourNode, targ: &TourNode) -> NodeRel {
+        match (self.successor(base), self.predecessor(base)) {
+            (Some(s), Some(p)) => {
+                if s.inner == targ.inner {
+                    NodeRel::Predecessor
+                } else if p.inner == targ.inner {
+                    NodeRel::Successor
+                } else {
+                    NodeRel::None
+                }
+            },
+            _ => NodeRel::None,
+        }
     }
 
     #[inline]

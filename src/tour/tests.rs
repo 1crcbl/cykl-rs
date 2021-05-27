@@ -62,7 +62,6 @@ mod tests_array {
     use super::*;
 
     #[test]
-    #[ignore]
     fn test_apply() {
         let repo = create_repo(10);
         let mut tour = Array::new(&repo);
@@ -70,7 +69,6 @@ mod tests_array {
     }
 
     #[test]
-    #[ignore]
     fn test_total_dist() {
         let repo = create_repo(4);
         let mut tour = Array::new(&repo);
@@ -78,7 +76,6 @@ mod tests_array {
     }
 
     #[test]
-    #[ignore = "requires reimpl"]
     fn test_between() {
         let repo = create_repo(10);
         let mut tour = Array::new(&repo);
@@ -86,7 +83,6 @@ mod tests_array {
     }
 
     #[test]
-    #[ignore = "requires reimpl"]
     fn test_flip_cases() {
         let repo = create_repo(100);
         let mut tour = Array::new(&repo);
