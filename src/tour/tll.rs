@@ -11,7 +11,7 @@ use crate::{
 use super::{
     between,
     node::{to_nonnull, Segment},
-    STree, Tour, TourIter, TourNode, TourOrder,
+    NodeRel, STree, Tour, TourIter, TourNode, TourOrder,
 };
 
 #[derive(Debug)]
@@ -325,6 +325,29 @@ impl Tour for TwoLevelList {
         match self.nodes.get(index) {
             Some(v) => Some(TourNode { inner: v.inner }),
             None => None,
+        }
+    }
+
+    #[inline]
+    fn relation(&self, base: &TourNode, targ: &TourNode) -> NodeRel {
+        match base.inner {
+            Some(inner) => unsafe {
+                match (*inner.as_ptr()).segment {
+                    Some(seg) => {
+                        match (
+                            (*inner.as_ptr()).predecessor == targ.inner,
+                            (*inner.as_ptr()).successor == targ.inner,
+                            (*seg.as_ptr()).reverse,
+                        ) {
+                            (true, false, true) | (false, true, false) => NodeRel::Predecessor,
+                            (true, false, false) | (false, true, true) => NodeRel::Successor,
+                            _ => NodeRel::None,
+                        }
+                    }
+                    None => NodeRel::None,
+                }
+            },
+            None => NodeRel::None,
         }
     }
 

@@ -12,7 +12,7 @@ pub use tll::TwoLevelList;
 mod node;
 pub use node::TourNode;
 
-mod tests;
+pub mod tests;
 
 #[enum_dispatch]
 // TODO: better name
@@ -35,6 +35,7 @@ pub trait Tour {
     /// before reaching the vertex `to_index` in its forward traversal.
     fn between_at(&self, from_index: usize, mid_index: usize, to_index: usize) -> bool;
 
+    #[inline]
     fn distance(&self, a: &TourNode, b: &TourNode) -> Scalar {
         self.distance_at(a.index(), b.index())
     }
@@ -71,6 +72,8 @@ pub trait Tour {
     /// If a node is registered in the container of this tour, returns the reference to its
     /// corresponding vertex, otherwise returns `None`.
     fn get(&self, index: usize) -> Option<TourNode>;
+
+    fn relation(&self, base: &TourNode, targ: &TourNode) -> NodeRel;
 
     /// Returns a reference to a vertex which is the `kin`'s direct successor in the forward
     /// traversal of the tour.
@@ -145,6 +148,13 @@ pub trait Tour {
     fn itr(&self) -> TourIter;
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum NodeRel {
+    Predecessor,
+    Successor,
+    None,
+}
+
 pub struct TourIter<'s> {
     it: std::slice::Iter<'s, TourNode>,
 }
@@ -199,6 +209,13 @@ impl TourOrder {
     pub fn with_capacity(capacity: usize) -> Self {
         Self {
             order: Vec::with_capacity(capacity),
+            total_dist: 0.,
+        }
+    }
+
+    pub fn with_nat_ord(n: usize) -> Self {
+        Self {
+            order: (0..n).collect(),
             total_dist: 0.,
         }
     }

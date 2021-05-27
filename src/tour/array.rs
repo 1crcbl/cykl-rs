@@ -1,6 +1,6 @@
 use crate::{Repo, Scalar};
 
-use super::{between, Tour, TourIter, TourNode, TourOrder};
+use super::{between, NodeRel, Tour, TourIter, TourNode, TourOrder};
 
 //
 // Vertex[Tracker[ii]] = n_ii
@@ -111,6 +111,10 @@ impl Tour for Array {
             Some(node) => Some(TourNode { inner: node.inner }),
             None => None,
         }
+    }
+
+    fn relation(&self, _base: &TourNode, _targ: &TourNode) -> NodeRel {
+        todo!()
     }
 
     #[inline]

@@ -1,3 +1,5 @@
+pub mod alg;
+
 mod base;
 pub use base::repo::DataNode;
 pub use base::repo::MatrixKind;

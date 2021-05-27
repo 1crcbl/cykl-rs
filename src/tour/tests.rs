@@ -1,11 +1,10 @@
 #[allow(unused_imports)]
 use crate::tour::between;
-use crate::{MetricKind, Repo, RepoBuilder, Scalar};
+use crate::{tour::NodeRel, MetricKind, Repo, RepoBuilder, Scalar};
 
 use super::{Tour, TourOrder};
 
-#[allow(dead_code)]
-pub fn create_repo(n_nodes: usize) -> Repo {
+pub(crate) fn create_repo(n_nodes: usize) -> Repo {
     let builder = RepoBuilder::new(MetricKind::Euc2d).capacity(n_nodes);
     let mut repo = builder.build();
     for ii in 0..n_nodes {
@@ -14,26 +13,36 @@ pub fn create_repo(n_nodes: usize) -> Repo {
     repo
 }
 
-#[allow(dead_code)]
-pub fn test_tour_order(tour: &impl Tour, expected: &TourOrder) {
+pub(crate) fn test_tour_order(tour: &impl Tour, expected: &TourOrder) {
     let expected = &expected.order;
     let len = expected.len();
 
     assert_eq!(tour.len(), len, "Test tour len");
 
     for ii in 0..(expected.len() - 1) {
+        let base = tour.get(expected[ii]);
+        assert!(base.is_some());
+        let base = base.unwrap();
+        let pred = tour.predecessor(&base);
+        let succ = tour.successor(&base);
+
+        assert!(pred.is_some());
         assert_eq!(
             tour.get(expected[(len + ii - 1) % len]),
-            tour.predecessor_at(expected[ii]),
+            pred,
             "Test predecessor at index = {}",
             ii
         );
+        assert_eq!(NodeRel::Successor, tour.relation(&base, &pred.unwrap()));
+
+        assert!(succ.is_some());
         assert_eq!(
             tour.get(expected[(ii + 1) % len]),
-            tour.successor_at(expected[ii]),
+            succ,
             "Test successor at index = {}",
             ii
         );
+        assert_eq!(NodeRel::Predecessor, tour.relation(&base, &succ.unwrap()));
     }
 }
 
@@ -53,6 +62,7 @@ mod tests_array {
     use super::*;
 
     #[test]
+    #[ignore]
     fn test_apply() {
         let repo = create_repo(10);
         let mut tour = Array::new(&repo);
@@ -60,6 +70,7 @@ mod tests_array {
     }
 
     #[test]
+    #[ignore]
     fn test_total_dist() {
         let repo = create_repo(4);
         let mut tour = Array::new(&repo);
