@@ -71,10 +71,12 @@ impl Tour for Array {
 
     #[inline]
     fn between_at(&self, from_idx: usize, mid_idx: usize, to_idx: usize) -> bool {
-        match (self.tracker.get(from_idx), self.tracker.get(mid_idx), self.tracker.get(to_idx)) {
-            (Some(f), Some(m), Some(t)) => {
-                between(*f, *m, *t)
-            },
+        match (
+            self.tracker.get(from_idx),
+            self.tracker.get(mid_idx),
+            self.tracker.get(to_idx),
+        ) {
+            (Some(f), Some(m), Some(t)) => between(*f, *m, *t),
             _ => false,
         }
     }
@@ -141,7 +143,7 @@ impl Tour for Array {
                 } else {
                     NodeRel::None
                 }
-            },
+            }
             _ => NodeRel::None,
         }
     }
@@ -188,6 +190,16 @@ impl Tour for Array {
             Some(node) => Some(TourNode { inner: node.inner }),
             None => None,
         }
+    }
+
+    fn tour_order(&self) -> Option<TourOrder> {
+        let mut result = Vec::with_capacity(self.nodes.len());
+
+        for node in &self.nodes {
+            result.push(node.index())
+        }
+
+        Some(TourOrder::with_ord(result))
     }
 
     #[inline]

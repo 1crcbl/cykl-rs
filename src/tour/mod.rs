@@ -115,6 +115,9 @@ pub trait Tour {
     /// in the forward traversal of the tour.
     fn predecessor_at(&self, kin_index: usize) -> Option<TourNode>;
 
+    /// Returns the node order of a tour.
+    fn tour_order(&self) -> Option<TourOrder>;
+
     /// Resets all the internal states of the tour and its vertices.
     fn reset(&mut self);
 
@@ -238,6 +241,22 @@ impl TourOrder {
     pub fn add(&mut self, index: usize) {
         self.order.push(index);
     }
+}
+
+/// Combines multiple ```Range``` into a vector.
+#[macro_export]
+macro_rules! combine_range {
+    // Base case:
+    ($x:expr) => {
+        ($x).collect::<Vec<usize>>()
+    };
+    // `$x` followed by at least one `$y,`
+    ($x:expr, $($y:expr),+) => {{
+        let mut a: Vec<usize> = ($x).collect();
+        let mut b = combine_range!($($y),*);
+        a.append(&mut b);
+        a
+    }}
 }
 
 fn between<T>(from: T, mid: T, to: T) -> bool

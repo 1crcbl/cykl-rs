@@ -425,6 +425,34 @@ impl Tour for TwoLevelList {
         }
     }
 
+    fn tour_order(&self) -> Option<TourOrder> {
+        let mut result = Vec::with_capacity(self.nodes.len());
+        match self.nodes.first() {
+            Some(first) => {
+                result.push(first.index());
+                let mut nopt = self.successor(first);
+
+                loop {
+                    match nopt {
+                        Some(ref node) => {
+                            if node.inner == first.inner {
+                                break;
+                            }
+
+                            result.push(node.index());
+                            nopt = self.successor(node);
+                        }
+                        None => None?,
+                    }
+                }
+
+                return Some(TourOrder::with_ord(result));
+            }
+            None => None?,
+        }
+        None
+    }
+
     fn reset(&mut self) {
         todo!()
     }

@@ -26,19 +26,22 @@ pub(crate) fn test_tour_order(tour: &impl Tour, expected: &TourOrder) {
         let pred = tour.predecessor(&base);
         let succ = tour.successor(&base);
 
+        // If both orders are in the same direction, pred = targ1 and succ = targ2.
+        // On the other hand, if one of them is reversed, pred = targ2 and succ = targ1.
+        let targ1 = tour.get(expected[(len + ii - 1) % len]);
+        let targ2 = tour.get(expected[(ii + 1) % len]);
+
         assert!(pred.is_some());
-        assert_eq!(
-            tour.get(expected[(len + ii - 1) % len]),
-            pred,
+        assert!(
+            pred == targ1 || pred == targ2,
             "Test predecessor at index = {}",
             ii
         );
         assert_eq!(NodeRel::Successor, tour.relation(&base, &pred.unwrap()));
 
         assert!(succ.is_some());
-        assert_eq!(
-            tour.get(expected[(ii + 1) % len]),
-            succ,
+        assert!(
+            succ == targ1 || succ == targ2,
             "Test successor at index = {}",
             ii
         );
@@ -212,6 +215,7 @@ mod test_tll {
 #[allow(dead_code)]
 mod test_suite {
     use crate::{
+        combine_range,
         tour::{tests::test_tour_order, Tour, TourOrder},
         Scalar,
     };
@@ -284,32 +288,32 @@ mod test_suite {
         tour.apply(&TourOrder::with_ord((0..n_nodes).collect()));
 
         tour.flip_at(3, 4, 8, 9);
-        let mut expected = vec![0, 1, 2, 3, 8, 7, 6, 5, 4, 9];
-        expected.append(&mut (10..n_nodes).collect());
-        test_tour_order(tour, &TourOrder::with_ord(expected));
+        test_tour_order(
+            tour,
+            &TourOrder::with_ord(combine_range!(0..4, (4..9).rev(), 9..n_nodes)),
+        );
 
         tour.flip_at(3, 8, 4, 9);
         test_tour_order(tour, &TourOrder::with_ord((0..n_nodes).collect()));
 
         tour.flip_at(8, 9, 3, 4);
-        let mut expected = vec![0, 1, 2, 3, 8, 7, 6, 5, 4, 9];
-        expected.append(&mut (10..n_nodes).collect());
-        test_tour_order(tour, &TourOrder::with_ord(expected));
+        test_tour_order(
+            tour,
+            &TourOrder::with_ord(combine_range!(0..4, (4..9).rev(), 9..n_nodes)),
+        );
 
         tour.flip_at(4, 9, 3, 8);
-        let mut expected = vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
-        expected.append(&mut (10..n_nodes).collect());
-        test_tour_order(tour, &TourOrder::with_ord(expected));
+        test_tour_order(tour, &TourOrder::with_nat_ord(n_nodes));
 
         // Reverses the entire segment.
         tour.flip_at(9, 10, 19, 20);
-        let mut expected: Vec<usize> = (0..10).collect();
-        expected.append(&mut (10..20).rev().collect());
-        expected.append(&mut (20..n_nodes).collect());
-        test_tour_order(tour, &TourOrder::with_ord(expected));
+        test_tour_order(
+            tour,
+            &TourOrder::with_ord(combine_range!(0..10, (10..20).rev(), 20..n_nodes)),
+        );
 
         tour.flip_at(10, 20, 9, 19);
-        test_tour_order(tour, &TourOrder::with_ord((0..n_nodes).collect()));
+        test_tour_order(tour, &TourOrder::with_nat_ord(n_nodes));
     }
 
     // Test flip case: New paths consist of a sequence of consecutive segments.
@@ -317,25 +321,25 @@ mod test_suite {
     fn flip_2(tour: &mut impl Tour) {
         let n_nodes = 100;
         assert_eq!(n_nodes, tour.len());
-        tour.apply(&TourOrder::with_ord((0..n_nodes).collect()));
+        tour.apply(&TourOrder::with_nat_ord(n_nodes));
 
         tour.flip_at(9, 10, 39, 40);
-        let mut expected: Vec<usize> = (0..10).collect();
-        expected.append(&mut (10..40).rev().collect());
-        expected.append(&mut (40..n_nodes).collect());
-        test_tour_order(tour, &TourOrder::with_ord(expected));
+        test_tour_order(
+            tour,
+            &TourOrder::with_ord(combine_range!(0..10, (10..40).rev(), 40..n_nodes)),
+        );
 
         tour.flip_at(10, 40, 9, 39);
-        test_tour_order(tour, &TourOrder::with_ord((0..n_nodes).collect()));
+        test_tour_order(tour, &TourOrder::with_nat_ord(n_nodes));
 
         tour.flip_at(29, 30, 9, 10);
-        let mut expected: Vec<usize> = (0..10).collect();
-        expected.append(&mut (10..30).rev().collect());
-        expected.append(&mut (30..n_nodes).collect());
-        test_tour_order(tour, &TourOrder::with_ord(expected));
+        test_tour_order(
+            tour,
+            &TourOrder::with_ord(combine_range!(0..10, (10..30).rev(), 30..n_nodes)),
+        );
 
         tour.flip_at(9, 29, 10, 30);
-        test_tour_order(tour, &TourOrder::with_ord((0..n_nodes).collect()));
+        test_tour_order(tour, &TourOrder::with_nat_ord(n_nodes));
     }
 
     // Test flip case: New paths consist of a sequence of consecutive segments.
@@ -343,43 +347,44 @@ mod test_suite {
     fn flip_3(tour: &mut impl Tour) {
         let n_nodes = 100;
         assert_eq!(n_nodes, tour.len());
-        tour.apply(&TourOrder::with_ord((0..n_nodes).collect()));
+        tour.apply(&TourOrder::with_nat_ord(n_nodes));
 
-        let mut expected: Vec<usize> = (90..n_nodes).rev().collect();
-        expected.append(&mut (10..90).collect());
-        expected.append(&mut (0..10).rev().collect());
         tour.flip_at(9, 10, 89, 90);
-        test_tour_order(tour, &TourOrder::with_ord(expected));
+        test_tour_order(
+            tour,
+            &TourOrder::with_ord(combine_range!((90..n_nodes).rev(), 10..90, (0..10).rev())),
+        );
 
         tour.flip_at(90, 10, 89, 9);
-        test_tour_order(tour, &TourOrder::with_ord((0..n_nodes).collect()));
+        test_tour_order(tour, &TourOrder::with_nat_ord(n_nodes));
 
-        let mut expected: Vec<usize> = (90..n_nodes).rev().collect();
-        expected.append(&mut (10..90).collect());
-        expected.append(&mut (0..10).rev().collect());
         tour.flip_at(89, 90, 9, 10);
-        test_tour_order(tour, &TourOrder::with_ord(expected));
+        test_tour_order(
+            tour,
+            &TourOrder::with_ord(combine_range!((90..n_nodes).rev(), 10..90, (0..10).rev())),
+        );
 
         tour.flip_at(89, 9, 90, 10);
-        test_tour_order(tour, &TourOrder::with_ord((0..n_nodes).collect()));
+        test_tour_order(tour, &TourOrder::with_nat_ord(n_nodes));
 
         tour.flip_at(79, 80, 89, 90);
         tour.flip_at(9, 10, 79, 89);
 
-        let mut expected: Vec<usize> = (80..90).collect();
-        expected.append(&mut (10..80).collect());
-        expected.append(&mut (0..10).rev().collect());
-        expected.append(&mut (90..n_nodes).rev().collect());
-        test_tour_order(tour, &TourOrder::with_ord(expected));
+        test_tour_order(
+            tour,
+            &TourOrder::with_ord(combine_range!(
+                80..90,
+                10..80,
+                (0..10).rev(),
+                (90..n_nodes).rev()
+            )),
+        );
     }
 
     // Test flip case: Vertices are positioned in the middle of segments.
     fn flip_4(tour: &mut impl Tour) {
         let n_nodes = 100;
         assert_eq!(n_nodes, tour.len());
-        let order0 = TourOrder::with_ord((0..n_nodes).collect());
-        tour.apply(&order0);
-        test_tour_order(tour, &order0);
 
         flip_4_d1_forward_move_back(tour);
         flip_4_d1_reverse_move_front(tour);
@@ -393,20 +398,23 @@ mod test_suite {
     // prev of from-side: forward
     // prev of to-side: reverse
     fn flip_4_d1_forward_move_back(tour: &mut impl Tour) {
-        tour.apply(&TourOrder::with_ord((0..tour.len()).collect()));
-        test_tour_order(tour, &TourOrder::with_ord((0..tour.len()).collect()));
+        tour.apply(&TourOrder::with_nat_ord(tour.len()));
+        test_tour_order(tour, &TourOrder::with_nat_ord(tour.len()));
 
         // Reverse prev of to-side.
         tour.flip_at(59, 60, 69, 70);
 
         tour.flip_at(33, 34, 72, 73);
-
-        let mut expected: Vec<usize> = (0..34).collect();
-        expected.append(&mut (70..73).rev().collect());
-        expected.append(&mut (60..70).collect());
-        expected.append(&mut (34..60).rev().collect());
-        expected.append(&mut (73..tour.len()).collect());
-        test_tour_order(tour, &TourOrder::with_ord(expected));
+        test_tour_order(
+            tour,
+            &TourOrder::with_ord(combine_range!(
+                0..34,
+                (70..73).rev(),
+                60..70,
+                (34..60).rev(),
+                73..tour.len()
+            )),
+        );
     }
 
     // Called by flip_4().
@@ -415,8 +423,8 @@ mod test_suite {
     // next of from-side: forward
     // next of to-side: reverse
     fn flip_4_d1_reverse_move_front(tour: &mut impl Tour) {
-        tour.apply(&TourOrder::with_ord((0..tour.len()).collect()));
-        test_tour_order(tour, &TourOrder::with_ord((0..tour.len()).collect()));
+        tour.apply(&TourOrder::with_nat_ord(tour.len()));
+        test_tour_order(tour, &TourOrder::with_nat_ord(tour.len()));
 
         // Reverse from- and to-side.
         tour.flip_at(29, 30, 39, 40);
@@ -427,16 +435,19 @@ mod test_suite {
 
         // Flip operation.
         tour.flip_at(34, 33, 63, 62);
-
-        let mut expected: Vec<usize> = (0..30).collect();
-        expected.append(&mut (34..40).rev().collect());
-        expected.append(&mut (63..70).collect());
-        expected.append(&mut (40..60).rev().collect());
-        expected.append(&mut (30..34).collect());
-        expected.append(&mut (60..63).rev().collect());
-        expected.append(&mut (70..80).rev().collect());
-        expected.append(&mut (80..tour.len()).collect());
-        test_tour_order(tour, &TourOrder::with_ord(expected));
+        test_tour_order(
+            tour,
+            &TourOrder::with_ord(combine_range!(
+                0..30,
+                (34..40).rev(),
+                63..70,
+                (40..60).rev(),
+                30..34,
+                (60..63).rev(),
+                (70..80).rev(),
+                80..tour.len()
+            )),
+        );
     }
 
     // Called by flip_4().
@@ -445,20 +456,23 @@ mod test_suite {
     // next of from-side: forward
     // next of to-side: reverse
     fn flip_4_d2_forward_move_front(tour: &mut impl Tour) {
-        tour.apply(&TourOrder::with_ord((0..tour.len()).collect()));
-        test_tour_order(tour, &TourOrder::with_ord((0..tour.len()).collect()));
+        tour.apply(&TourOrder::with_nat_ord(tour.len()));
+        test_tour_order(tour, &TourOrder::with_nat_ord(tour.len()));
 
         // Reverse next of to-side.
         tour.flip_at(69, 70, 79, 80);
 
         tour.flip_at(36, 37, 67, 68);
-
-        let mut expected: Vec<usize> = (0..37).collect();
-        expected.append(&mut (37..68).rev().collect());
-        expected.append(&mut (68..70).collect());
-        expected.append(&mut (70..80).rev().collect());
-        expected.append(&mut (80..tour.len()).collect());
-        test_tour_order(tour, &TourOrder::with_ord(expected));
+        test_tour_order(
+            tour,
+            &TourOrder::with_ord(combine_range!(
+                0..37,
+                (37..68).rev(),
+                68..70,
+                (70..80).rev(),
+                80..tour.len()
+            )),
+        );
     }
 
     // Called by flip_4().
@@ -467,8 +481,8 @@ mod test_suite {
     // prev of from-side: forward
     // prev of to-side: reverse
     fn flip_4_d2_reverse_move_back(tour: &mut impl Tour) {
-        tour.apply(&TourOrder::with_ord((0..tour.len()).collect()));
-        test_tour_order(tour, &TourOrder::with_ord((0..tour.len()).collect()));
+        tour.apply(&TourOrder::with_nat_ord(tour.len()));
+        test_tour_order(tour, &TourOrder::with_nat_ord(tour.len()));
 
         // Reverse from- and to-side.
         tour.flip_at(29, 30, 39, 40);
@@ -480,14 +494,18 @@ mod test_suite {
         // Flip operation.
         tour.flip_at(37, 36, 68, 67);
 
-        let mut expected: Vec<usize> = (0..30).collect();
-        expected.append(&mut (37..40).rev().collect());
-        expected.append(&mut (68..70).collect());
-        expected.append(&mut (40..60).rev().collect());
-        expected.append(&mut (30..37).collect());
-        expected.append(&mut (60..68).rev().collect());
-        expected.append(&mut (70..80).rev().collect());
-        expected.append(&mut (80..tour.len()).collect());
-        test_tour_order(tour, &TourOrder::with_ord(expected));
+        test_tour_order(
+            tour,
+            &TourOrder::with_ord(combine_range!(
+                0..30,
+                (37..40).rev(),
+                68..70,
+                (40..60).rev(),
+                30..37,
+                (60..68).rev(),
+                (70..80).rev(),
+                80..tour.len()
+            )),
+        );
     }
 }
