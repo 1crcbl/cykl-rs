@@ -73,6 +73,11 @@ pub trait Tour {
     /// corresponding vertex, otherwise returns `None`.
     fn get(&self, index: usize) -> Option<TourNode>;
 
+    /// Returns the relation between two nodes.
+    ///
+    /// If ```base``` precedes ```targ```, [`NodeRel::Predecessor`] is returned.
+    /// And if ```base``` is ```targ```'s successor, [`NodeRel::Successor`] is returned instead.
+    /// Otherwise, the two nodes are not neighbours which results in [`NodeRel::None`].
     fn relation(&self, base: &TourNode, targ: &TourNode) -> NodeRel;
 
     /// Returns a reference to a vertex which is the `kin`'s direct successor in the forward
@@ -246,17 +251,22 @@ impl TourOrder {
 /// Combines multiple ```Range``` into a vector.
 #[macro_export]
 macro_rules! combine_range {
-    // Base case:
     ($x:expr) => {
         ($x).collect::<Vec<usize>>()
     };
-    // `$x` followed by at least one `$y,`
     ($x:expr, $($y:expr),+) => {{
         let mut a: Vec<usize> = ($x).collect();
-        let mut b = combine_range!($($y),*);
-        a.append(&mut b);
+        a.append(&mut combine_range!($($y),*));
         a
     }}
+}
+
+/// Creates an instance of [`TourOrder`] from a list of [`Range`]s.
+#[macro_export]
+macro_rules! tour_order {
+    ($($x:expr),+) => {
+        TourOrder::with_ord(combine_range!($($x),+))
+    };
 }
 
 fn between<T>(from: T, mid: T, to: T) -> bool

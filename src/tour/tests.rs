@@ -217,7 +217,7 @@ mod test_suite {
     use crate::{
         combine_range,
         tour::{tests::test_tour_order, Tour, TourOrder},
-        Scalar,
+        tour_order, Scalar,
     };
 
     pub fn apply(tour: &mut impl Tour) {
@@ -285,32 +285,23 @@ mod test_suite {
     fn flip_1(tour: &mut impl Tour) {
         let n_nodes = 100;
         assert_eq!(n_nodes, tour.len());
-        tour.apply(&TourOrder::with_ord((0..n_nodes).collect()));
+        tour.apply(&tour_order!(0..n_nodes));
 
         tour.flip_at(3, 4, 8, 9);
-        test_tour_order(
-            tour,
-            &TourOrder::with_ord(combine_range!(0..4, (4..9).rev(), 9..n_nodes)),
-        );
+        test_tour_order(tour, &tour_order!(0..4, (4..9).rev(), 9..n_nodes));
 
         tour.flip_at(3, 8, 4, 9);
-        test_tour_order(tour, &TourOrder::with_ord((0..n_nodes).collect()));
+        test_tour_order(tour, &tour_order!(0..n_nodes));
 
         tour.flip_at(8, 9, 3, 4);
-        test_tour_order(
-            tour,
-            &TourOrder::with_ord(combine_range!(0..4, (4..9).rev(), 9..n_nodes)),
-        );
+        test_tour_order(tour, &tour_order!(0..4, (4..9).rev(), 9..n_nodes));
 
         tour.flip_at(4, 9, 3, 8);
         test_tour_order(tour, &TourOrder::with_nat_ord(n_nodes));
 
         // Reverses the entire segment.
         tour.flip_at(9, 10, 19, 20);
-        test_tour_order(
-            tour,
-            &TourOrder::with_ord(combine_range!(0..10, (10..20).rev(), 20..n_nodes)),
-        );
+        test_tour_order(tour, &tour_order!(0..10, (10..20).rev(), 20..n_nodes));
 
         tour.flip_at(10, 20, 9, 19);
         test_tour_order(tour, &TourOrder::with_nat_ord(n_nodes));
@@ -324,19 +315,13 @@ mod test_suite {
         tour.apply(&TourOrder::with_nat_ord(n_nodes));
 
         tour.flip_at(9, 10, 39, 40);
-        test_tour_order(
-            tour,
-            &TourOrder::with_ord(combine_range!(0..10, (10..40).rev(), 40..n_nodes)),
-        );
+        test_tour_order(tour, &tour_order!(0..10, (10..40).rev(), 40..n_nodes));
 
         tour.flip_at(10, 40, 9, 39);
         test_tour_order(tour, &TourOrder::with_nat_ord(n_nodes));
 
         tour.flip_at(29, 30, 9, 10);
-        test_tour_order(
-            tour,
-            &TourOrder::with_ord(combine_range!(0..10, (10..30).rev(), 30..n_nodes)),
-        );
+        test_tour_order(tour, &tour_order!(0..10, (10..30).rev(), 30..n_nodes));
 
         tour.flip_at(9, 29, 10, 30);
         test_tour_order(tour, &TourOrder::with_nat_ord(n_nodes));
@@ -352,7 +337,7 @@ mod test_suite {
         tour.flip_at(9, 10, 89, 90);
         test_tour_order(
             tour,
-            &TourOrder::with_ord(combine_range!((90..n_nodes).rev(), 10..90, (0..10).rev())),
+            &tour_order!((90..n_nodes).rev(), 10..90, (0..10).rev()),
         );
 
         tour.flip_at(90, 10, 89, 9);
@@ -361,7 +346,7 @@ mod test_suite {
         tour.flip_at(89, 90, 9, 10);
         test_tour_order(
             tour,
-            &TourOrder::with_ord(combine_range!((90..n_nodes).rev(), 10..90, (0..10).rev())),
+            &tour_order!((90..n_nodes).rev(), 10..90, (0..10).rev()),
         );
 
         tour.flip_at(89, 9, 90, 10);
@@ -372,12 +357,7 @@ mod test_suite {
 
         test_tour_order(
             tour,
-            &TourOrder::with_ord(combine_range!(
-                80..90,
-                10..80,
-                (0..10).rev(),
-                (90..n_nodes).rev()
-            )),
+            &tour_order!(80..90, 10..80, (0..10).rev(), (90..n_nodes).rev()),
         );
     }
 
@@ -407,13 +387,13 @@ mod test_suite {
         tour.flip_at(33, 34, 72, 73);
         test_tour_order(
             tour,
-            &TourOrder::with_ord(combine_range!(
+            &tour_order!(
                 0..34,
                 (70..73).rev(),
                 60..70,
                 (34..60).rev(),
                 73..tour.len()
-            )),
+            ),
         );
     }
 
@@ -437,7 +417,7 @@ mod test_suite {
         tour.flip_at(34, 33, 63, 62);
         test_tour_order(
             tour,
-            &TourOrder::with_ord(combine_range!(
+            &tour_order!(
                 0..30,
                 (34..40).rev(),
                 63..70,
@@ -446,7 +426,7 @@ mod test_suite {
                 (60..63).rev(),
                 (70..80).rev(),
                 80..tour.len()
-            )),
+            ),
         );
     }
 
@@ -465,13 +445,13 @@ mod test_suite {
         tour.flip_at(36, 37, 67, 68);
         test_tour_order(
             tour,
-            &TourOrder::with_ord(combine_range!(
+            &tour_order!(
                 0..37,
                 (37..68).rev(),
                 68..70,
                 (70..80).rev(),
                 80..tour.len()
-            )),
+            ),
         );
     }
 
@@ -496,7 +476,7 @@ mod test_suite {
 
         test_tour_order(
             tour,
-            &TourOrder::with_ord(combine_range!(
+            &tour_order!(
                 0..30,
                 (37..40).rev(),
                 68..70,
@@ -505,7 +485,7 @@ mod test_suite {
                 (60..68).rev(),
                 (70..80).rev(),
                 80..tour.len()
-            )),
+            ),
         );
     }
 }
