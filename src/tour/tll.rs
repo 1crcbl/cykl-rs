@@ -63,12 +63,16 @@ impl TwoLevelList {
 
         let nodes = repo.into_iter().map(|node| TourNode::new(node)).collect();
 
-        Self {
+        let mut result = Self {
             repo: repo.clone(),
             nodes: nodes,
             segments: segments,
             total_dist: 0.,
-        }
+        };
+
+        result.apply(&TourOrder::with_ord((0..repo.size()).collect()));
+
+        result
     }
 
     pub fn with_default_order(repo: &Repo, max_grouplen: usize) -> Self {

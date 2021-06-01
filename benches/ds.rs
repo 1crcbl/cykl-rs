@@ -3,18 +3,18 @@
 #[allow(unused_imports)]
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 
-use cykl_rs::tour::TwoLevelList;
-use cykl_rs::tour::{Tour, TourImpltor};
-use cykl_rs::MetricKind;
-use cykl_rs::Repo;
-use cykl_rs::Scalar;
-use cykl_rs::{tour::Array, RepoBuilder};
+use cykl::tour::TwoLevelList;
+use cykl::tour::{Tour, TourImpltor};
+use cykl::Repo;
+use cykl::Scalar;
+use cykl::{tour::Array, RepoBuilder};
+use tspf::WeightKind;
 
 const INDEX: usize = 987_654;
 
 #[allow(dead_code)]
 pub fn create_repo(n_nodes: usize) -> Repo {
-    let mut repo = RepoBuilder::new(MetricKind::Euc2d)
+    let mut repo = RepoBuilder::new(WeightKind::Euc2d)
         .capacity(n_nodes)
         .build();
     for ii in 0..n_nodes {

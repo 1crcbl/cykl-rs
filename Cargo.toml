@@ -1,5 +1,5 @@
 [package]
-name = "cykl-rs"
+name = "cykl"
 version = "0.1.0"
 authors = ["1crcbl <1crcbl@protonmail.com>"]
 edition = "2018"
@@ -18,6 +18,7 @@ categories = ["algorithms", "mathematics", "science"]
 enum_dispatch = "0.3.7"
 getset = "0.1.1"
 rand = "0.8.3"
+tspf = "0.3.0"
 
 [dev-dependencies]
 criterion = { version = "0.3", features = ["html_reports"] }

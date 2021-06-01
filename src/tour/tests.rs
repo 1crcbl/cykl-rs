@@ -1,11 +1,13 @@
+use tspf::WeightKind;
+
 #[allow(unused_imports)]
 use crate::tour::between;
-use crate::{tour::NodeRel, MetricKind, Repo, RepoBuilder, Scalar};
+use crate::{tour::NodeRel, Repo, RepoBuilder, Scalar};
 
 use super::{Tour, TourOrder};
 
 pub(crate) fn create_repo(n_nodes: usize) -> Repo {
-    let builder = RepoBuilder::new(MetricKind::Euc2d).capacity(n_nodes);
+    let builder = RepoBuilder::new(WeightKind::Euc2d).capacity(n_nodes);
     let mut repo = builder.build();
     for ii in 0..n_nodes {
         repo.add(ii as Scalar, ii as Scalar, ii as Scalar);
@@ -150,7 +152,7 @@ mod test_tll {
             vec![0.],
         ];
 
-        let repo = RepoBuilder::new(MetricKind::Euc2d)
+        let repo = RepoBuilder::new(WeightKind::Euc2d)
             .costs(costs, MatrixKind::Upper)
             .build();
 

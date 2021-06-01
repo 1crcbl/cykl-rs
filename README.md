@@ -1,42 +1,34 @@
 ![Maintenance](https://img.shields.io/badge/maintenance-experimental-blue.svg)
 
 # CYKL-RS
-This is a Rust project implementing several heuristic solvers for the travelling salesman problem and its related problems. I intend to clearly separate the algorithm (solver) part and data structure part so that the data structures implemented in this library can be reused elsewhere for novel algorithms. Moreover, it also has another benefit that better data structures can be implemented without affecting the internal working of algorithms.
 
-Currently, the library has working version of data structure with seemingly good performance. In the next step, I will focus on implementing the LKH algorithm and $\alpha$-nearness for the candidate generation.
+```cykl-rs``` is a Rust project implementing Lin-Kerninghan heuristics (LKH) algorithm for solving the travelling salesman problem and other related problems.
+
+At the time of writing, two data structures, ```array``` and ```two-level list```, are fully implemented with all operations [[3]](#3), that are essential for building any heuristic algorithm:
+- **```get(id)```**: returns a node for the given index ```id```
+- **```successor(a)```**: returns a node that directly succeeds a node ```a``` in the tour.
+- **```predecessor(a)```**: returns a node that directly preceeds a node ```a``` in the tour.
+- **```between(a, b, c)```**: checks whether ```b``` is between of ```a``` and ```c``` in a forward traversal direction.
+- **```flip(a, b, c, d)```**: this is an operation used to rearrange the sequence of nodes in a tour. It breaks the edges ```(a, b)``` and ```(c, d)```, then forms new edges ```(a, c)``` and ```(b, d)```. This operation affects not only the four input nodes but also their neighbouring nodes.
+
+On the algorithmic side, the library offers several k-opt methods for tour manipulation. They are ```move_2_opt``` (equivalent to the ```flip``` operation mentioned above), ```move_3_opt``` and ```move_4_opt```. The method ```move_5_opt``` will be implemented soon.
+
+For generating candidates and initial tours, the library can only offer at the moment the nearest-neighbour method. Other methods, especially ```alpha-nearness```, will be implemented soon.
+
+All metric functions to calculate edge weights between nodes are implemented in [tspf](https://crates.io/crates/tspf), which is a parser for TSPLIB format.
 
 ## Benchmarks
-The implementation of array and two-level list (TLL) is based on the description presented in Fredman's
-paper [[3]](#3). The following operations are considered essential in the context of TSP solver:
-- **```get(id)```**: returns a node for the given index ```id```. Theoretically, this function should compute in ```O(1)``` time.
-- **```successor(a)```**: returns a node that directly succeeds a node ```a``` in the tour. Theoretically, this function should compute in ```O(1)``` time
-- **```predecessor(a)```**: returns a node that directly preceeds a node ```a``` in the tour. Theoretically, this function should compute in ```O(1)``` time
-- **```between(a, b, c)```**: checks whether ```b``` is between of ```a``` and ```c``` in a forward traversal direction. Theoretically, this function should compute in ```O(1)``` time
-- **```flip(a, b, c, d)```**: breaks the edges ```(a, b)``` and ```(c, d)```, then forms new edges ```(a, c)``` and ```(b, d)```. This operation will affect not only four input nodes but also their neighbours. For array, this operation can take up to ```O(N)``` time to complete, while TLL can achieve ```O(sqrt(N))``` performance.
-    - For TLL, the computation time for ```flip``` operation heavily depends on whether the operation affects only elements of a certain segment or affects entire segments or across many segments.
-    - In the current benchmark, we set the maximum number of elements for each segment in TLL to ```100```.
-    - Case 1 of ```flip``` benchmark involves reversing 99 elements in a segment. In this case, TLL must iterate through 99 nodes and reverse all of them. 
-    - Case 2 involves reversing 100 elements, all of which lie in the same segment. Since the entire segment is affected, TLL only needs to reverse the bit flag of the corresponding segment. It is expected that case 2 is when TLL shines the most.
-    - Case 3 is the most complicated. It involves reversing 900 nodes across multiple segments. In this case, TLL has to split and merge segments in order to get a layout such that case 2 can be applied.
+The benchmark for two data structures is listed below. The unit for computation in all entries is nanosecond (ns).
 
-**NOTE**:
-- Since the benchmarked functions are called in isolated environment, the result shown below
-shouldn't be used to form a final decision. A real benchmark will be carried out once the main algorithm is fully implemented.
-- The unit for computation is *nanosecond (ns)* for all entries. The crate [criterion](https://crates.io/crates/criterion) is used to benchmark the performance of the implemented data structures.
-- In the table below ```ED``` denotes function invocation through enum-dispatch. In this library, we use the crate [enum_dispatch](https://crates.io/crates/enum_dispatch) to handle the code generation for such dispatch.
-- Update 27-May-2021: There are many breaking changes in the internal working of both data structures and some bug fixes for ```Array```. These changes helps improve ```Array```'s performance, in which the computation time for ```flip``` in all three cases are halved. However, the performance for ```TLL``` are a bit worsened in ```get```, ```successor``` and ```predecessor```. The benchmark is rerun with the following result:
-
-| |Array |Array (ED) | TLL | TLL (ED) |
+| |Array | TLL |
 --- | --- | --- | --- | ---
-|**get**| 0.716 | 0.834 | 0.697 | 0.700
-|**successor**|3.233 | 3.211 | 1.155 | 1.135
-|**predecessor**|0.757 | 0.828 | 0.708 | 0.704
-|**between**| 0.218 | 2.295| 3.12 | 3.122
-|**flip (case 1)**|228.04| 237.45| 107.07 | 108.00
-|**flip (case 2)**|255.66| 260.53| 13.648 | 14.050
-|**flip (case 3)**|2152.2 | 2118.9 | 69.441 | 69.891
-
-The benchmark shows that ```TLL``` outperforms ```Array``` in most of the cases.
+|**get**| 0.716 | 0.697 | 0.700
+|**successor**|3.233 | 1.155 | 1.135
+|**predecessor**|0.757 | 0.708 | 0.704
+|**between**| 0.218 | 3.12 | 3.122
+|**flip (case 1)** <br> (flip 99 nodes in one segment)|228.04| 107.07 | 108.00
+|**flip (case 2)** <br> (flip 100 nodes across two segments)|255.66| 13.648 | 14.050
+|**flip (case 3)** <br> (flip 900 nodes across multiple segments)|2152.2 | 69.441 | 69.891
 
 ## References
 <a id="1">[1]</a> S. Lin; B. W. Kernighan(1973). "An Effective Heuristic Algorithm for the Traveling-Salesman Problem". Operations Research. 21 (2): 498–516. [doi:10.1287/opre.21.2.498](https://pubsonline.informs.org/doi/abs/10.1287/opre.21.2.498).
@@ -66,6 +58,4 @@ at your option.
 
 ## Contribution
 
-Unless you explicitly state otherwise, any contribution intentionally submitted
-for inclusion in the work by you, as defined in the Apache-2.0 license, shall be
-dual licensed as above, without any additional terms or conditions.
+Unless you explicitly state otherwise, any contribution intentionally submitted for inclusion in the work by you, as defined in the Apache-2.0 license, shall be dual licensed as above, without any additional terms or conditions.

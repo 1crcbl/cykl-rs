@@ -1,20 +1,19 @@
-use std::{cell::RefCell, collections::HashMap, f64::consts::PI, fmt, ptr::NonNull, rc::Rc};
+use std::{collections::HashMap, fmt, ptr::NonNull, rc::Rc};
+
+use tspf::{metric::MetricPoint, Tsp, WeightKind};
 
 use crate::Scalar;
-
-const EARTH_RADIUS: Scalar = 6378.388;
 
 #[derive(Clone)]
 pub struct Repo {
     inner: Option<NonNull<InnerRepo>>,
 }
 
+#[derive(Debug)]
 struct InnerRepo {
     nodes: Vec<DataNode>,
     cache: HashMap<(usize, usize), Scalar>,
-    kind: MetricKind,
-    func: Box<dyn Fn(&DataNode, &DataNode) -> Scalar>,
-    func_lb: Box<dyn Fn(&DataNode, &DataNode) -> Scalar>,
+    kind: WeightKind,
 }
 
 impl Repo {
@@ -42,7 +41,6 @@ impl Repo {
     /// Calculates the distance between two nodes.
     #[inline]
     pub fn distance(&self, a: &DataNode, b: &DataNode) -> Scalar {
-        // TODO: check whether a node with index belongs to this container.
         if a.index() == b.index() {
             return 0.;
         }
@@ -60,7 +58,7 @@ impl Repo {
                 match val {
                     Some(d) => *d,
                     None => {
-                        let d = (*ptr).func.as_ref()(a, b);
+                        let d = (*ptr).kind.cost(a, b);
                         (*ptr).cache.insert(key, d);
                         d
                     }
@@ -85,15 +83,16 @@ impl Repo {
 
     /// Calculates the lower bound of the distance between two nodes.
     #[inline]
-    pub fn dist_lb(&self, a: &DataNode, b: &DataNode) -> Scalar {
-        if a.index() == b.index() {
-            return 0.;
-        }
+    pub fn dist_lb(&self, _a: &DataNode, _b: &DataNode) -> Scalar {
+        todo!()
+        // if a.index() == b.index() {
+        //     return 0.;
+        // }
 
-        match self.inner {
-            Some(inner) => unsafe { (*inner.as_ptr()).func_lb.as_ref()(a, b) },
-            None => panic!("Nullpointer"),
-        }
+        // match self.inner {
+        //     Some(inner) => unsafe { (*inner.as_ptr()).func_lb.as_ref()(a, b) },
+        //     None => panic!("Nullpointer"),
+        // }
     }
 
     /// Calculates the lower bound of the distance between two nodes at the given indices.
@@ -115,6 +114,25 @@ impl Repo {
         match &self.inner {
             Some(inner) => unsafe { (*inner.as_ptr()).nodes.len() },
             None => panic!("Nullpointer"),
+        }
+    }
+}
+
+impl From<&Tsp> for Repo {
+    fn from(tsp: &Tsp) -> Self {
+        let mut nodes = Vec::with_capacity(tsp.dim());
+        for (idx, pt) in tsp.node_coords().iter().enumerate() {
+            nodes.push(DataNode::new(idx, pt.x(), pt.y(), pt.z()));
+        }
+
+        let inner = Box::new(InnerRepo {
+            nodes,
+            cache: HashMap::new(),
+            kind: tsp.weight_kind(),
+        });
+
+        Self {
+            inner: Some(Box::leak(inner).into()),
         }
     }
 }
@@ -148,14 +166,14 @@ impl<'s> IntoIterator for &'s Repo {
 
 #[derive(Debug)]
 pub struct RepoBuilder {
-    met_kind: MetricKind,
+    met_kind: WeightKind,
     capacity: Option<usize>,
     costs: Option<Vec<Vec<Scalar>>>,
     mat_kind: Option<MatrixKind>,
 }
 
 impl RepoBuilder {
-    pub fn new(kind: MetricKind) -> Self {
+    pub fn new(kind: WeightKind) -> Self {
         Self {
             met_kind: kind,
             capacity: None,
@@ -207,22 +225,10 @@ impl RepoBuilder {
             (None, None) => Vec::new(),
         };
 
-        let (func, func_lb): (
-            Box<dyn Fn(&DataNode, &DataNode) -> Scalar>,
-            Box<dyn Fn(&DataNode, &DataNode) -> Scalar>,
-        ) = match &self.met_kind {
-            MetricKind::Euc2d => (Box::new(euc_2d), Box::new(euc_2d_lb)),
-            MetricKind::Euc3d => (Box::new(euc_3d), Box::new(euc_3d_lb)),
-            MetricKind::Geo => (Box::new(geo), Box::new(geo_lb)),
-            _ => unimplemented!(),
-        };
-
         let inner = Box::new(InnerRepo {
             nodes,
             cache: hm,
             kind: self.met_kind,
-            func,
-            func_lb,
         });
 
         Repo {
@@ -251,10 +257,10 @@ pub enum MatrixKind {
 
 #[derive(Clone, Debug)]
 pub struct DataNode {
-    inner: Rc<RefCell<InnerNode>>,
+    inner: Rc<InnerNode>,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug)]
 struct InnerNode {
     index: usize,
     x: Scalar,
@@ -270,41 +276,40 @@ impl DataNode {
     }
 
     pub fn with_weight(index: usize, x: Scalar, y: Scalar, z: Scalar, w: Scalar) -> Self {
-        let inner = InnerNode { index, x, y, z, w };
-
         Self {
-            inner: Rc::new(RefCell::new(inner)),
+            inner: Rc::new(InnerNode { index, x, y, z, w }),
         }
     }
 
+    /// Returns the index of a node.
     #[inline]
     pub fn index(&self) -> usize {
-        self.inner.borrow().index
-    }
-
-    #[inline]
-    pub fn x(&self) -> Scalar {
-        self.inner.borrow().x
-    }
-
-    #[inline]
-    pub fn y(&self) -> Scalar {
-        self.inner.borrow().y
-    }
-
-    #[inline]
-    pub fn z(&self) -> Scalar {
-        self.inner.borrow().z
-    }
-
-    #[inline]
-    pub fn w(&self) -> Scalar {
-        self.inner.borrow().w
+        self.inner.index
     }
 
     #[inline]
     pub fn set_w(&mut self, w: Scalar) {
-        self.inner.borrow_mut().w = w;
+        match Rc::get_mut(&mut self.inner) {
+            Some(inner) => inner.w = w,
+            None => {}
+        };
+    }
+}
+
+impl MetricPoint for DataNode {
+    #[inline]
+    fn x(&self) -> f64 {
+        self.inner.x
+    }
+
+    #[inline]
+    fn y(&self) -> f64 {
+        self.inner.y
+    }
+
+    #[inline]
+    fn z(&self) -> f64 {
+        self.inner.z
     }
 }
 
@@ -315,70 +320,4 @@ impl PartialEq for DataNode {
             && self.y() == self.y()
             && self.z() == self.z()
     }
-}
-
-#[derive(Debug)]
-pub enum MetricKind {
-    /// Two-dimensional Euclidean distance.
-    Euc2d,
-    /// Three-dimensional Euclidean distance.
-    Euc3d,
-    /// Geographical distance.
-    Geo,
-    ///
-    Undefined,
-}
-
-/// Returns the 2D-Euclidean distance between two nodes.
-#[inline]
-pub(super) fn euc_2d(a: &DataNode, b: &DataNode) -> Scalar {
-    ((a.x() - b.x()).powi(2) + (a.y() - b.y()).powi(2)).sqrt()
-}
-
-/// Returns the lower bound of 2D-Euclidean distance between two nodes.
-#[inline]
-pub(super) fn euc_2d_lb(a: &DataNode, b: &DataNode) -> Scalar {
-    let (dx, dy) = ((a.x() - b.x()).abs(), (a.y() - b.y()).abs());
-    dx.max(dy)
-}
-
-/// Returns the 3D-Euclidean distance between two nodes.
-#[inline]
-pub(super) fn euc_3d(a: &DataNode, b: &DataNode) -> Scalar {
-    ((a.x() - b.x()).powi(2) + (a.y() - b.y()).powi(2) + (a.z() - b.z()).powi(2)).sqrt()
-}
-
-/// Returns the lower bound of the 3D-Euclidean distance between two nodes.
-#[inline]
-pub(super) fn euc_3d_lb(a: &DataNode, b: &DataNode) -> Scalar {
-    let (dx, dy, dz) = (
-        (a.x() - b.x()).abs(),
-        (a.y() - b.y()).abs(),
-        (a.z() - b.z()).abs(),
-    );
-    dx.max(dy).max(dz)
-}
-
-#[inline]
-pub(super) fn geo(a: &DataNode, b: &DataNode) -> Scalar {
-    let (lat_a, lon_a) = (to_geo_coord(a.x()), to_geo_coord(a.y()));
-    let (lat_b, lon_b) = (to_geo_coord(b.x()), to_geo_coord(b.y()));
-
-    let q1 = (lon_a - lon_b).cos();
-    let q2 = (lat_a - lat_b).cos();
-    let q3 = (lat_a + lat_b).cos();
-    let q4 = (0.5 * ((1. + q1) * q2 - (1. - q1) * q3)).acos();
-    EARTH_RADIUS * q4 + 1.
-}
-
-#[inline]
-pub(super) fn geo_lb(_a: &DataNode, _b: &DataNode) -> Scalar {
-    todo!()
-}
-
-#[allow(dead_code)]
-fn to_geo_coord(x: Scalar) -> Scalar {
-    let deg = x.round();
-    let min = x - deg;
-    PI * (deg + 5. * min / 3.) / 180.
 }

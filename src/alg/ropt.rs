@@ -50,8 +50,8 @@ pub enum Opt3Move {
 }
 
 /// Executes the 3-opt move.
-pub fn move_3_opt(
-    tour: &mut TourImpltor,
+pub fn move_3_opt<T>(
+    tour: &mut T,
     f1: &TourNode,
     t1: &TourNode,
     f2: &TourNode,
@@ -59,7 +59,9 @@ pub fn move_3_opt(
     f3: &TourNode,
     t3: &TourNode,
     move_case: Opt3Move,
-) {
+) where
+    T: Tour,
+{
     match move_case {
         Opt3Move::Move1 => tour.flip(f1, t1, f2, t2),
         Opt3Move::Move2 => tour.flip(f2, t2, f3, t3),
@@ -210,8 +212,8 @@ pub enum Opt4SeqMove {
 }
 
 /// Executes a 4-opt move.
-pub fn move_4_opt(
-    tour: &mut TourImpltor,
+pub fn move_4_opt<T>(
+    tour: &mut T,
     f1: &TourNode,
     t1: &TourNode,
     f2: &TourNode,
@@ -221,7 +223,9 @@ pub fn move_4_opt(
     f4: &TourNode,
     t4: &TourNode,
     move_case: Opt4SeqMove,
-) {
+) where
+    T: Tour,
+{
     match move_case {
         Opt4SeqMove::Move1 => {
             move_3_opt(tour, f1, t1, f2, t2, f3, t3, Opt3Move::Move5);

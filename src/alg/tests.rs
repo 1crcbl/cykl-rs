@@ -6,7 +6,7 @@ use crate::{
         tests::{create_repo, test_tour_order},
         Tour, TourImpltor, TourOrder, TwoLevelList,
     },
-    tour_order, MetricKind, Repo, RepoBuilder, Scalar,
+    tour_order, Repo, RepoBuilder, Scalar,
 };
 
 use super::ropt::{move_2_opt, move_3_opt, move_4_opt, Opt3Move, Opt4SeqMove};
