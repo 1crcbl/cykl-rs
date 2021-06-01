@@ -21,7 +21,7 @@ All metric functions to calculate edge weights between nodes are implemented in 
 The benchmark for two data structures is listed below. The unit for computation in all entries is nanosecond (ns).
 
 | |Array | TLL |
---- | --- | --- | --- | ---
+--- | --- | --- |
 |**get**| 0.716 | 0.697 | 0.700
 |**successor**|3.233 | 1.155 | 1.135
 |**predecessor**|0.757 | 0.708 | 0.704
