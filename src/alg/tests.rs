@@ -9,12 +9,14 @@ use crate::{
     tour_order, Repo, RepoBuilder, Scalar,
 };
 
-use super::ropt::{move_2_opt, move_3_opt, move_4_opt, Opt3Move, Opt4SeqMove};
+use super::{
+    cand_gen_nn,
+    ropt::{move_2_opt, move_3_opt, move_4_opt, Opt3Move, Opt4SeqMove},
+};
 
 #[test]
 fn test_move_2_opt() {
-    let tour = TwoLevelList::with_default_order(&create_repo(20), 20);
-    let mut tour = TourImpltor::from(tour);
+    let mut tour = TwoLevelList::with_default_order(&create_repo(20), 20);
     let (node1, node3) = (tour.get(5).unwrap(), tour.get(10).unwrap());
     let (node2, node4) = (
         tour.successor(&node1).unwrap(),
@@ -29,8 +31,7 @@ fn test_move_2_opt() {
 
 #[test]
 fn test_move_3_opt() {
-    let tour = TwoLevelList::with_default_order(&create_repo(20), 20);
-    let mut tour = TourImpltor::from(tour);
+    let mut tour = TwoLevelList::with_default_order(&create_repo(20), 20);
     let (f1, f2, f3) = (
         tour.get(5).unwrap(),
         tour.get(10).unwrap(),
@@ -66,8 +67,7 @@ macro_rules! tour_4 {
 
 #[test]
 fn test_move_4_opt() {
-    let tour = TwoLevelList::with_default_order(&create_repo(30), 30);
-    let mut tour = TourImpltor::from(tour);
+    let mut tour = TwoLevelList::with_default_order(&create_repo(30), 30);
     let (f1, f2, f3, f4) = (
         tour.get(5).unwrap(),
         tour.get(10).unwrap(),
@@ -185,4 +185,37 @@ fn test_move_4_opt() {
         Opt4SeqMove::Move20,
         tour_4![(16..=20).rev(), 11..=15, 6..=10],
     );
+}
+
+fn create_repo_2() -> Repo {
+    let mut repo = RepoBuilder::new(tspf::WeightKind::Euc2d)
+        .capacity(16)
+        .build();
+    repo.add(38.24, 20.42, 0.);
+    repo.add(39.57, 26.15, 0.);
+    repo.add(40.56, 25.32, 0.);
+    repo.add(36.26, 23.12, 0.);
+    repo.add(33.48, 10.54, 0.);
+    repo.add(37.56, 12.19, 0.);
+    repo.add(38.42, 13.11, 0.);
+    repo.add(37.52, 20.44, 0.);
+    repo.add(41.23, 9.10, 0.);
+    repo.add(41.17, 13.05, 0.);
+    repo.add(36.08, -5.21, 0.);
+    repo.add(38.47, 15.13, 0.);
+    repo.add(38.15, 15.35, 0.);
+    repo.add(37.51, 15.17, 0.);
+    repo.add(35.49, 14.32, 0.);
+    repo.add(39.36, 19.56, 0.);
+    repo
+}
+
+#[test]
+fn test_cand_gen_nn() {
+    let mut tour = TwoLevelList::with_default_order(&create_repo_2(), 4);
+    cand_gen_nn(&mut tour, 5);
+
+    for node in tour.itr() {
+        assert_eq!(5, node.candidates().len());
+    }
 }

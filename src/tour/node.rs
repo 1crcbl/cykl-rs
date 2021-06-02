@@ -1,8 +1,10 @@
-use std::ptr::NonNull;
+use std::{fmt::Display, ptr::NonNull};
+
+use tspf::metric::MetricPoint;
 
 use crate::{DataNode, Scalar};
 
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct TourNode {
     pub(super) inner: Option<NonNull<InnerNode>>,
 }
@@ -13,6 +15,10 @@ impl TourNode {
         Self {
             inner: to_nonnull(inner),
         }
+    }
+
+    pub fn empty() -> Self {
+        Self { inner: None }
     }
 
     #[inline]
@@ -40,6 +46,32 @@ impl TourNode {
             None => panic!("Nullpointer"),
         }
     }
+
+    pub fn set_candidates(&mut self, mut candidates: Vec<TourNode>) {
+        match self.inner {
+            Some(inner) => unsafe {
+                (*inner.as_ptr()).candidates = Vec::with_capacity(candidates.len());
+                (*inner.as_ptr()).candidates.append(&mut candidates);
+            },
+            None => panic!("Nullpointer"),
+        }
+    }
+
+    pub fn candidates(&self) -> &Vec<TourNode> {
+        match self.inner {
+            Some(inner) => unsafe { &(*inner.as_ptr()).candidates },
+            None => panic!("Nullpointer"),
+        }
+    }
+}
+
+impl Display for TourNode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self.inner {
+            Some(inner) => write!(f, "TourNode: {}", format!("{:?}", inner)),
+            None => write!(f, "{}", "None"),
+        }
+    }
 }
 
 #[derive(Debug, PartialEq)]
@@ -65,7 +97,7 @@ pub(super) struct InnerNode {
     /// The parent of a node in a minimum spanning tree.
     pub(super) mst_parent: Option<NonNull<InnerNode>>,
     /// Set of candidate nodes.
-    pub(super) cands: Vec<Option<NonNull<InnerNode>>>,
+    pub(super) candidates: Vec<TourNode>,
 }
 
 impl InnerNode {
@@ -81,13 +113,29 @@ impl InnerNode {
             penalty_weight: 0.,
             mst_final_edge: None,
             mst_parent: None,
-            cands: Vec::with_capacity(0),
+            candidates: Vec::with_capacity(0),
         }
     }
 
     #[inline]
     pub fn visited(&mut self, flag: bool) {
         self.visited = flag;
+    }
+}
+
+impl Display for InnerNode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            format!(
+                "id: {} | x: {} | y: {} | z : {}",
+                self.data.index(),
+                self.data.x(),
+                self.data.y(),
+                self.data.z()
+            )
+        )
     }
 }
 
@@ -118,9 +166,7 @@ macro_rules! move_node {
                                 opt = (*node.as_ptr()).$kin2;
                                 (*node.as_ptr()).rank = target_rank $op rank;
                                 (*node.as_ptr()).segment = seg;
-                                let tmp_ptr = (*node.as_ptr()).successor;
-                                (*node.as_ptr()).successor = (*node.as_ptr()).predecessor;
-                                (*node.as_ptr()).predecessor = tmp_ptr;
+                                std::mem::swap(&mut (*node.as_ptr()).successor, &mut (*node.as_ptr()).predecessor)
                             }
                             None => panic!("Nullpointer"),
                         }
@@ -192,9 +238,10 @@ impl Segment {
                     }
                     _ => panic!("Empty predecessor or successor in node."),
                 }
-                let tmp = (*first.as_ptr()).predecessor;
-                (*first.as_ptr()).predecessor = (*last.as_ptr()).successor;
-                (*last.as_ptr()).successor = tmp;
+                std::mem::swap(
+                    &mut (*first.as_ptr()).predecessor,
+                    &mut (*last.as_ptr()).successor,
+                );
             }
             _ => panic!("Empty first or last pointers in segment."),
         }
@@ -341,8 +388,10 @@ pub(super) unsafe fn reverse_int_seg(
 
     while rank >= rl {
         let tmp = (*node.as_ptr()).successor;
-        (*node.as_ptr()).successor = (*node.as_ptr()).predecessor;
-        (*node.as_ptr()).predecessor = tmp;
+        std::mem::swap(
+            &mut (*node.as_ptr()).successor,
+            &mut (*node.as_ptr()).predecessor,
+        );
         (*node.as_ptr()).rank = rank;
         rank -= 1;
 
@@ -471,9 +520,7 @@ pub unsafe fn reverse_segs(from: &NonNull<Segment>, to: &NonNull<Segment>) {
         let tmp_next = (*a.as_ptr()).next;
         let tmp_prev = (*b.as_ptr()).prev;
 
-        let tmpr = (*a.as_ptr()).rank;
-        (*a.as_ptr()).rank = (*b.as_ptr()).rank;
-        (*b.as_ptr()).rank = tmpr;
+        std::mem::swap(&mut (*a.as_ptr()).rank, &mut (*b.as_ptr()).rank);
 
         match ((*a.as_ptr()).prev, (*a.as_ptr()).next) {
             (Some(prev), Some(next)) => {
@@ -515,81 +562,3 @@ pub unsafe fn reverse_segs(from: &NonNull<Segment>, to: &NonNull<Segment>) {
         }
     }
 }
-
-// pub struct TourNodeIter<'s> {
-//     it: std::slice::Iter<'s, Option<NonNull<InnerNode>>>,
-// }
-
-// impl<'s> Iterator for TourNodeIter<'s> {
-//     type Item = &'s InnerNode;
-
-//     #[inline]
-//     fn next(&mut self) -> Option<Self::Item> {
-//         match self.it.next() {
-//             Some(opt) => unsafe {
-//                 match opt {
-//                     Some(node) => Some(node.as_ref()),
-//                     None => None,
-//                 }
-//             },
-//             None => None,
-//         }
-//     }
-
-//     #[inline]
-//     fn size_hint(&self) -> (usize, Option<usize>) {
-//         (self.it.len(), Some(self.it.len()))
-//     }
-
-//     #[inline]
-//     fn last(mut self) -> Option<Self::Item> {
-//         match self.it.next_back() {
-//             Some(opt) => unsafe {
-//                 match opt {
-//                     Some(node) => Some(node.as_ref()),
-//                     None => None,
-//                 }
-//             },
-//             None => None,
-//         }
-//     }
-// }
-
-// pub struct TourNodeIterMut<'s> {
-//     it: std::slice::IterMut<'s, Option<NonNull<InnerNode>>>,
-// }
-
-// impl<'s> Iterator for TourNodeIterMut<'s> {
-//     type Item = &'s mut InnerNode;
-
-//     #[inline]
-//     fn next(&mut self) -> Option<Self::Item> {
-//         match self.it.next() {
-//             Some(opt) => unsafe {
-//                 match opt {
-//                     Some(node) => Some(node.as_mut()),
-//                     None => None,
-//                 }
-//             },
-//             None => None,
-//         }
-//     }
-
-//     #[inline]
-//     fn size_hint(&self) -> (usize, Option<usize>) {
-//         (self.it.len(), Some(self.it.len()))
-//     }
-
-//     #[inline]
-//     fn last(mut self) -> Option<Self::Item> {
-//         match self.it.next_back() {
-//             Some(opt) => unsafe {
-//                 match opt {
-//                     Some(node) => Some(node.as_mut()),
-//                     None => None,
-//                 }
-//             },
-//             None => None,
-//         }
-//     }
-// }

@@ -1,15 +1,11 @@
-use crate::tour::TourImpltor;
 use crate::tour::{NodeRel, Tour, TourNode};
 
 /// Executes the 2-opt move.
 #[inline]
-pub fn move_2_opt(
-    tour: &mut TourImpltor,
-    f1: &TourNode,
-    t1: &TourNode,
-    f2: &TourNode,
-    t2: &TourNode,
-) {
+pub fn move_2_opt<T>(tour: &mut T, f1: &TourNode, t1: &TourNode, f2: &TourNode, t2: &TourNode)
+where
+    T: Tour,
+{
     tour.flip(f1, t1, f2, t2);
 }
 

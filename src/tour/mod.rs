@@ -145,14 +145,7 @@ pub trait Tour {
         }
     }
 
-    /// Generates a set of candidates for all nodes in a tour.
-    /// Currently, only the k-nearest-neighbour generator is implemented. This generator can provide
-    /// adequate sets as long as all nodes are well distributed. However, if they are tendentially
-    /// clustered to each other, triangulation algorithms will deliver a more superior result.
-    /// https://en.wikipedia.org/wiki/Fortune%27s_algorithm
-    /// Other option is the alpha-nearness. These algorithms will be implemented soon.
-    fn gen_cands(&mut self, k: usize);
-
+    /// Returns the iterator over all nodes stored in a tour.
     fn itr(&self) -> TourIter;
 }
 
@@ -168,11 +161,11 @@ pub struct TourIter<'s> {
 }
 
 impl<'s> Iterator for TourIter<'s> {
-    type Item = &'s TourNode;
+    type Item = TourNode;
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
-        self.it.next()
+        self.it.next().map(|n| TourNode { inner: n.inner })
     }
 
     #[inline]
@@ -183,7 +176,8 @@ impl<'s> Iterator for TourIter<'s> {
     #[inline]
     #[allow(unused_mut)]
     fn last(mut self) -> Option<Self::Item> {
-        self.it.next_back()
+        // self.it.next_back()
+        todo!()
     }
 }
 

@@ -223,10 +223,6 @@ impl Tour for Array {
         self.nodes[kin_index].visited(flag);
     }
 
-    fn gen_cands(&mut self, _k: usize) {
-        todo!()
-    }
-
     fn itr(&self) -> TourIter {
         TourIter {
             it: self.nodes.iter(),

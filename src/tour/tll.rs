@@ -471,50 +471,50 @@ impl Tour for TwoLevelList {
         self.total_dist
     }
 
-    // TODO: require reimpl
-    fn gen_cands(&mut self, k: usize) {
-        let len = self.nodes.len();
-        for (base_idx, base) in self.nodes.iter().enumerate() {
-            let mut targ_idx = (base_idx + 1) % len;
-            let mut cands = vec![None; k];
-            let mut cands_d = vec![Scalar::MAX; k];
-            let mut count = 0;
+    // // TODO: require reimpl
+    // fn gen_cands(&mut self, k: usize) {
+    //     let len = self.nodes.len();
+    //     for (base_idx, base) in self.nodes.iter().enumerate() {
+    //         let mut targ_idx = (base_idx + 1) % len;
+    //         let mut cands = vec![None; k];
+    //         let mut cands_d = vec![Scalar::MAX; k];
+    //         let mut count = 0;
 
-            while targ_idx != base_idx {
-                let targ = &self.nodes[targ_idx];
+    //         while targ_idx != base_idx {
+    //             let targ = &self.nodes[targ_idx];
 
-                match (base.inner, targ.inner) {
-                    (Some(_nb), Some(_nt)) => {
-                        if count < k {
-                            count += 1;
-                        }
-                        let mut c_idx = count - 1;
+    //             match (base.inner, targ.inner) {
+    //                 (Some(_nb), Some(_nt)) => {
+    //                     if count < k {
+    //                         count += 1;
+    //                     }
+    //                     let mut c_idx = count - 1;
 
-                        let d = self.distance(base, targ);
+    //                     let d = self.distance(base, targ);
 
-                        while c_idx > 0 && d < cands_d[c_idx - 1] {
-                            cands[c_idx] = cands[c_idx - 1];
-                            cands_d[c_idx] = cands_d[c_idx - 1];
-                            c_idx -= 1;
-                        }
+    //                     while c_idx > 0 && d < cands_d[c_idx - 1] {
+    //                         cands[c_idx] = cands[c_idx - 1];
+    //                         cands_d[c_idx] = cands_d[c_idx - 1];
+    //                         c_idx -= 1;
+    //                     }
 
-                        if d < cands_d[c_idx] {
-                            cands[c_idx] = targ.inner;
-                            cands_d[c_idx] = d;
-                        }
-                    }
-                    _ => panic!("Nullpointers"),
-                }
+    //                     if d < cands_d[c_idx] {
+    //                         cands[c_idx] = targ.inner;
+    //                         cands_d[c_idx] = d;
+    //                     }
+    //                 }
+    //                 _ => panic!("Nullpointers"),
+    //             }
 
-                targ_idx = (targ_idx + 1) % len;
-            }
+    //             targ_idx = (targ_idx + 1) % len;
+    //         }
 
-            unsafe {
-                // TODO: remove unwrap
-                (*base.inner.unwrap().as_ptr()).cands = cands;
-            }
-        }
-    }
+    //         unsafe {
+    //             // TODO: remove unwrap
+    //             (*base.inner.unwrap().as_ptr()).cands = cands;
+    //         }
+    //     }
+    // }
 
     fn itr(&self) -> TourIter {
         TourIter {

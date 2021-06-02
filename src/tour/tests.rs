@@ -189,29 +189,6 @@ mod test_tll {
 
         assert_eq!(expected, result);
     }
-
-    #[test]
-    // TODO: test vec elements.
-    fn test_gen_cands() {
-        let repo = create_repo(20);
-        let mut tour = TwoLevelList::with_default_order(&repo, 10);
-
-        let k = 6;
-        tour.gen_cands(k);
-
-        for base in tour.itr() {
-            let mut results = Vec::with_capacity(k);
-
-            unsafe {
-                for targ in &(*base.inner.unwrap().as_ptr()).cands {
-                    assert!(targ.is_some());
-                    results.push((*targ.unwrap().as_ptr()).data.index());
-                }
-            }
-
-            assert_eq!(k, results.len());
-        }
-    }
 }
 
 #[allow(dead_code)]
