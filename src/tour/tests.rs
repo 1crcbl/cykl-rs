@@ -191,6 +191,10 @@ mod test_tll {
     }
 }
 
+#[cfg(test)]
+use float_cmp::approx_eq;
+
+#[cfg(test)]
 #[allow(dead_code)]
 mod test_suite {
     use crate::{
@@ -201,22 +205,26 @@ mod test_suite {
 
     pub fn apply(tour: &mut impl Tour) {
         let expected = TourOrder::with_ord(vec![3, 0, 4, 1, 6, 8, 7, 9, 5, 2]);
-        tour.apply(&expected);
+        assert!(tour.apply(&expected).is_ok());
         test_tour_order(tour, &expected);
     }
 
     pub fn total_dist(tour: &mut impl Tour) {
         assert_eq!(4, tour.len());
-        tour.apply(&TourOrder::with_ord(vec![0, 1, 2, 3]));
-        assert_eq!(6. * (2. as Scalar).sqrt(), tour.total_distance());
+        assert!(tour.apply(&TourOrder::with_ord(vec![0, 1, 2, 3])).is_ok());
+        let r1 = 6. * (2. as Scalar).sqrt();
+        crate::tour::tests::approx_eq!(f64, r1, tour.total_distance(), epsilon = 1e-10);
+        crate::tour::tests::approx_eq!(f64, r1, tour.tour_order().unwrap().cost(), epsilon = 1e-10);
 
-        tour.apply(&TourOrder::with_ord(vec![1, 3, 0, 2]));
-        assert_eq!(8. * (2. as Scalar).sqrt(), tour.total_distance());
+        assert!(tour.apply(&TourOrder::with_ord(vec![1, 3, 0, 2])).is_ok());
+        let r2 = 8. * (2. as Scalar).sqrt();
+        crate::tour::tests::approx_eq!(f64, r2, tour.total_distance(), epsilon = 1e-10);
+        crate::tour::tests::approx_eq!(f64, r2, tour.tour_order().unwrap().cost(), epsilon = 1e-10);
     }
 
     pub fn between(tour: &mut impl Tour) {
         assert_eq!(10, tour.len());
-        tour.apply(&TourOrder::with_ord((0..10).collect()));
+        assert!(tour.apply(&TourOrder::with_ord((0..10).collect())).is_ok());
 
         //  0 -> 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9
 
@@ -264,7 +272,7 @@ mod test_suite {
     fn flip_1(tour: &mut impl Tour) {
         let n_nodes = 100;
         assert_eq!(n_nodes, tour.len());
-        tour.apply(&tour_order!(0..n_nodes));
+        assert!(tour.apply(&tour_order!(0..n_nodes)).is_ok());
 
         tour.flip_at(3, 4, 8, 9);
         test_tour_order(tour, &tour_order!(0..4, (4..9).rev(), 9..n_nodes));
@@ -291,7 +299,7 @@ mod test_suite {
     fn flip_2(tour: &mut impl Tour) {
         let n_nodes = 100;
         assert_eq!(n_nodes, tour.len());
-        tour.apply(&TourOrder::with_nat_ord(n_nodes));
+        assert!(tour.apply(&TourOrder::with_nat_ord(n_nodes)).is_ok());
 
         tour.flip_at(9, 10, 39, 40);
         test_tour_order(tour, &tour_order!(0..10, (10..40).rev(), 40..n_nodes));
@@ -311,7 +319,7 @@ mod test_suite {
     fn flip_3(tour: &mut impl Tour) {
         let n_nodes = 100;
         assert_eq!(n_nodes, tour.len());
-        tour.apply(&TourOrder::with_nat_ord(n_nodes));
+        assert!(tour.apply(&TourOrder::with_nat_ord(n_nodes)).is_ok());
 
         tour.flip_at(9, 10, 89, 90);
         test_tour_order(
@@ -357,7 +365,7 @@ mod test_suite {
     // prev of from-side: forward
     // prev of to-side: reverse
     fn flip_4_d1_forward_move_back(tour: &mut impl Tour) {
-        tour.apply(&TourOrder::with_nat_ord(tour.len()));
+        assert!(tour.apply(&TourOrder::with_nat_ord(tour.len())).is_ok());
         test_tour_order(tour, &TourOrder::with_nat_ord(tour.len()));
 
         // Reverse prev of to-side.
@@ -382,7 +390,7 @@ mod test_suite {
     // next of from-side: forward
     // next of to-side: reverse
     fn flip_4_d1_reverse_move_front(tour: &mut impl Tour) {
-        tour.apply(&TourOrder::with_nat_ord(tour.len()));
+        assert!(tour.apply(&TourOrder::with_nat_ord(tour.len())).is_ok());
         test_tour_order(tour, &TourOrder::with_nat_ord(tour.len()));
 
         // Reverse from- and to-side.
@@ -415,7 +423,7 @@ mod test_suite {
     // next of from-side: forward
     // next of to-side: reverse
     fn flip_4_d2_forward_move_front(tour: &mut impl Tour) {
-        tour.apply(&TourOrder::with_nat_ord(tour.len()));
+        assert!(tour.apply(&TourOrder::with_nat_ord(tour.len())).is_ok());
         test_tour_order(tour, &TourOrder::with_nat_ord(tour.len()));
 
         // Reverse next of to-side.
@@ -440,7 +448,7 @@ mod test_suite {
     // prev of from-side: forward
     // prev of to-side: reverse
     fn flip_4_d2_reverse_move_back(tour: &mut impl Tour) {
-        tour.apply(&TourOrder::with_nat_ord(tour.len()));
+        assert!(tour.apply(&TourOrder::with_nat_ord(tour.len())).is_ok());
         test_tour_order(tour, &TourOrder::with_nat_ord(tour.len()));
 
         // Reverse from- and to-side.

@@ -1,6 +1,6 @@
 use crate::{Repo, Scalar};
 
-use super::{between, NodeRel, Tour, TourIter, TourNode, TourOrder};
+use super::{between, NodeRel, Tour, TourIter, TourNode, TourOrder, UpdateTourError};
 
 //
 // Vertex[Tracker[ii]] = n_ii
@@ -48,20 +48,29 @@ impl Array {
 }
 
 impl Tour for Array {
-    fn apply(&mut self, tour: &TourOrder) {
-        let tour = tour.order();
+    fn apply(&mut self, tour: &TourOrder) -> Result<(), UpdateTourError> {
+        let order = tour.order();
         self.total_dist = 0.;
 
-        for ii in 0..tour.len() {
-            self.swap_at(tour[ii], self.nodes[ii].data().index());
+        if order.len() != self.len() {
+            Err(UpdateTourError::TourLenMismatched {
+                expected: self.len(),
+                received: order.len(),
+            })?
+        }
+
+        for ii in 0..order.len() {
+            self.swap_at(order[ii], self.nodes[ii].data().index());
             self.nodes[ii].visited(false);
 
-            if ii != tour.len() - 1 {
-                self.total_dist += self.repo.distance_at(tour[ii], tour[ii + 1]);
+            if ii != order.len() - 1 {
+                self.total_dist += self.repo.distance_at(order[ii], order[ii + 1]);
             } else {
-                self.total_dist += self.repo.distance_at(tour[ii], tour[0]);
+                self.total_dist += self.repo.distance_at(order[ii], order[0]);
             }
         }
+
+        Ok(())
     }
 
     #[inline]
@@ -193,13 +202,27 @@ impl Tour for Array {
     }
 
     fn tour_order(&self) -> Option<TourOrder> {
-        let mut result = Vec::with_capacity(self.nodes.len());
-
-        for node in &self.nodes {
-            result.push(node.index())
+        if self.nodes.len() == 0 {
+            return None;
         }
 
-        Some(TourOrder::with_ord(result))
+        let mut result = Vec::with_capacity(self.nodes.len());
+        let mut d = 0.;
+
+        let mut it = self.nodes.iter().peekable();
+        while let Some(node) = it.next() {
+            result.push(node.index());
+
+            if let Some(next) = it.peek() {
+                d += self.distance(node, *next);
+            }
+        }
+
+        if let (Some(first), Some(last)) = (self.nodes.first(), self.nodes.last()) {
+            d += self.distance(last, first);
+        }
+
+        Some(TourOrder::with_cost(result, d))
     }
 
     #[inline]

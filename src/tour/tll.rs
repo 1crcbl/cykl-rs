@@ -11,7 +11,7 @@ use crate::{
 use super::{
     between,
     node::{to_nonnull, Segment},
-    NodeRel, STree, Tour, TourIter, TourNode, TourOrder,
+    NodeRel, STree, Tour, TourIter, TourNode, TourOrder, UpdateTourError,
 };
 
 #[derive(Debug)]
@@ -70,14 +70,18 @@ impl TwoLevelList {
             total_dist: 0.,
         };
 
-        result.apply(&TourOrder::with_ord((0..repo.size()).collect()));
+        result
+            .apply(&TourOrder::with_ord((0..repo.size()).collect()))
+            .unwrap();
 
         result
     }
 
     pub fn with_default_order(repo: &Repo, max_grouplen: usize) -> Self {
         let mut result = Self::new(repo, max_grouplen);
-        result.apply(&TourOrder::with_ord((0..repo.size()).collect()));
+        result
+            .apply(&TourOrder::with_ord((0..repo.size()).collect()))
+            .unwrap();
         result
     }
 
@@ -87,10 +91,17 @@ impl TwoLevelList {
 }
 
 impl Tour for TwoLevelList {
-    fn apply(&mut self, tour: &super::TourOrder) {
+    fn apply(&mut self, tour: &super::TourOrder) -> Result<(), UpdateTourError> {
         let order = tour.order();
         let v_len = self.nodes.len();
         let s_len = self.segments.len();
+
+        if order.len() != v_len {
+            Err(UpdateTourError::TourLenMismatched {
+                expected: v_len,
+                received: order.len(),
+            })?
+        }
 
         self.total_dist = 0.;
         for (sidx, els) in self.segments.iter().enumerate() {
@@ -116,6 +127,7 @@ impl Tour for TwoLevelList {
                                 (*vtx.as_ptr()).successor = el_next.inner;
                                 (*vtx.as_ptr()).rank = (iv - beg_seg) as i32;
                                 (*vtx.as_ptr()).segment = *els;
+                                (*vtx.as_ptr()).visited = false;
 
                                 (*vtx_nxt.as_ptr()).predecessor = el_v.inner;
                                 (*vtx_prv.as_ptr()).successor = el_v.inner;
@@ -136,6 +148,8 @@ impl Tour for TwoLevelList {
                 None => panic!("Segment not found"),
             }
         }
+
+        Ok(())
     }
 
     #[inline]
@@ -431,6 +445,8 @@ impl Tour for TwoLevelList {
 
     fn tour_order(&self) -> Option<TourOrder> {
         let mut result = Vec::with_capacity(self.nodes.len());
+        let mut d = 0.;
+
         match self.nodes.first() {
             Some(first) => {
                 result.push(first.index());
@@ -438,19 +454,20 @@ impl Tour for TwoLevelList {
 
                 loop {
                     match nopt {
-                        Some(ref node) => {
+                        Some(node) => {
+                            d += self.distance(&self.predecessor(&node).unwrap(), &node);
                             if node.inner == first.inner {
                                 break;
                             }
 
                             result.push(node.index());
-                            nopt = self.successor(node);
+                            nopt = self.successor(&node);
                         }
                         None => None?,
                     }
                 }
 
-                return Some(TourOrder::with_ord(result));
+                return Some(TourOrder::with_cost(result, d));
             }
             None => None?,
         }
@@ -470,51 +487,6 @@ impl Tour for TwoLevelList {
     fn total_distance(&self) -> crate::Scalar {
         self.total_dist
     }
-
-    // // TODO: require reimpl
-    // fn gen_cands(&mut self, k: usize) {
-    //     let len = self.nodes.len();
-    //     for (base_idx, base) in self.nodes.iter().enumerate() {
-    //         let mut targ_idx = (base_idx + 1) % len;
-    //         let mut cands = vec![None; k];
-    //         let mut cands_d = vec![Scalar::MAX; k];
-    //         let mut count = 0;
-
-    //         while targ_idx != base_idx {
-    //             let targ = &self.nodes[targ_idx];
-
-    //             match (base.inner, targ.inner) {
-    //                 (Some(_nb), Some(_nt)) => {
-    //                     if count < k {
-    //                         count += 1;
-    //                     }
-    //                     let mut c_idx = count - 1;
-
-    //                     let d = self.distance(base, targ);
-
-    //                     while c_idx > 0 && d < cands_d[c_idx - 1] {
-    //                         cands[c_idx] = cands[c_idx - 1];
-    //                         cands_d[c_idx] = cands_d[c_idx - 1];
-    //                         c_idx -= 1;
-    //                     }
-
-    //                     if d < cands_d[c_idx] {
-    //                         cands[c_idx] = targ.inner;
-    //                         cands_d[c_idx] = d;
-    //                     }
-    //                 }
-    //                 _ => panic!("Nullpointers"),
-    //             }
-
-    //             targ_idx = (targ_idx + 1) % len;
-    //         }
-
-    //         unsafe {
-    //             // TODO: remove unwrap
-    //             (*base.inner.unwrap().as_ptr()).cands = cands;
-    //         }
-    //     }
-    // }
 
     fn itr(&self) -> TourIter {
         TourIter {

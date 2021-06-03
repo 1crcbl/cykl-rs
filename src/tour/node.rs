@@ -4,7 +4,7 @@ use tspf::metric::MetricPoint;
 
 use crate::{DataNode, Scalar};
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct TourNode {
     pub(super) inner: Option<NonNull<InnerNode>>,
 }
@@ -28,6 +28,14 @@ impl TourNode {
                 (*inner.as_ptr()).visited = flag;
             },
             None => {}
+        }
+    }
+
+    #[inline]
+    pub fn is_visisted(&self) -> bool {
+        match self.inner {
+            Some(inner) => unsafe { (*inner.as_ptr()).visited },
+            None => false,
         }
     }
 

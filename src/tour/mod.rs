@@ -1,5 +1,5 @@
 use enum_dispatch::enum_dispatch;
-use getset::Getters;
+use getset::{CopyGetters, Getters};
 
 use crate::Scalar;
 
@@ -11,6 +11,9 @@ pub use tll::TwoLevelList;
 
 mod node;
 pub use node::TourNode;
+
+mod error;
+pub use error::UpdateTourError;
 
 pub mod tests;
 
@@ -25,7 +28,7 @@ pub enum TourImpltor {
 pub trait Tour {
     /// Rearranges the tour's vertices according to the given order.
     // TODO: should return Result<()>.
-    fn apply(&mut self, order: &TourOrder);
+    fn apply(&mut self, order: &TourOrder) -> Result<(), UpdateTourError>;
 
     /// Returns true iff the tour, starting at the vertex `from`, arrives at the vertex `mid`
     /// before reaching the vertex `to` in its forward traversal.
@@ -192,53 +195,64 @@ pub enum HeldKarpBound {
     Optimal,
 }
 
-#[derive(Debug, Getters)]
+#[derive(Debug, CopyGetters, Getters)]
 pub struct TourOrder {
     #[getset(get = "pub")]
     order: Vec<usize>,
-    #[getset(get = "pub")]
-    total_dist: Scalar,
+    #[getset(get_copy = "pub")]
+    cost: Scalar,
 }
 
 impl TourOrder {
     pub fn new() -> Self {
         Self {
             order: Vec::new(),
-            total_dist: 0.,
+            cost: 0.,
         }
     }
 
     pub fn with_capacity(capacity: usize) -> Self {
         Self {
             order: Vec::with_capacity(capacity),
-            total_dist: 0.,
+            cost: 0.,
         }
     }
 
     pub fn with_nat_ord(n: usize) -> Self {
         Self {
             order: (0..n).collect(),
-            total_dist: 0.,
+            cost: 0.,
         }
     }
 
     pub fn with_ord(order: Vec<usize>) -> Self {
         Self {
             order: order,
-            total_dist: 0.,
+            cost: 0.,
         }
     }
 
-    pub fn with_dist(order: Vec<usize>, total_dist: Scalar) -> Self {
-        Self { order, total_dist }
+    pub fn with_cost(order: Vec<usize>, cost: Scalar) -> Self {
+        Self { order, cost }
     }
 
+    #[inline]
     pub fn len(&self) -> usize {
         self.order.len()
     }
 
+    #[inline]
     pub fn add(&mut self, index: usize) {
         self.order.push(index);
+    }
+}
+
+impl Default for TourOrder {
+    fn default() -> Self {
+        Self {
+            order: Vec::with_capacity(0),
+            cost: Scalar::MAX,
+        }
     }
 }
 
