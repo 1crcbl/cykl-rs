@@ -11,7 +11,7 @@ use crate::{
 
 use super::{
     cand_gen_nn,
-    ropt::{move_2_opt, move_3_opt, move_4_opt, Opt3Move, Opt4SeqMove},
+    lkh::{move_2_opt, move_3_opt, move_4_opt, Opt3Move, Opt4SeqMove},
 };
 
 #[test]

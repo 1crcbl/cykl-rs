@@ -10,6 +10,7 @@ mod tll;
 pub use tll::TwoLevelList;
 
 mod node;
+pub use node::NodeStatus;
 pub use node::TourNode;
 
 mod error;
@@ -134,19 +135,6 @@ pub trait Tour {
 
     /// Returns the total distance of completely traversing through the tour.
     fn total_distance(&self) -> Scalar;
-
-    /// Sets the flag `visited` for a vertex at the given index.
-    fn visited_at(&mut self, kin_index: usize, flag: bool) {
-        match self.get(kin_index) {
-            Some(opt) => match opt.inner {
-                Some(node) => unsafe {
-                    (*node.as_ptr()).visited(flag);
-                },
-                None => panic!("Missing pointer."),
-            },
-            None => {}
-        }
-    }
 
     /// Returns the iterator over all nodes stored in a tour.
     fn itr(&self) -> TourIter;

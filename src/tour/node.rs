@@ -4,7 +4,7 @@ use tspf::metric::MetricPoint;
 
 use crate::{DataNode, Scalar};
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 pub struct TourNode {
     pub(super) inner: Option<NonNull<InnerNode>>,
 }
@@ -17,24 +17,30 @@ impl TourNode {
         }
     }
 
-    pub fn empty() -> Self {
-        Self { inner: None }
-    }
-
+    /// Updates a node's status.
     #[inline]
-    pub fn visited(&mut self, flag: bool) {
-        match self.inner {
-            Some(inner) => unsafe {
-                (*inner.as_ptr()).visited = flag;
-            },
-            None => {}
+    pub fn set_status(&mut self, status: NodeStatus) {
+        if let Some(inner) = self.inner {
+            unsafe {
+                (*inner.as_ptr()).status = status;
+            }
         }
     }
 
+    /// Returns a node's status.
     #[inline]
-    pub fn is_visisted(&self) -> bool {
+    pub fn status(&self) -> NodeStatus {
         match self.inner {
-            Some(inner) => unsafe { (*inner.as_ptr()).visited },
+            Some(inner) => unsafe { (*inner.as_ref()).status },
+            None => NodeStatus::Undefined,
+        }
+    }
+
+    /// Checks whether a node is currently in a given status.
+    #[inline]
+    pub fn is_status(&self, status: NodeStatus) -> bool {
+        match self.inner {
+            Some(inner) => unsafe { (*inner.as_ref()).status == status },
             None => false,
         }
     }
@@ -55,6 +61,7 @@ impl TourNode {
         }
     }
 
+    #[inline]
     pub fn set_candidates(&mut self, mut candidates: Vec<TourNode>) {
         match self.inner {
             Some(inner) => unsafe {
@@ -65,10 +72,40 @@ impl TourNode {
         }
     }
 
+    #[inline]
     pub fn candidates(&self) -> &Vec<TourNode> {
         match self.inner {
             Some(inner) => unsafe { &(*inner.as_ptr()).candidates },
             None => panic!("Nullpointer"),
+        }
+    }
+
+    #[inline]
+    pub fn is_best_neighbours(&self, other: &TourNode, rank: usize) -> bool {
+        if rank >= 1 {
+            return false;
+        }
+
+        match (self.inner, other.inner) {
+            (Some(inner), Some(other_inner)) => unsafe {
+                match (*inner.as_ref()).best_neighbours[rank].as_ref() {
+                    Some(pair) => pair.0 == other_inner || pair.1 == other_inner,
+                    None => false,
+                }
+            },
+            _ => false,
+        }
+    }
+
+    #[inline]
+    pub fn set_best_neighbours(&self, neighbour1: &TourNode, neighbour2: &TourNode) {
+        if let (Some(inner), Some(inner1), Some(inner2)) =
+            (self.inner, neighbour1.inner, neighbour2.inner)
+        {
+            unsafe {
+                (*inner.as_ptr()).best_neighbours[1] = (*inner.as_ptr()).best_neighbours[0];
+                (*inner.as_ptr()).best_neighbours[0] = Some((inner1, inner2));
+            }
         }
     }
 }
@@ -86,7 +123,7 @@ impl Display for TourNode {
 pub(super) struct InnerNode {
     pub(super) data: DataNode,
     /// Flag indicating whether a node is already visisted/processed by an algorithm.
-    pub(super) visited: bool,
+    pub(super) status: NodeStatus,
     /// The parent segment in a tour to which a node belongs.
     pub(super) segment: Option<NonNull<Segment>>,
     /// The rank of a node in its parent segment.
@@ -106,6 +143,8 @@ pub(super) struct InnerNode {
     pub(super) mst_parent: Option<NonNull<InnerNode>>,
     /// Set of candidate nodes.
     pub(super) candidates: Vec<TourNode>,
+
+    pub(super) best_neighbours: Vec<Option<(NonNull<InnerNode>, NonNull<InnerNode>)>>,
 }
 
 impl InnerNode {
@@ -113,7 +152,7 @@ impl InnerNode {
         Self {
             data: node.clone(),
             rank: i32::MAX,
-            visited: false,
+            status: NodeStatus::Active,
             segment: None,
             predecessor: None,
             successor: None,
@@ -122,12 +161,8 @@ impl InnerNode {
             mst_final_edge: None,
             mst_parent: None,
             candidates: Vec::with_capacity(0),
+            best_neighbours: vec![None; 2],
         }
-    }
-
-    #[inline]
-    pub fn visited(&mut self, flag: bool) {
-        self.visited = flag;
     }
 }
 
@@ -569,4 +604,12 @@ pub unsafe fn reverse_segs(from: &NonNull<Segment>, to: &NonNull<Segment>) {
             None => panic!("Missing prev segment"),
         }
     }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum NodeStatus {
+    Active,
+    Anchored,
+    Fixed,
+    Undefined,
 }

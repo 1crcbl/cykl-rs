@@ -12,7 +12,7 @@ where
 {
     for mut base in tour.itr() {
         // Vec of candidates.
-        let mut vec_c: Vec<TourNode> = vec![TourNode::empty(); k];
+        let mut vec_c: Vec<TourNode> = vec![TourNode::default(); k];
         // Vec of distance to nearest candidates.
         let mut vec_d = vec![Scalar::MAX; k];
         let mut count = 0;

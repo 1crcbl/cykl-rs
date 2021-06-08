@@ -1,5 +1,5 @@
 use crate::{
-    tour::{Tour, TourOrder, UpdateTourError},
+    tour::{NodeStatus, Tour, TourOrder, UpdateTourError},
     Scalar,
 };
 
@@ -20,12 +20,12 @@ where
     };
 
     v.push(node.index());
-    node.visited(true);
+    node.set_status(NodeStatus::Anchored);
 
     while v.len() != len {
         let mut chosen = None;
         for cand in node.candidates() {
-            if cand.is_visisted() {
+            if !cand.is_status(NodeStatus::Active) {
                 continue;
             }
 
@@ -40,7 +40,7 @@ where
                 let mut cand = None;
 
                 for next_node in tour.itr() {
-                    if next_node.is_visisted() {
+                    if next_node.is_status(NodeStatus::Active) {
                         continue;
                     }
 
@@ -58,7 +58,7 @@ where
             }
         };
 
-        next.visited(true);
+        next.set_status(NodeStatus::Anchored);
         v.push(next.index());
         node = next;
     }

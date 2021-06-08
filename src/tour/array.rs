@@ -1,6 +1,8 @@
 use crate::{Repo, Scalar};
 
-use super::{between, NodeRel, Tour, TourIter, TourNode, TourOrder, UpdateTourError};
+use crate::tour::{
+    between, NodeRel, NodeStatus, Tour, TourIter, TourNode, TourOrder, UpdateTourError,
+};
 
 //
 // Vertex[Tracker[ii]] = n_ii
@@ -61,7 +63,7 @@ impl Tour for Array {
 
         for ii in 0..order.len() {
             self.swap_at(order[ii], self.nodes[ii].data().index());
-            self.nodes[ii].visited(false);
+            self.nodes[ii].set_status(NodeStatus::Active);
 
             if ii != order.len() - 1 {
                 self.total_dist += self.repo.distance_at(order[ii], order[ii + 1]);
@@ -228,7 +230,7 @@ impl Tour for Array {
     #[inline]
     fn reset(&mut self) {
         for vt in &mut self.nodes {
-            vt.visited(false);
+            vt.set_status(NodeStatus::Active);
         }
     }
 
@@ -240,10 +242,6 @@ impl Tour for Array {
     #[inline]
     fn total_distance(&self) -> Scalar {
         self.total_dist
-    }
-
-    fn visited_at(&mut self, kin_index: usize, flag: bool) {
-        self.nodes[kin_index].visited(flag);
     }
 
     fn itr(&self) -> TourIter {

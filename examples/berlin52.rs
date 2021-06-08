@@ -1,7 +1,7 @@
 use std::path::Path;
 
 use cykl::{
-    alg::{move_3_opt, Opt3Move},
+    alg::lkh::{move_3_opt, Opt3Move},
     tour::{Tour, TwoLevelList},
     Repo,
 };

@@ -3,7 +3,7 @@ use std::ptr::NonNull;
 use crate::{
     tour::{
         node::{reverse_int_seg, reverse_segs},
-        HeldKarpBound,
+        HeldKarpBound, NodeStatus,
     },
     Repo, Scalar,
 };
@@ -127,7 +127,7 @@ impl Tour for TwoLevelList {
                                 (*vtx.as_ptr()).successor = el_next.inner;
                                 (*vtx.as_ptr()).rank = (iv - beg_seg) as i32;
                                 (*vtx.as_ptr()).segment = *els;
-                                (*vtx.as_ptr()).visited = false;
+                                (*vtx.as_ptr()).status = NodeStatus::Active;
 
                                 (*vtx_nxt.as_ptr()).predecessor = el_v.inner;
                                 (*vtx_prv.as_ptr()).successor = el_v.inner;
