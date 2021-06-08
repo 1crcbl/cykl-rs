@@ -214,12 +214,12 @@ mod test_suite {
         assert!(tour.apply(&TourOrder::with_ord(vec![0, 1, 2, 3])).is_ok());
         let r1 = 6. * (2. as Scalar).sqrt();
         crate::tour::tests::approx_eq!(f64, r1, tour.total_distance(), epsilon = 1e-10);
-        crate::tour::tests::approx_eq!(f64, r1, tour.tour_order().unwrap().cost(), epsilon = 1e-10);
+        crate::tour::tests::approx_eq!(f64, r1, tour.tour_order().cost(), epsilon = 1e-10);
 
         assert!(tour.apply(&TourOrder::with_ord(vec![1, 3, 0, 2])).is_ok());
         let r2 = 8. * (2. as Scalar).sqrt();
         crate::tour::tests::approx_eq!(f64, r2, tour.total_distance(), epsilon = 1e-10);
-        crate::tour::tests::approx_eq!(f64, r2, tour.tour_order().unwrap().cost(), epsilon = 1e-10);
+        crate::tour::tests::approx_eq!(f64, r2, tour.tour_order().cost(), epsilon = 1e-10);
     }
 
     pub fn between(tour: &mut impl Tour) {
@@ -274,8 +274,11 @@ mod test_suite {
         assert_eq!(n_nodes, tour.len());
         assert!(tour.apply(&tour_order!(0..n_nodes)).is_ok());
 
-        tour.flip_at(3, 4, 8, 9);
+        tour.rev();
+        tour.flip_at(9, 8, 4, 3);
         test_tour_order(tour, &tour_order!(0..4, (4..9).rev(), 9..n_nodes));
+
+        tour.rev();
 
         tour.flip_at(3, 8, 4, 9);
         test_tour_order(tour, &tour_order!(0..n_nodes));
@@ -283,13 +286,15 @@ mod test_suite {
         tour.flip_at(8, 9, 3, 4);
         test_tour_order(tour, &tour_order!(0..4, (4..9).rev(), 9..n_nodes));
 
-        tour.flip_at(4, 9, 3, 8);
+        tour.rev();
+        tour.flip_at(9, 4, 8, 3);
         test_tour_order(tour, &TourOrder::with_nat_ord(n_nodes));
 
         // Reverses the entire segment.
-        tour.flip_at(9, 10, 19, 20);
+        tour.flip_at(10, 9, 20, 19);
         test_tour_order(tour, &tour_order!(0..10, (10..20).rev(), 20..n_nodes));
 
+        tour.rev();
         tour.flip_at(10, 20, 9, 19);
         test_tour_order(tour, &TourOrder::with_nat_ord(n_nodes));
     }
@@ -304,13 +309,14 @@ mod test_suite {
         tour.flip_at(9, 10, 39, 40);
         test_tour_order(tour, &tour_order!(0..10, (10..40).rev(), 40..n_nodes));
 
-        tour.flip_at(10, 40, 9, 39);
+        tour.rev();
+        tour.flip_at(40, 10, 39, 9);
         test_tour_order(tour, &TourOrder::with_nat_ord(n_nodes));
 
-        tour.flip_at(29, 30, 9, 10);
+        tour.flip_at(30, 29, 10, 9);
         test_tour_order(tour, &tour_order!(0..10, (10..30).rev(), 30..n_nodes));
 
-        tour.flip_at(9, 29, 10, 30);
+        tour.flip_at(29, 9, 30, 10);
         test_tour_order(tour, &TourOrder::with_nat_ord(n_nodes));
     }
 
@@ -331,15 +337,17 @@ mod test_suite {
         test_tour_order(tour, &TourOrder::with_nat_ord(n_nodes));
 
         tour.flip_at(89, 90, 9, 10);
+        tour.rev();
         test_tour_order(
             tour,
             &tour_order!((90..n_nodes).rev(), 10..90, (0..10).rev()),
         );
 
-        tour.flip_at(89, 9, 90, 10);
+        tour.flip_at(9, 89, 10, 90);
         test_tour_order(tour, &TourOrder::with_nat_ord(n_nodes));
 
-        tour.flip_at(79, 80, 89, 90);
+        tour.flip_at(80, 79, 90, 89);
+        tour.rev();
         tour.flip_at(9, 10, 79, 89);
 
         test_tour_order(

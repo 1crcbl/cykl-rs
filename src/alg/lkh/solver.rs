@@ -5,7 +5,9 @@ use crate::{
     tour::{NodeStatus, Tour, UpdateTourError},
 };
 
-pub fn solve_lkh<T>(tour: &mut T, trials: usize) -> Result<(), UpdateTourError>
+use super::{searches::search, KOpt};
+
+pub fn solve_lkh<T>(tour: &mut T, kopt: KOpt, trials: usize) -> Result<(), UpdateTourError>
 where
     T: Tour,
 {
@@ -27,7 +29,16 @@ where
             }
         }
 
-        while let Some(_) = active.pop_front() {}
+        while let Some(mut node) = active.pop_front() {
+            node.set_status(NodeStatus::Anchored);
+            // TODO: use NoneError once the feature is stablised.
+            // https://doc.rust-lang.org/std/option/struct.NoneError.html
+            let successor = match tour.successor(&node) {
+                Some(node) => node,
+                None => Err(UpdateTourError::NodeNotFound)?,
+            };
+            search(tour, kopt, &node, &successor);
+        }
     }
 
     Ok(())

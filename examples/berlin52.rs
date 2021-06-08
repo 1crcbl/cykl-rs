@@ -37,5 +37,5 @@ pub fn main() {
     );
 
     // Get the node sequence after the 3-opt operation.
-    let _ = tll.tour_order().unwrap();
+    let _ = tll.tour_order();
 }

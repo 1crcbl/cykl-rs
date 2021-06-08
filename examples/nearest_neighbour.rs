@@ -19,7 +19,7 @@ pub fn main() {
     for ii in 0..tour.len() {
         assert!(solve_greedy(&mut tour, Some(ii)).is_ok());
 
-        let new_order = tour.tour_order().unwrap_or_default();
+        let new_order = tour.tour_order();
         if new_order.cost() < best_tour.cost() {
             best_tour = new_order;
             best_starter = ii;

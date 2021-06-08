@@ -4,23 +4,13 @@ use crate::tour::{
     between, NodeRel, NodeStatus, Tour, TourIter, TourNode, TourOrder, UpdateTourError,
 };
 
-//
-// Vertex[Tracker[ii]] = n_ii
-// Initially:
-// Index:    | 0   | 1   | 2   | 3   | 4   | 5   |
-// Vertex:   | n_0 | n_1 | n_2 | n_3 | n_4 | n_5 |
-// Tracker:  | 0   | 1   | 2   | 3   | 4   | 5   |
-//
-// After some operations:
-// Index:    | 0   | 1   | 2   | 3   | 4   | 5   |
-// Vertex:   | n_4 | n_2 | n_3 | n_5 | n_0 | n_1 |
-// Tracker:  | 4   | 5   | 1   | 2   | 0   | 3   |
 #[derive(Debug)]
 pub struct Array {
     repo: Repo,
     nodes: Vec<TourNode>,
     tracker: Vec<usize>,
     total_dist: Scalar,
+    rev: bool,
 }
 
 impl Array {
@@ -33,6 +23,7 @@ impl Array {
             nodes,
             tracker,
             total_dist: 0.,
+            rev: false,
         }
     }
 
@@ -53,6 +44,7 @@ impl Tour for Array {
     fn apply(&mut self, tour: &TourOrder) -> Result<(), UpdateTourError> {
         let order = tour.order();
         self.total_dist = 0.;
+        self.rev = false;
 
         if order.len() != self.len() {
             Err(UpdateTourError::TourLenMismatched {
@@ -103,11 +95,14 @@ impl Tour for Array {
         self.flip_at(from_a.index(), to_a.index(), from_b.index(), to_b.index())
     }
 
-    fn flip_at(&mut self, from_a: usize, _to_a: usize, from_b: usize, _to_b: usize) {
+    fn flip_at(&mut self, from_a: usize, to_a: usize, from_b: usize, to_b: usize) {
         let len = self.tracker.len();
 
-        let mut tfa = self.tracker[from_a];
-        let mut tfb = self.tracker[from_b];
+        let (mut tfa, mut tfb) = if self.rev {
+            (self.tracker[to_a], self.tracker[to_b])
+        } else {
+            (self.tracker[from_a], self.tracker[from_b])
+        };
 
         if tfb < tfa {
             std::mem::swap(&mut tfa, &mut tfb);
@@ -171,7 +166,14 @@ impl Tour for Array {
             return None;
         }
 
-        let next_idx = (self.tracker[node_idx] + 1) % self.nodes.len();
+        let len = self.nodes.len();
+        let curr_idx = self.tracker[node_idx];
+        let next_idx = if self.rev {
+            (len + curr_idx - 1) % len
+        } else {
+            (curr_idx + 1) % len
+        };
+
         match self.nodes.get(next_idx) {
             Some(node) => Some(TourNode { inner: node.inner }),
             None => None,
@@ -190,12 +192,18 @@ impl Tour for Array {
             return None;
         }
 
+        let len = self.nodes.len();
         let curr_idx = self.tracker[node_idx];
-        let prev_idx = if curr_idx == 0 {
-            self.nodes.len() - 1
+        let prev_idx = if self.rev {
+            (curr_idx + 1) % len
         } else {
-            curr_idx - 1
+            (len + curr_idx - 1) % len
         };
+        // let prev_idx = if curr_idx == 0 {
+        //     self.nodes.len() - 1
+        // } else {
+        //     curr_idx - 1
+        // };
 
         match self.nodes.get(prev_idx) {
             Some(node) => Some(TourNode { inner: node.inner }),
@@ -203,9 +211,14 @@ impl Tour for Array {
         }
     }
 
-    fn tour_order(&self) -> Option<TourOrder> {
+    #[inline]
+    fn rev(&mut self) {
+        self.rev ^= true;
+    }
+
+    fn tour_order(&self) -> TourOrder {
         if self.nodes.len() == 0 {
-            return None;
+            return TourOrder::default();
         }
 
         let mut result = Vec::with_capacity(self.nodes.len());
@@ -224,7 +237,7 @@ impl Tour for Array {
             d += self.distance(last, first);
         }
 
-        Some(TourOrder::with_cost(result, d))
+        TourOrder::with_cost(result, d)
     }
 
     #[inline]

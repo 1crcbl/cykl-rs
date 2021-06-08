@@ -535,7 +535,6 @@ macro_rules! swap_asym {
 }
 
 // TODO: better panic msg.
-// TODO: this fn is a bomb. needs an intensive care.
 pub unsafe fn reverse_segs(from: &NonNull<Segment>, to: &NonNull<Segment>) {
     let mut a = *from;
     let mut b = *to;

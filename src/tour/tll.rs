@@ -20,6 +20,7 @@ pub struct TwoLevelList {
     pub(crate) segments: Vec<Option<NonNull<Segment>>>,
     nodes: Vec<TourNode>,
     total_dist: Scalar,
+    rev: bool,
 }
 
 impl TwoLevelList {
@@ -68,6 +69,7 @@ impl TwoLevelList {
             nodes: nodes,
             segments: segments,
             total_dist: 0.,
+            rev: false,
         };
 
         result
@@ -92,6 +94,7 @@ impl TwoLevelList {
 
 impl Tour for TwoLevelList {
     fn apply(&mut self, tour: &super::TourOrder) -> Result<(), UpdateTourError> {
+        self.rev = false;
         let order = tour.order();
         let v_len = self.nodes.len();
         let s_len = self.segments.len();
@@ -226,6 +229,7 @@ impl Tour for TwoLevelList {
         self.repo.distance_at(a, b)
     }
 
+    #[inline]
     fn flip_at(&mut self, from_a: usize, to_a: usize, from_b: usize, to_b: usize) {
         if let (Some(fa), Some(ta), Some(fb), Some(tb)) = (
             self.get(from_a),
@@ -239,7 +243,12 @@ impl Tour for TwoLevelList {
 
     fn flip(&mut self, from_a: &TourNode, to_a: &TourNode, from_b: &TourNode, to_b: &TourNode) {
         match (from_a.inner, to_a.inner, from_b.inner, to_b.inner) {
-            (Some(fan), Some(tan), Some(fbn), Some(tbn)) => unsafe {
+            (Some(mut fan), Some(mut tan), Some(mut fbn), Some(mut tbn)) => unsafe {
+                if self.rev {
+                    std::mem::swap(&mut fan, &mut tan);
+                    std::mem::swap(&mut fbn, &mut tbn);
+                }
+
                 match (
                     (*fan.as_ptr()).segment,
                     (*tan.as_ptr()).segment,
@@ -355,7 +364,7 @@ impl Tour for TwoLevelList {
                         match (
                             (*inner.as_ptr()).predecessor == targ.inner,
                             (*inner.as_ptr()).successor == targ.inner,
-                            (*seg.as_ptr()).reverse,
+                            (*seg.as_ptr()).reverse ^ self.rev,
                         ) {
                             (true, false, true) | (false, true, false) => NodeRel::Predecessor,
                             (true, false, false) | (false, true, true) => NodeRel::Successor,
@@ -375,7 +384,7 @@ impl Tour for TwoLevelList {
             Some(inner) => unsafe {
                 match (*inner.as_ptr()).segment {
                     Some(seg) => {
-                        if (*seg.as_ptr()).reverse {
+                        if (*seg.as_ptr()).reverse ^ self.rev {
                             match (*inner.as_ptr()).predecessor {
                                 Some(_) => Some(TourNode {
                                     inner: (*inner.as_ptr()).predecessor,
@@ -412,7 +421,7 @@ impl Tour for TwoLevelList {
             Some(inner) => unsafe {
                 match (*inner.as_ptr()).segment {
                     Some(seg) => {
-                        if (*seg.as_ptr()).reverse {
+                        if (*seg.as_ptr()).reverse ^ self.rev {
                             match (*inner.as_ptr()).successor {
                                 Some(_) => Some(TourNode {
                                     inner: (*inner.as_ptr()).successor,
@@ -443,7 +452,12 @@ impl Tour for TwoLevelList {
         }
     }
 
-    fn tour_order(&self) -> Option<TourOrder> {
+    #[inline]
+    fn rev(&mut self) {
+        self.rev ^= true;
+    }
+
+    fn tour_order(&self) -> TourOrder {
         let mut result = Vec::with_capacity(self.nodes.len());
         let mut d = 0.;
 
@@ -463,15 +477,14 @@ impl Tour for TwoLevelList {
                             result.push(node.index());
                             nopt = self.successor(&node);
                         }
-                        None => None?,
+                        None => return TourOrder::default(),
                     }
                 }
 
-                return Some(TourOrder::with_cost(result, d));
+                return TourOrder::with_cost(result, d);
             }
-            None => None?,
+            None => return TourOrder::default(),
         }
-        None
     }
 
     fn reset(&mut self) {

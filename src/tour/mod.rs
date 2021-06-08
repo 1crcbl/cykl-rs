@@ -124,8 +124,11 @@ pub trait Tour {
     /// in the forward traversal of the tour.
     fn predecessor_at(&self, kin_index: usize) -> Option<TourNode>;
 
+    /// Reverses a tour entirely.
+    fn rev(&mut self);
+
     /// Returns the node order of a tour.
-    fn tour_order(&self) -> Option<TourOrder>;
+    fn tour_order(&self) -> TourOrder;
 
     /// Resets all the internal states of the tour and its vertices.
     fn reset(&mut self);
@@ -195,7 +198,7 @@ impl TourOrder {
     pub fn new() -> Self {
         Self {
             order: Vec::new(),
-            cost: 0.,
+            cost: Scalar::MAX,
         }
     }
 
