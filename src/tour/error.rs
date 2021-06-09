@@ -7,4 +7,6 @@ pub enum UpdateTourError {
     InvalidTourOrder,
 
     NodeNotFound,
+
+    SearchFailed,
 }

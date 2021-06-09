@@ -145,6 +145,14 @@ pub(super) struct InnerNode {
     pub(super) candidates: Vec<TourNode>,
 
     pub(super) best_neighbours: Vec<Option<(NonNull<InnerNode>, NonNull<InnerNode>)>>,
+    /// First original neighbour.
+    pub(super) orgn_nbr_1: Option<NonNull<InnerNode>>,
+    /// Flag to indicate whether an edge with the first original neighbour is excluded.
+    pub(super) orgn_nbr_1_x: bool,
+    /// Second original neighbour.
+    pub(super) orgn_nbr_2: Option<NonNull<InnerNode>>,
+    /// Flag to indicate whether an edge with the second original neighbour is excluded.
+    pub(super) orgn_nbr_2_x: bool,
 }
 
 impl InnerNode {
@@ -162,6 +170,10 @@ impl InnerNode {
             mst_parent: None,
             candidates: Vec::with_capacity(0),
             best_neighbours: vec![None; 2],
+            orgn_nbr_1: None,
+            orgn_nbr_1_x: false,
+            orgn_nbr_2: None,
+            orgn_nbr_2_x: false,
         }
     }
 }
@@ -180,6 +192,42 @@ impl Display for InnerNode {
             )
         )
     }
+}
+
+macro_rules! exclude {
+    ($inner:expr, $other:expr) => {
+        if (*$inner.as_ref()).orgn_nbr_1 == $other.inner {
+            (*$inner.as_ptr()).orgn_nbr_1_x = true;
+        } else if (*$inner.as_ref()).orgn_nbr_2 == $other.inner {
+            (*$inner.as_ptr()).orgn_nbr_2_x = true;
+        }
+    };
+}
+
+pub fn exclude(one: &mut TourNode, other: &mut TourNode) {
+    if let (Some(inner1), Some(inner2)) = (one.inner, other.inner) {
+        unsafe {
+            exclude!(inner1, other);
+            exclude!(inner2, other);
+        }
+    }
+}
+
+pub fn is_excludable(one: &TourNode, other: &TourNode) -> bool {
+    if let (Some(inner1), Some(inner2)) = (one.inner, other.inner) {
+        unsafe {
+            if (*inner1.as_ref()).orgn_nbr_1 == other.inner
+                || (*inner1.as_ref()).orgn_nbr_2 == other.inner
+            {
+                return true;
+            } else if (*inner2.as_ref()).orgn_nbr_1 == one.inner
+                || (*inner2.as_ref()).orgn_nbr_2 == one.inner
+            {
+                return true;
+            }
+        }
+    }
+    false
 }
 
 #[derive(Debug)]

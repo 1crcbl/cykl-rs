@@ -10,6 +10,8 @@ mod tll;
 pub use tll::TwoLevelList;
 
 mod node;
+pub use node::exclude;
+pub use node::is_excludable;
 pub use node::NodeStatus;
 pub use node::TourNode;
 
