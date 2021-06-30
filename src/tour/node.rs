@@ -1,7 +1,5 @@
 use std::{fmt::Display, ptr::NonNull};
 
-use tspf::metric::MetricPoint;
-
 use crate::{DataNode, Scalar};
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
@@ -119,7 +117,7 @@ impl Display for TourNode {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 pub(super) struct InnerNode {
     pub(super) data: DataNode,
     /// Flag indicating whether a node is already visisted/processed by an algorithm.
@@ -184,11 +182,9 @@ impl Display for InnerNode {
             f,
             "{}",
             format!(
-                "id: {} | x: {} | y: {} | z : {}",
+                "id: {} | pos: {:?}",
                 self.data.index(),
-                self.data.x(),
-                self.data.y(),
-                self.data.z()
+                self.data.pos(),
             )
         )
     }

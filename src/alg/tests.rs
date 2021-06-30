@@ -1,13 +1,9 @@
 #![allow(unused_imports, dead_code)]
 
-use crate::{
-    combine_range,
-    tour::{
+use crate::{Repo, RepoBuilder, Scalar, base::repo::NodeKind, combine_range, tour::{
         tests::{create_repo, test_tour_order},
         Tour, TourImpltor, TourOrder, TwoLevelList,
-    },
-    tour_order, Repo, RepoBuilder, Scalar,
-};
+    }, tour_order};
 
 use super::{
     cand_gen_nn,
@@ -191,22 +187,22 @@ fn create_repo_2() -> Repo {
     let mut repo = RepoBuilder::new(tspf::WeightKind::Euc2d)
         .capacity(16)
         .build();
-    repo.add(38.24, 20.42, 0.);
-    repo.add(39.57, 26.15, 0.);
-    repo.add(40.56, 25.32, 0.);
-    repo.add(36.26, 23.12, 0.);
-    repo.add(33.48, 10.54, 0.);
-    repo.add(37.56, 12.19, 0.);
-    repo.add(38.42, 13.11, 0.);
-    repo.add(37.52, 20.44, 0.);
-    repo.add(41.23, 9.10, 0.);
-    repo.add(41.17, 13.05, 0.);
-    repo.add(36.08, -5.21, 0.);
-    repo.add(38.47, 15.13, 0.);
-    repo.add(38.15, 15.35, 0.);
-    repo.add(37.51, 15.17, 0.);
-    repo.add(35.49, 14.32, 0.);
-    repo.add(39.36, 19.56, 0.);
+    repo.add(NodeKind::Customer, vec![38.24, 20.42, 0.]);
+    repo.add(NodeKind::Customer, vec![39.57, 26.15, 0.]);
+    repo.add(NodeKind::Customer, vec![40.56, 25.32, 0.]);
+    repo.add(NodeKind::Customer, vec![36.26, 23.12, 0.]);
+    repo.add(NodeKind::Customer, vec![33.48, 10.54, 0.]);
+    repo.add(NodeKind::Customer, vec![37.56, 12.19, 0.]);
+    repo.add(NodeKind::Customer, vec![38.42, 13.11, 0.]);
+    repo.add(NodeKind::Customer, vec![37.52, 20.44, 0.]);
+    repo.add(NodeKind::Customer, vec![41.23, 9.10, 0.]);
+    repo.add(NodeKind::Customer, vec![41.17, 13.05, 0.]);
+    repo.add(NodeKind::Customer, vec![36.08, -5.21, 0.]);
+    repo.add(NodeKind::Customer, vec![38.47, 15.13, 0.]);
+    repo.add(NodeKind::Customer, vec![38.15, 15.35, 0.]);
+    repo.add(NodeKind::Customer, vec![37.51, 15.17, 0.]);
+    repo.add(NodeKind::Customer, vec![35.49, 14.32, 0.]);
+    repo.add(NodeKind::Customer, vec![39.36, 19.56, 0.]);
     repo
 }
 

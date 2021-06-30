@@ -5,7 +5,7 @@ use criterion::{black_box, criterion_group, criterion_main, Criterion};
 
 use cykl::tour::TwoLevelList;
 use cykl::tour::{Tour, TourImpltor};
-use cykl::Repo;
+use cykl::{NodeKind, Repo};
 use cykl::Scalar;
 use cykl::{tour::Array, RepoBuilder};
 use tspf::WeightKind;
@@ -18,7 +18,7 @@ pub fn create_repo(n_nodes: usize) -> Repo {
         .capacity(n_nodes)
         .build();
     for ii in 0..n_nodes {
-        repo.add(ii as Scalar, ii as Scalar, ii as Scalar);
+        repo.add(NodeKind::Customer, vec![ii as Scalar; 3]);
     }
     repo
 }

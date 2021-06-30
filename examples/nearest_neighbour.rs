@@ -9,7 +9,7 @@ use tspf::TspBuilder;
 
 pub fn main() {
     let tsp = TspBuilder::parse_path(Path::new("./examples/berlin52.tsp")).unwrap();
-    let repo = Repo::from(&tsp);
+    let repo = Repo::from(tsp);
     let mut tour = TwoLevelList::new(&repo, 13);
 
     cand_gen_nn(&mut tour, 10);
