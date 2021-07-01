@@ -1,7 +1,7 @@
 use std::ptr::NonNull;
 
 use crate::{
-    data::{DataStore, GetIndex},
+    data::{DataStore, GetIndex, NodeStore},
     tour::{
         node::{reverse_int_seg, reverse_segs},
         NodeStatus,
@@ -16,16 +16,17 @@ use super::{
 };
 
 #[derive(Debug)]
-pub struct TwoLevelList<M> {
-    store: DataStore<M>,
+pub struct TwoLevelList {
+    store: NodeStore,
     pub(crate) segments: Vec<Option<NonNull<Segment>>>,
     nodes: Vec<TourNode>,
     total_dist: Scalar,
     rev: bool,
 }
 
-impl<M> TwoLevelList<M> {
-    pub fn new(store: DataStore<M>, groupsize: usize) -> Self {
+impl TwoLevelList {
+    pub fn new<M>(store: &DataStore<M>, groupsize: usize) -> Self {
+        let node_store = store.store();
         let n_nodes = store.len();
 
         let mut n_segments = n_nodes / groupsize;
@@ -62,11 +63,13 @@ impl<M> TwoLevelList<M> {
             segments.push(s);
         }
 
-        let nodes = store.into_iter().map(|node| TourNode::new(*node)).collect();
-        // let nodes = Vec::with_capacity(n_nodes);
+        let nodes = node_store
+            .into_iter()
+            .map(|node| TourNode::new(*node))
+            .collect();
 
         let mut result = Self {
-            store,
+            store: node_store,
             nodes,
             segments,
             total_dist: 0.,
@@ -81,7 +84,7 @@ impl<M> TwoLevelList<M> {
     }
 }
 
-impl<M> Tour for TwoLevelList<M> {
+impl Tour for TwoLevelList {
     fn apply(&mut self, tour: &super::TourOrder) -> Result<(), UpdateTourError> {
         self.rev = false;
         let order = tour.order();
@@ -464,8 +467,23 @@ impl<M> Tour for TwoLevelList<M> {
         }
     }
 
+    fn measure(&self, to: &TourOrder) -> Scalar {
+        if self.len() == to.len() {
+            let v = to.order();
+            let mut cost = self.distance_at(v.first().unwrap(), v.last().unwrap());
+            for pair in v.windows(2) {
+                cost += self.distance_at(&pair[0], &pair[1]);
+            }
+            cost
+        } else {
+            0.
+        }
+    }
+
     fn reset(&mut self) {
-        todo!()
+        for node in &mut self.nodes {
+            node.set_status(NodeStatus::Active);
+        }
     }
 
     #[inline]

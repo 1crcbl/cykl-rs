@@ -123,6 +123,11 @@ pub trait Tour {
     /// Returns the node order of a tour.
     fn tour_order(&self) -> TourOrder;
 
+    /// Returns the total distance for a tour order if such order is applied.
+    ///
+    /// The function will only calculate the distance and will not cause any structural changes.
+    fn measure(&self, to: &TourOrder) -> Scalar;
+
     /// Resets all the internal states of the tour and its vertices.
     fn reset(&mut self);
 
@@ -235,6 +240,11 @@ impl TourOrder {
     pub fn add(&mut self, index: usize) {
         self.order.push(index);
     }
+
+    #[inline]
+    pub fn set_cost(&mut self, cost: Scalar) {
+        self.cost = cost;
+    }
 }
 
 impl Default for TourOrder {
@@ -243,6 +253,16 @@ impl Default for TourOrder {
             order: Vec::with_capacity(0),
             cost: Scalar::MAX,
         }
+    }
+}
+
+impl<'s> IntoIterator for &'s TourOrder {
+    type Item = &'s usize;
+
+    type IntoIter = std::slice::Iter<'s, usize>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.order.iter()
     }
 }
 

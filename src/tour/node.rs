@@ -52,11 +52,10 @@ impl TourNode {
     }
 
     #[inline]
-    pub fn set_candidates(&mut self, mut candidates: Vec<TourNode>) {
+    pub fn set_candidates(&mut self, candidates: Vec<TourNode>) {
         match self.inner {
             Some(inner) => unsafe {
-                (*inner.as_ptr()).candidates = Vec::with_capacity(candidates.len());
-                (*inner.as_ptr()).candidates.append(&mut candidates);
+                (*inner.as_ptr()).candidates = candidates;
             },
             None => panic!("Nullpointer"),
         }
@@ -612,7 +611,6 @@ pub unsafe fn reverse_segs(from: &NonNull<Segment>, to: &NonNull<Segment>) {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum NodeStatus {
     Active,
-    Anchored,
     Fixed,
     Undefined,
 }

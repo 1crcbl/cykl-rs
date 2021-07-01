@@ -77,25 +77,25 @@ mod test_tll {
 
     #[test]
     fn test_apply() {
-        let mut tour = TwoLevelList::new(create_store(10), 4);
+        let mut tour = TwoLevelList::new(&create_store(10), 4);
         test_suite::apply(&mut tour);
     }
 
     #[test]
     fn test_total_dist() {
-        let mut tour = TwoLevelList::new(create_store(4), 3);
+        let mut tour = TwoLevelList::new(&create_store(4), 3);
         test_suite::total_dist(&mut tour);
     }
 
     #[test]
     fn test_between() {
-        let mut tour = TwoLevelList::new(create_store(10), 3);
+        let mut tour = TwoLevelList::new(&create_store(10), 3);
         test_suite::between(&mut tour);
     }
 
     #[test]
     fn test_flip_cases() {
-        let mut tour = TwoLevelList::new(create_store(100), 10);
+        let mut tour = TwoLevelList::new(&create_store(100), 10);
         test_suite::flip(&mut tour);
     }
 }

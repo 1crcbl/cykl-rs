@@ -27,7 +27,7 @@ where
             if node.is_best_neighbours(&tour.successor(&node).unwrap(), 0)
                 || node.is_best_neighbours(&tour.predecessor(&node).unwrap(), 0)
             {
-                node.set_status(NodeStatus::Anchored);
+                node.set_status(NodeStatus::Fixed);
             } else {
                 node.set_status(NodeStatus::Active);
                 active.push_back(node)
@@ -35,7 +35,7 @@ where
         }
 
         while let Some(mut base) = active.pop_front() {
-            base.set_status(NodeStatus::Anchored);
+            base.set_status(NodeStatus::Fixed);
 
             let successor = match tour.successor(&base) {
                 Some(s) => s,

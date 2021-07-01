@@ -5,7 +5,11 @@ pub mod lkh;
 mod cand_gen;
 pub use cand_gen::cand_gen_nn;
 
-mod solver;
-pub use solver::solve_greedy;
+pub mod solvers;
 
 mod tests;
+
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub enum SolverKind {
+    Greedy(Vec<usize>),
+}

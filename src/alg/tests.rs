@@ -12,7 +12,7 @@ use super::lkh::{move_2_opt, move_3_opt, move_4_opt, Opt3Move, Opt4SeqMove};
 
 #[test]
 fn test_move_2_opt() {
-    let mut tour = TwoLevelList::new(create_store(20), 20);
+    let mut tour = TwoLevelList::new(&create_store(20), 20);
     let (node1, node3) = (tour.get(5).unwrap(), tour.get(10).unwrap());
     let (node2, node4) = (
         tour.successor(&node1).unwrap(),
@@ -27,7 +27,7 @@ fn test_move_2_opt() {
 
 #[test]
 fn test_move_3_opt() {
-    let mut tour = TwoLevelList::new(create_store(20), 20);
+    let mut tour = TwoLevelList::new(&create_store(20), 20);
     let (f1, f2, f3) = (
         tour.get(5).unwrap(),
         tour.get(10).unwrap(),
@@ -75,7 +75,7 @@ macro_rules! tour_4 {
 
 #[test]
 fn test_move_4_opt() {
-    let mut tour = TwoLevelList::new(create_store(30), 30);
+    let mut tour = TwoLevelList::new(&create_store(30), 30);
     let (f1, f2, f3, f4) = (
         tour.get(5).unwrap(),
         tour.get(10).unwrap(),

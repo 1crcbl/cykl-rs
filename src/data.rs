@@ -1,5 +1,7 @@
 use std::{f64::consts::PI, ptr::NonNull};
 
+use crate::Scalar;
+
 const EARTH_RADIUS: f64 = 6378.388;
 
 pub trait GetIndex {
@@ -47,22 +49,10 @@ pub enum NodeKind {
     Target,
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug)]
 pub struct DataStore<M> {
-    inner: Option<NonNull<InnerStore<M>>>,
-}
-
-struct InnerStore<M> {
-    dim: usize,
-    metric: Metric,
-    nodes: Vec<NodeIndex>,
+    node: NodeStore,
     meta: Vec<M>,
-    coords: Vec<f64>,
-    // Compute and store all cost in a big vec.
-    // This simplifies implementation and interface but comes with huge cost for memory,
-    // especially when we also need to save extra things for alpha-nearness scheme.
-    // Need optimisation for large problems, but later.
-    costs: Vec<f64>,
 }
 
 impl<M> DataStore<M> {
@@ -71,13 +61,17 @@ impl<M> DataStore<M> {
             dim: metric.dim(),
             metric,
             nodes: Vec::new(),
-            meta: Vec::new(),
             coords: Vec::new(),
             costs: Vec::with_capacity(0),
         };
 
-        Self {
+        let node = NodeStore {
             inner: NonNull::new(Box::leak(Box::new(inner))),
+        };
+
+        Self {
+            node,
+            meta: Vec::new(),
         }
     }
 
@@ -86,36 +80,23 @@ impl<M> DataStore<M> {
             dim: metric.dim(),
             metric,
             nodes: Vec::with_capacity(capacity),
-            meta: Vec::with_capacity(capacity),
             coords: Vec::with_capacity(capacity * metric.dim()),
             costs: Vec::with_capacity(0),
         };
 
-        Self {
+        let node = NodeStore {
             inner: NonNull::new(Box::leak(Box::new(inner))),
-        }
-    }
+        };
 
-    /// Returns the number of nodes registered in the store.
-    #[inline]
-    pub fn len(&self) -> usize {
-        match self.inner {
-            Some(inner) => unsafe { inner.as_ref().nodes.len() },
-            None => 0,
-        }
-    }
-
-    #[inline]
-    pub fn is_empty(&self) -> bool {
-        match self.inner {
-            Some(inner) => unsafe { inner.as_ref().nodes.is_empty() },
-            None => true,
+        Self {
+            node,
+            meta: Vec::with_capacity(capacity),
         }
     }
 
     #[inline]
     pub fn add(&mut self, kind: NodeKind, mut pos: Vec<f64>, meta: M) -> Option<NodeIndex> {
-        self.inner.and_then(|inner| unsafe {
+        self.node.inner.and_then(|inner| unsafe {
             if pos.len() != inner.as_ref().dim {
                 panic!("Len mismatched")
             }
@@ -124,32 +105,15 @@ impl<M> DataStore<M> {
             let node = NodeIndex::new(idx, kind);
 
             (*inner.as_ptr()).nodes.push(node);
-            (*inner.as_ptr()).meta.push(meta);
             (*inner.as_ptr()).coords.append(&mut pos);
+            self.meta.push(meta);
 
             inner.as_ref().nodes.get(idx).cloned()
         })
     }
 
-    #[inline]
-    pub fn cost<I>(&self, a: &I, b: &I) -> f64
-    where
-        I: GetIndex + PartialEq + Eq,
-    {
-        if a == b {
-            0.
-        } else {
-            match self.inner {
-                Some(inner) => unsafe {
-                    inner.as_ref().costs[a.get() * inner.as_ref().nodes.len() + b.get()]
-                },
-                None => 0.,
-            }
-        }
-    }
-
     pub fn compute(&mut self) {
-        if let Some(inner) = self.inner {
+        if let Some(inner) = self.node.inner {
             unsafe {
                 let n_nodes = inner.as_ref().nodes.len();
                 let dim = inner.as_ref().dim;
@@ -179,9 +143,86 @@ impl<M> DataStore<M> {
             }
         }
     }
+
+    #[inline]
+    pub(crate) fn store(&self) -> NodeStore {
+        self.node
+    }
+
+    #[inline]
+    pub fn len(&self) -> usize {
+        self.node.len()
+    }
+
+    #[inline]
+    pub fn is_empty(&self) -> bool {
+        self.node.is_empty()
+    }
+
+    #[inline]
+    pub fn cost<I>(&self, a: &I, b: &I) -> Scalar
+    where
+        I: GetIndex + Eq,
+    {
+        self.node.cost(a, b)
+    }
 }
 
-impl<'s, M> IntoIterator for &'s DataStore<M> {
+#[derive(Clone, Copy, Debug, Hash)]
+pub(crate) struct NodeStore {
+    inner: Option<NonNull<InnerStore>>,
+}
+
+#[derive(Debug)]
+struct InnerStore {
+    dim: usize,
+    metric: Metric,
+    nodes: Vec<NodeIndex>,
+    coords: Vec<Scalar>,
+    // Compute and store all cost in a big vec.
+    // This simplifies implementation and interface but comes with huge cost for memory,
+    // especially when we also need to save extra things for alpha-nearness scheme.
+    // Need optimisation for large problems, but later.
+    costs: Vec<Scalar>,
+}
+
+impl NodeStore {
+    /// Returns the number of nodes registered in the store.
+    #[inline]
+    pub fn len(&self) -> usize {
+        match self.inner {
+            Some(inner) => unsafe { inner.as_ref().nodes.len() },
+            None => 0,
+        }
+    }
+
+    #[inline]
+    pub fn is_empty(&self) -> bool {
+        match self.inner {
+            Some(inner) => unsafe { inner.as_ref().nodes.is_empty() },
+            None => true,
+        }
+    }
+
+    #[inline]
+    pub fn cost<I>(&self, a: &I, b: &I) -> f64
+    where
+        I: GetIndex + PartialEq + Eq,
+    {
+        if a == b {
+            0.
+        } else {
+            match self.inner {
+                Some(inner) => unsafe {
+                    inner.as_ref().costs[a.get() * inner.as_ref().nodes.len() + b.get()]
+                },
+                None => 0.,
+            }
+        }
+    }
+}
+
+impl<'s> IntoIterator for &'s NodeStore {
     type Item = &'s NodeIndex;
 
     type IntoIter = std::slice::Iter<'s, NodeIndex>;
