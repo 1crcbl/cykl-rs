@@ -1,40 +1,43 @@
 use std::ptr::NonNull;
 
 use crate::{
+    data::{DataStore, GetIndex},
     tour::{
         node::{reverse_int_seg, reverse_segs},
-        HeldKarpBound, NodeStatus,
+        NodeStatus,
     },
-    Repo, Scalar,
+    Scalar,
 };
 
 use super::{
     between,
     node::{to_nonnull, Segment},
-    NodeRel, STree, Tour, TourIter, TourNode, TourOrder, UpdateTourError,
+    NodeRel, Tour, TourIter, TourNode, TourOrder, UpdateTourError,
 };
 
 #[derive(Debug)]
-pub struct TwoLevelList {
-    repo: Repo,
+pub struct TwoLevelList<M> {
+    store: DataStore<M>,
     pub(crate) segments: Vec<Option<NonNull<Segment>>>,
     nodes: Vec<TourNode>,
     total_dist: Scalar,
     rev: bool,
 }
 
-impl TwoLevelList {
-    pub fn new(repo: &Repo, max_grouplen: usize) -> Self {
-        let mut n_segments = repo.size() / max_grouplen;
-        if repo.size() % max_grouplen != 0 {
+impl<M> TwoLevelList<M> {
+    pub fn new(store: DataStore<M>, groupsize: usize) -> Self {
+        let n_nodes = store.len();
+
+        let mut n_segments = n_nodes / groupsize;
+        if n_nodes % groupsize != 0 {
             n_segments += 1;
         }
 
         let mut segments = Vec::with_capacity(n_segments);
-        segments.push(to_nonnull(Segment::new(0, max_grouplen)));
+        segments.push(to_nonnull(Segment::new(0, groupsize)));
 
         for ii in 1..n_segments {
-            let s = to_nonnull(Segment::new(ii, max_grouplen));
+            let s = to_nonnull(Segment::new(ii, groupsize));
             match segments.last() {
                 Some(el) => match el {
                     Some(last) => unsafe {
@@ -62,10 +65,11 @@ impl TwoLevelList {
             segments.push(s);
         }
 
-        let nodes = repo.into_iter().map(|node| TourNode::new(node)).collect();
+        let nodes = store.into_iter().map(|node| TourNode::new(*node)).collect();
+        // let nodes = Vec::with_capacity(n_nodes);
 
         let mut result = Self {
-            repo: repo.clone(),
+            store,
             nodes: nodes,
             segments: segments,
             total_dist: 0.,
@@ -73,26 +77,14 @@ impl TwoLevelList {
         };
 
         result
-            .apply(&TourOrder::with_ord((0..repo.size()).collect()))
+            .apply(&TourOrder::with_ord((0..n_nodes).collect()))
             .unwrap();
 
         result
-    }
-
-    pub fn with_default_order(repo: &Repo, max_grouplen: usize) -> Self {
-        let mut result = Self::new(repo, max_grouplen);
-        result
-            .apply(&TourOrder::with_ord((0..repo.size()).collect()))
-            .unwrap();
-        result
-    }
-
-    pub fn repo(&self) -> Repo {
-        self.repo.clone()
     }
 }
 
-impl Tour for TwoLevelList {
+impl<M> Tour for TwoLevelList<M> {
     fn apply(&mut self, tour: &super::TourOrder) -> Result<(), UpdateTourError> {
         self.rev = false;
         let order = tour.order();
@@ -136,8 +128,8 @@ impl Tour for TwoLevelList {
                                 (*vtx_prv.as_ptr()).successor = el_v.inner;
 
                                 self.total_dist += self
-                                    .repo
-                                    .distance(&(*vtx.as_ptr()).data, &(*vtx_nxt.as_ptr()).data);
+                                    .store
+                                    .cost(&(*vtx.as_ptr()).index, &(*vtx_nxt.as_ptr()).index);
                             }
                             _ => panic!("Nodes not found"),
                         }
@@ -217,16 +209,19 @@ impl Tour for TwoLevelList {
     fn distance(&self, a: &TourNode, b: &TourNode) -> Scalar {
         match (a.inner, b.inner) {
             (Some(ai), Some(bi)) => unsafe {
-                self.repo
-                    .distance(&(*ai.as_ptr()).data, &(*bi.as_ptr()).data)
+                self.store
+                    .cost(&(*ai.as_ptr()).index, &(*bi.as_ptr()).index)
             },
             _ => 0.,
         }
     }
 
     #[inline]
-    fn distance_at(&self, a: usize, b: usize) -> crate::Scalar {
-        self.repo.distance_at(a, b)
+    fn distance_at<I>(&self, a: &I, b: &I) -> crate::Scalar
+    where
+        I: GetIndex + PartialEq + Eq,
+    {
+        self.store.cost(a, b)
     }
 
     #[inline]
@@ -463,7 +458,7 @@ impl Tour for TwoLevelList {
 
         match self.nodes.first() {
             Some(first) => {
-                result.push(first.index());
+                result.push(first.index().get());
                 let mut nopt = self.successor(first);
 
                 loop {
@@ -474,7 +469,7 @@ impl Tour for TwoLevelList {
                                 break;
                             }
 
-                            result.push(node.index());
+                            result.push(node.index().get());
                             nopt = self.successor(&node);
                         }
                         None => return TourOrder::default(),
@@ -508,144 +503,144 @@ impl Tour for TwoLevelList {
     }
 }
 
-impl STree for TwoLevelList {
-    fn build_mst(&mut self) {
-        // A naive implementation of Prim's algorithm. Runtime is O(N^2).
-        // https://en.wikipedia.org/wiki/Prim%27s_algorithm
-        let n_nodes = self.nodes.len();
-        let mut selected = vec![false; n_nodes];
-        let mut processed = 0;
+// impl STree for TwoLevelList {
+//     fn build_mst(&mut self) {
+//         // A naive implementation of Prim's algorithm. Runtime is O(N^2).
+//         // https://en.wikipedia.org/wiki/Prim%27s_algorithm
+//         let n_nodes = self.nodes.len();
+//         let mut selected = vec![false; n_nodes];
+//         let mut processed = 0;
 
-        for nopt in &self.nodes {
-            match nopt.inner {
-                Some(node) => unsafe {
-                    (*node.as_ptr()).mst_parent = None;
-                    (*node.as_ptr()).mst_final_edge = None;
-                },
-                None => panic!("Nullpointer"),
-            }
-        }
+//         for nopt in &self.nodes {
+//             match nopt.inner {
+//                 Some(node) => unsafe {
+//                     (*node.as_ptr()).mst_parent = None;
+//                     (*node.as_ptr()).mst_final_edge = None;
+//                 },
+//                 None => panic!("Nullpointer"),
+//             }
+//         }
 
-        selected[0] = true;
+//         selected[0] = true;
 
-        while processed != n_nodes - 1 {
-            let (mut v_cand, mut w_cand, mut cost_cand) = (0, 0, Scalar::MAX);
-            for (v_idx, v_sel) in selected.iter().enumerate() {
-                if *v_sel {
-                    for (w_idx, w_sel) in selected.iter().enumerate() {
-                        // The edge (v, w) is forbidden if its cost is equal to 0.
-                        let c = self.distance_at(v_idx, w_idx);
-                        if !*w_sel && c > 0. && c < cost_cand {
-                            v_cand = v_idx;
-                            w_cand = w_idx;
-                            cost_cand = c;
-                        }
-                    }
-                }
-            }
+//         while processed != n_nodes - 1 {
+//             let (mut v_cand, mut w_cand, mut cost_cand) = (0, 0, Scalar::MAX);
+//             for (v_idx, v_sel) in selected.iter().enumerate() {
+//                 if *v_sel {
+//                     for (w_idx, w_sel) in selected.iter().enumerate() {
+//                         // The edge (v, w) is forbidden if its cost is equal to 0.
+//                         let c = self.distance_at(v_idx, w_idx);
+//                         if !*w_sel && c > 0. && c < cost_cand {
+//                             v_cand = v_idx;
+//                             w_cand = w_idx;
+//                             cost_cand = c;
+//                         }
+//                     }
+//                 }
+//             }
 
-            let (vo, wo) = (self.nodes.get(v_cand), self.nodes.get(w_cand));
-            match (vo, wo) {
-                (Some(v), Some(w)) => match w.inner {
-                    Some(vtx) => unsafe {
-                        (*vtx.as_ptr()).mst_parent = v.inner;
-                    },
-                    None => panic!("Nullpointer"),
-                },
-                _ => panic!("Nodes not found"),
-            }
+//             let (vo, wo) = (self.nodes.get(v_cand), self.nodes.get(w_cand));
+//             match (vo, wo) {
+//                 (Some(v), Some(w)) => match w.inner {
+//                     Some(vtx) => unsafe {
+//                         (*vtx.as_ptr()).mst_parent = v.inner;
+//                     },
+//                     None => panic!("Nullpointer"),
+//                 },
+//                 _ => panic!("Nodes not found"),
+//             }
 
-            selected[w_cand] = true;
+//             selected[w_cand] = true;
 
-            processed += 1;
-        }
-    }
+//             processed += 1;
+//         }
+//     }
 
-    // Held-Karp lower bound
-    fn cost_m1t(&self) -> HeldKarpBound {
-        let (mut result, mut len_tree) = (0., 0.);
-        for nopt in &self.nodes {
-            match nopt.inner {
-                Some(node) => unsafe {
-                    len_tree += (*node.as_ptr()).penalty_weight;
-                    (*node.as_ptr()).degree -= 2;
+//     // Held-Karp lower bound
+//     fn cost_m1t(&self) -> HeldKarpBound {
+//         let (mut result, mut len_tree) = (0., 0.);
+//         for nopt in &self.nodes {
+//             match nopt.inner {
+//                 Some(node) => unsafe {
+//                     len_tree += (*node.as_ptr()).penalty_weight;
+//                     (*node.as_ptr()).degree -= 2;
 
-                    match (*node.as_ptr()).mst_parent {
-                        Some(parent) => {
-                            (*node.as_ptr()).degree += 1;
-                            (*parent.as_ptr()).degree += 1;
-                            result += self.repo.distance(nopt.data(), &(*parent.as_ptr()).data);
-                        }
-                        None => panic!("Nullpointer in mst_parent"),
-                    }
-                },
-                None => panic!("Nullpointer"),
-            }
-        }
+//                     match (*node.as_ptr()).mst_parent {
+//                         Some(parent) => {
+//                             (*node.as_ptr()).degree += 1;
+//                             (*parent.as_ptr()).degree += 1;
+//                             result += self.repo.distance(nopt.data(), &(*parent.as_ptr()).data);
+//                         }
+//                         None => panic!("Nullpointer in mst_parent"),
+//                     }
+//                 },
+//                 None => panic!("Nullpointer"),
+//             }
+//         }
 
-        let mut cand_d = Scalar::MAX;
-        let mut cand = None;
+//         let mut cand_d = Scalar::MAX;
+//         let mut cand = None;
 
-        for nopt in &self.nodes {
-            match nopt.inner {
-                Some(node) => unsafe {
-                    if (*node.as_ptr()).degree == -1 {
-                        for other_opt in &self.nodes {
-                            match other_opt.inner {
-                                Some(other) => {
-                                    if node == other
-                                        || (*node.as_ptr()).mst_parent == other_opt.inner
-                                        || (*other.as_ptr()).mst_parent == nopt.inner
-                                    {
-                                        continue;
-                                    }
+//         for nopt in &self.nodes {
+//             match nopt.inner {
+//                 Some(node) => unsafe {
+//                     if (*node.as_ptr()).degree == -1 {
+//                         for other_opt in &self.nodes {
+//                             match other_opt.inner {
+//                                 Some(other) => {
+//                                     if node == other
+//                                         || (*node.as_ptr()).mst_parent == other_opt.inner
+//                                         || (*other.as_ptr()).mst_parent == nopt.inner
+//                                     {
+//                                         continue;
+//                                     }
 
-                                    let d = self.distance(&nopt, other_opt);
-                                    if d < cand_d {
-                                        cand_d = d;
-                                        (*node.as_ptr()).mst_final_edge = other_opt.inner;
-                                        cand = nopt.inner;
-                                    }
-                                }
-                                None => panic!("Nullpointer in mst_parent"),
-                            }
-                        }
-                    }
-                },
-                None => {
-                    panic!("Nullpointer")
-                }
-            }
-        }
+//                                     let d = self.distance(&nopt, other_opt);
+//                                     if d < cand_d {
+//                                         cand_d = d;
+//                                         (*node.as_ptr()).mst_final_edge = other_opt.inner;
+//                                         cand = nopt.inner;
+//                                     }
+//                                 }
+//                                 None => panic!("Nullpointer in mst_parent"),
+//                             }
+//                         }
+//                     }
+//                 },
+//                 None => {
+//                     panic!("Nullpointer")
+//                 }
+//             }
+//         }
 
-        match cand {
-            Some(node) => unsafe {
-                match (*node.as_ptr()).mst_parent {
-                    Some(parent) => {
-                        (*node.as_ptr()).degree += 1;
-                        (*parent.as_ptr()).degree += 1;
-                    }
-                    None => panic!("No mst parent"),
-                }
-            },
-            None => panic!("Nullpointer"),
-        }
+//         match cand {
+//             Some(node) => unsafe {
+//                 match (*node.as_ptr()).mst_parent {
+//                     Some(parent) => {
+//                         (*node.as_ptr()).degree += 1;
+//                         (*parent.as_ptr()).degree += 1;
+//                     }
+//                     None => panic!("No mst parent"),
+//                 }
+//             },
+//             None => panic!("Nullpointer"),
+//         }
 
-        let mut total_deg = 0;
-        for nopt in &self.nodes {
-            match nopt.inner {
-                Some(node) => unsafe {
-                    total_deg += (*node.as_ptr()).degree * (*node.as_ptr()).degree;
-                },
-                None => panic!("Nullpointer"),
-            }
-        }
+//         let mut total_deg = 0;
+//         for nopt in &self.nodes {
+//             match nopt.inner {
+//                 Some(node) => unsafe {
+//                     total_deg += (*node.as_ptr()).degree * (*node.as_ptr()).degree;
+//                 },
+//                 None => panic!("Nullpointer"),
+//             }
+//         }
 
-        if total_deg == 0 {
-            HeldKarpBound::Optimal
-        } else {
-            result += len_tree * 2. + cand_d;
-            HeldKarpBound::Value(result)
-        }
-    }
-}
+//         if total_deg == 0 {
+//             HeldKarpBound::Optimal
+//         } else {
+//             result += len_tree * 2. + cand_d;
+//             HeldKarpBound::Value(result)
+//         }
+//     }
+// }

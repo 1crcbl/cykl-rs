@@ -1,18 +1,21 @@
-use tspf::WeightKind;
-
-#[allow(unused_imports)]
+#![cfg(test)]
 use crate::tour::between;
-use crate::{Repo, RepoBuilder, Scalar, base::repo::NodeKind, tour::NodeRel};
+use crate::{
+    data::NodeKind,
+    data::{DataStore, Metric},
+    tour::NodeRel,
+    Scalar,
+};
 
 use super::{Tour, TourOrder};
 
-pub(crate) fn create_repo(n_nodes: usize) -> Repo {
-    let builder = RepoBuilder::new(WeightKind::Euc2d).capacity(n_nodes);
-    let mut repo = builder.build();
+pub(crate) fn create_store(n_nodes: usize) -> DataStore<()> {
+    let mut store = DataStore::<()>::with_capacity(Metric::Euc3d, n_nodes);
     for ii in 0..n_nodes {
-        repo.add(NodeKind::Customer, vec![ii as Scalar; 3]);
+        store.add(NodeKind::Target, vec![ii as Scalar; 3], ());
     }
-    repo
+    store.compute();
+    store
 }
 
 pub(crate) fn test_tour_order(tour: &impl Tour, expected: &TourOrder) {
@@ -61,41 +64,6 @@ fn test_between() {
 }
 
 #[allow(dead_code, unused_imports)]
-mod tests_array {
-    use crate::tour::Array;
-
-    use super::*;
-
-    #[test]
-    fn test_apply() {
-        let repo = create_repo(10);
-        let mut tour = Array::new(&repo);
-        test_suite::apply(&mut tour);
-    }
-
-    #[test]
-    fn test_total_dist() {
-        let repo = create_repo(4);
-        let mut tour = Array::new(&repo);
-        test_suite::total_dist(&mut tour);
-    }
-
-    #[test]
-    fn test_between() {
-        let repo = create_repo(10);
-        let mut tour = Array::new(&repo);
-        test_suite::between(&mut tour);
-    }
-
-    #[test]
-    fn test_flip_cases() {
-        let repo = create_repo(100);
-        let mut tour = Array::new(&repo);
-        test_suite::flip(&mut tour);
-    }
-}
-
-#[allow(dead_code, unused_imports)]
 mod test_tll {
     use std::collections::HashMap;
 
@@ -103,91 +71,35 @@ mod test_tll {
 
     use crate::{
         tour::{
-            tests::{create_repo, test_tour_order},
+            tests::{create_store, test_tour_order},
             tll::TwoLevelList,
-            STree, Tour, TourImpltor, TourIter, TourOrder,
+            STree, Tour, TourIter, TourOrder,
         },
         MatrixKind,
     };
 
     #[test]
     fn test_apply() {
-        let repo = create_repo(10);
-        let mut tour = TwoLevelList::new(&repo, 4);
+        let mut tour = TwoLevelList::new(create_store(10), 4);
         test_suite::apply(&mut tour);
     }
 
     #[test]
     fn test_total_dist() {
-        let repo = create_repo(4);
-        let mut tour = TwoLevelList::new(&repo, 3);
+        let mut tour = TwoLevelList::new(create_store(4), 3);
         test_suite::total_dist(&mut tour);
     }
 
     #[test]
     fn test_between() {
-        let repo = create_repo(10);
-        let mut tour = TwoLevelList::new(&repo, 3);
+        let mut tour = TwoLevelList::new(create_store(10), 3);
         test_suite::between(&mut tour);
     }
 
     #[test]
     fn test_flip_cases() {
-        let repo = create_repo(100);
-        let mut tour = TwoLevelList::new(&repo, 10);
+        let mut tour = TwoLevelList::new(create_store(100), 10);
         test_suite::flip(&mut tour);
-    }
-
-    #[test]
-    fn test_build_mst() {
-        // Data is taken from Wikipedia article for MST.
-        // https://en.wikipedia.org/wiki/Minimum_spanning_tree
-
-        let costs = vec![
-            vec![0., 1., 0., 4., 3., 0.],
-            vec![0., 0., 4., 2., 0.],
-            vec![0., 0., 4., 5.],
-            vec![0., 4., 0.],
-            vec![0., 7.],
-            vec![0.],
-        ];
-
-        let repo = RepoBuilder::new(WeightKind::Euc2d)
-            .costs(costs, MatrixKind::Upper)
-            .build();
-
-        let mut tour = TwoLevelList::new(&repo, 6);
-        tour.build_mst();
-
-        let mut result = HashMap::new();
-
-        for (idx, node) in tour.itr().enumerate() {
-            unsafe {
-                if idx == 0 {
-                    result.insert(idx, None);
-                } else {
-                    let parent = (*(node.inner.unwrap()).as_ptr()).mst_parent;
-                    assert!(parent.is_some());
-                    result.insert(idx, Some((*parent.unwrap().as_ptr()).data.index()));
-                }
-            }
-        }
-
-        // There are many possiblities of MST for a given graph.
-        // Here we use the second MST output shown in the Wikipedia article.
-        let expected: HashMap<usize, Option<usize>> = [
-            (0, None),
-            (1, Some(0)),
-            (4, Some(1)),
-            (3, Some(0)),
-            (2, Some(4)),
-            (5, Some(2)),
-        ]
-        .iter()
-        .cloned()
-        .collect();
-
-        assert_eq!(expected, result);
     }
 }
 

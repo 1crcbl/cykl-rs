@@ -1,10 +1,7 @@
-use enum_dispatch::enum_dispatch;
 use getset::{CopyGetters, Getters};
 
+use crate::data::GetIndex;
 use crate::Scalar;
-
-mod array;
-pub use array::Array;
 
 mod tll;
 pub use tll::TwoLevelList;
@@ -20,14 +17,7 @@ pub use error::UpdateTourError;
 
 pub mod tests;
 
-#[enum_dispatch]
-// TODO: better name
-pub enum TourImpltor {
-    Array,
-    TwoLevelList,
-}
-
-#[enum_dispatch(TourImpltor)]
+// #[enum_dispatch(TourImpltor)]
 pub trait Tour {
     /// Rearranges the tour's vertices according to the given order.
     // TODO: should return Result<()>.
@@ -43,7 +33,7 @@ pub trait Tour {
 
     #[inline]
     fn distance(&self, a: &TourNode, b: &TourNode) -> Scalar {
-        self.distance_at(a.index(), b.index())
+        self.distance_at(&a.index(), &b.index())
     }
 
     /// Calculates the distance between two nodes at the given index.
@@ -54,7 +44,9 @@ pub trait Tour {
     ///
     /// # Panics
     /// Panics if `a` or `b` are out of bounds.
-    fn distance_at(&self, a: usize, b: usize) -> Scalar;
+    fn distance_at<I>(&self, a: &I, b: &I) -> Scalar
+    where
+        I: GetIndex + PartialEq + Eq;
 
     /// Permutate the tour's order by replacing the edges `(from_a, to_a)` and `(from_b, to_b)`
     /// by the new edges `(from_a, from_b)` and `(to_a, to_b)`.

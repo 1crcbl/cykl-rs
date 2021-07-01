@@ -1,5 +1,5 @@
 use crate::{
-    tour::{NodeStatus, Tour, TourOrder, UpdateTourError},
+    tour::{NodeStatus, Tour, UpdateTourError},
     Scalar,
 };
 
@@ -63,5 +63,7 @@ where
         node = next;
     }
 
-    tour.apply(&TourOrder::with_ord(v))
+    todo!()
+
+    // tour.apply(&TourOrder::with_ord(v))
 }

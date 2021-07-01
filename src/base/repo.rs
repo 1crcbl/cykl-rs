@@ -290,7 +290,12 @@ impl DataNode {
 
     pub fn with_demand(index: usize, kind: NodeKind, pos: Vec<Scalar>, d: Scalar) -> Self {
         Self {
-            inner: Rc::new(InnerNode { index, kind, pos, d }),
+            inner: Rc::new(InnerNode {
+                index,
+                kind,
+                pos,
+                d,
+            }),
         }
     }
 

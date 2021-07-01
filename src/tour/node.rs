@@ -1,6 +1,6 @@
 use std::{fmt::Display, ptr::NonNull};
 
-use crate::{DataNode, Scalar};
+use crate::{data::NodeIndex, Scalar};
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 pub struct TourNode {
@@ -8,7 +8,7 @@ pub struct TourNode {
 }
 
 impl TourNode {
-    pub fn new(node: &DataNode) -> Self {
+    pub fn new(node: NodeIndex) -> Self {
         let inner = InnerNode::new(node);
         Self {
             inner: to_nonnull(inner),
@@ -44,17 +44,9 @@ impl TourNode {
     }
 
     #[inline]
-    pub fn index(&self) -> usize {
+    pub fn index(&self) -> NodeIndex {
         match self.inner {
-            Some(inner) => unsafe { inner.as_ref().data.index() },
-            None => 0,
-        }
-    }
-
-    #[inline]
-    pub(super) fn data(&self) -> &DataNode {
-        match self.inner {
-            Some(inner) => unsafe { &(*inner.as_ptr()).data },
+            Some(inner) => unsafe { inner.as_ref().index },
             None => panic!("Nullpointer"),
         }
     }
@@ -119,7 +111,7 @@ impl Display for TourNode {
 
 #[derive(Debug)]
 pub(super) struct InnerNode {
-    pub(super) data: DataNode,
+    pub(super) index: NodeIndex,
     /// Flag indicating whether a node is already visisted/processed by an algorithm.
     pub(super) status: NodeStatus,
     /// The parent segment in a tour to which a node belongs.
@@ -154,9 +146,9 @@ pub(super) struct InnerNode {
 }
 
 impl InnerNode {
-    pub fn new(node: &DataNode) -> Self {
+    pub fn new(node: NodeIndex) -> Self {
         Self {
-            data: node.clone(),
+            index: node,
             rank: i32::MAX,
             status: NodeStatus::Active,
             segment: None,
@@ -178,15 +170,7 @@ impl InnerNode {
 
 impl Display for InnerNode {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "{}",
-            format!(
-                "id: {} | pos: {:?}",
-                self.data.index(),
-                self.data.pos(),
-            )
-        )
+        write!(f, "{}", format!("Index: {:?} ", self.index,))
     }
 }
 
