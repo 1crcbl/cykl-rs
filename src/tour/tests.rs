@@ -69,13 +69,10 @@ mod test_tll {
 
     use super::*;
 
-    use crate::{
-        tour::{
-            tests::{create_store, test_tour_order},
-            tll::TwoLevelList,
-            STree, Tour, TourIter, TourOrder,
-        },
-        MatrixKind,
+    use crate::tour::{
+        tests::{create_store, test_tour_order},
+        tll::TwoLevelList,
+        STree, Tour, TourIter, TourOrder,
     };
 
     #[test]
