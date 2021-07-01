@@ -30,7 +30,7 @@ where
             let d = tour.distance(&base, &targ);
 
             while c_idx > 0 && d < vec_d[c_idx - 1] {
-                vec_c[c_idx] = vec_c[c_idx - 1].clone();
+                vec_c[c_idx] = vec_c[c_idx - 1];
                 vec_d[c_idx] = vec_d[c_idx - 1];
                 c_idx -= 1;
             }

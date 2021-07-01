@@ -42,12 +42,24 @@ fn test_move_3_opt() {
     let nat_ord = TourOrder::with_nat_ord(20);
 
     // Move 4
-    move_3_opt(&mut tour, &f1, &t1, &f2, &t2, &f3, &t3, Opt3Move::Move4);
+    move_3_opt(
+        &mut tour,
+        (&f1, &t1),
+        (&f2, &t2),
+        (&f3, &t3),
+        Opt3Move::Move4,
+    );
     test_tour_order(&tour, &tour_order![(0..6), (11..16).rev(), 6..11, 16..20]);
 
     // Move 7
     assert!(tour.apply(&nat_ord).is_ok());
-    move_3_opt(&mut tour, &f1, &t1, &f2, &t2, &f3, &t3, Opt3Move::Move7);
+    move_3_opt(
+        &mut tour,
+        (&f1, &t1),
+        (&f2, &t2),
+        (&f3, &t3),
+        Opt3Move::Move7,
+    );
     test_tour_order(&tour, &tour_order![0..6, 11..16, 6..11, 16..20]);
 }
 
@@ -81,7 +93,14 @@ fn test_move_4_opt() {
 
     let mut fn4 = |mv: Opt4SeqMove, exp: TourOrder| {
         assert!(tour.apply(&nat_ord).is_ok());
-        move_4_opt(&mut tour, &f1, &t1, &f2, &t2, &f3, &t3, &f4, &t4, mv);
+        move_4_opt(
+            &mut tour,
+            (&f1, &t1),
+            (&f2, &t2),
+            (&f3, &t3),
+            (&f4, &t4),
+            mv,
+        );
         test_tour_order(&tour, &exp);
     };
 

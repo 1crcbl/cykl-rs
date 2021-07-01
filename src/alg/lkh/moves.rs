@@ -48,16 +48,17 @@ pub enum Opt3Move {
 /// Executes the 3-opt move.
 pub fn move_3_opt<T>(
     tour: &mut T,
-    f1: &TourNode,
-    t1: &TourNode,
-    f2: &TourNode,
-    t2: &TourNode,
-    f3: &TourNode,
-    t3: &TourNode,
+    pair_1: (&TourNode, &TourNode),
+    pair_2: (&TourNode, &TourNode),
+    pair_3: (&TourNode, &TourNode),
     move_case: Opt3Move,
 ) where
     T: Tour,
 {
+    let (f1, t1) = pair_1;
+    let (f2, t2) = pair_2;
+    let (f3, t3) = pair_3;
+
     match move_case {
         Opt3Move::Move1 => tour.flip(f1, t1, f2, t2),
         Opt3Move::Move2 => tour.flip(f2, t2, f3, t3),
@@ -210,21 +211,22 @@ pub enum Opt4SeqMove {
 /// Executes a 4-opt move.
 pub fn move_4_opt<T>(
     tour: &mut T,
-    f1: &TourNode,
-    t1: &TourNode,
-    f2: &TourNode,
-    t2: &TourNode,
-    f3: &TourNode,
-    t3: &TourNode,
-    f4: &TourNode,
-    t4: &TourNode,
+    pair_1: (&TourNode, &TourNode),
+    pair_2: (&TourNode, &TourNode),
+    pair_3: (&TourNode, &TourNode),
+    pair_4: (&TourNode, &TourNode),
     move_case: Opt4SeqMove,
 ) where
     T: Tour,
 {
+    let (f1, t1) = pair_1;
+    let (f2, t2) = pair_2;
+    let (f3, t3) = pair_3;
+    let (f4, t4) = pair_4;
+
     match move_case {
         Opt4SeqMove::Move1 => {
-            move_3_opt(tour, f1, t1, f2, t2, f3, t3, Opt3Move::Move5);
+            move_3_opt(tour, pair_1, pair_2, pair_3, Opt3Move::Move5);
 
             match tour.relation(t2, t3) {
                 NodeRel::Predecessor => tour.flip(t2, t3, f4, t4),
@@ -233,7 +235,7 @@ pub fn move_4_opt<T>(
             }
         }
         Opt4SeqMove::Move2 => {
-            move_3_opt(tour, f1, t1, f2, t2, f3, t3, Opt3Move::Move7);
+            move_3_opt(tour, pair_1, pair_2, pair_3, Opt3Move::Move7);
 
             match tour.relation(f2, t3) {
                 NodeRel::Predecessor => tour.flip(f2, t3, f4, t4),
@@ -242,7 +244,7 @@ pub fn move_4_opt<T>(
             }
         }
         Opt4SeqMove::Move3 => {
-            move_3_opt(tour, f1, t1, f2, t2, f3, t3, Opt3Move::Move6);
+            move_3_opt(tour, pair_1, pair_2, pair_3, Opt3Move::Move6);
 
             match tour.relation(t1, t3) {
                 NodeRel::Predecessor => tour.flip(t1, t3, f4, t4),
@@ -251,7 +253,7 @@ pub fn move_4_opt<T>(
             }
         }
         Opt4SeqMove::Move4 => {
-            move_3_opt(tour, f1, t1, f2, t2, f3, t3, Opt3Move::Move4);
+            move_3_opt(tour, pair_1, pair_2, pair_3, Opt3Move::Move4);
 
             match tour.relation(f2, t3) {
                 NodeRel::Predecessor => tour.flip(f2, t3, f4, t4),
@@ -260,7 +262,7 @@ pub fn move_4_opt<T>(
             }
         }
         Opt4SeqMove::Move5 => {
-            move_4_opt(tour, f1, t1, f2, t2, f3, t3, f4, t4, Opt4SeqMove::Move3);
+            move_4_opt(tour, pair_1, pair_2, pair_3, pair_4, Opt4SeqMove::Move3);
 
             match tour.relation(f1, t2) {
                 NodeRel::Predecessor => tour.flip(f1, t2, t3, t4),
@@ -269,7 +271,7 @@ pub fn move_4_opt<T>(
             }
         }
         Opt4SeqMove::Move6 => {
-            move_4_opt(tour, f1, t1, f2, t2, f3, t3, f4, t4, Opt4SeqMove::Move4);
+            move_4_opt(tour, pair_1, pair_2, pair_3, pair_4, Opt4SeqMove::Move4);
 
             match tour.relation(f1, f3) {
                 NodeRel::Predecessor => tour.flip(f1, f3, t3, t4),
@@ -278,7 +280,7 @@ pub fn move_4_opt<T>(
             }
         }
         Opt4SeqMove::Move7 => {
-            move_3_opt(tour, f1, t1, f2, t2, f3, t3, Opt3Move::Move6);
+            move_3_opt(tour, pair_1, pair_2, pair_3, Opt3Move::Move6);
 
             match tour.relation(f1, t2) {
                 NodeRel::Predecessor => tour.flip(f1, t2, f4, t4),
@@ -287,7 +289,7 @@ pub fn move_4_opt<T>(
             }
         }
         Opt4SeqMove::Move8 => {
-            move_3_opt(tour, f1, t1, f2, t2, f3, t3, Opt3Move::Move4);
+            move_3_opt(tour, pair_1, pair_2, pair_3, Opt3Move::Move4);
 
             match tour.relation(f1, f3) {
                 NodeRel::Predecessor => tour.flip(f1, f3, f4, t4),
@@ -296,7 +298,7 @@ pub fn move_4_opt<T>(
             }
         }
         Opt4SeqMove::Move9 => {
-            move_3_opt(tour, f1, t1, f2, t2, f3, t3, Opt3Move::Move7);
+            move_3_opt(tour, pair_1, pair_2, pair_3, Opt3Move::Move7);
 
             match tour.relation(f1, t2) {
                 NodeRel::Predecessor => tour.flip(f1, t2, f4, t4),
@@ -305,7 +307,7 @@ pub fn move_4_opt<T>(
             }
         }
         Opt4SeqMove::Move10 => {
-            move_4_opt(tour, f1, t1, f2, t2, f3, t3, f4, t4, Opt4SeqMove::Move1);
+            move_4_opt(tour, pair_1, pair_2, pair_3, pair_4, Opt4SeqMove::Move1);
 
             match tour.relation(t1, f3) {
                 NodeRel::Predecessor => tour.flip(t1, f3, t3, t4),
@@ -314,7 +316,7 @@ pub fn move_4_opt<T>(
             }
         }
         Opt4SeqMove::Move11 => {
-            move_4_opt(tour, f1, t1, f2, t2, f3, t3, f4, t4, Opt4SeqMove::Move7);
+            move_4_opt(tour, pair_1, pair_2, pair_3, pair_4, Opt4SeqMove::Move7);
 
             match tour.relation(f1, f4) {
                 NodeRel::Predecessor => tour.flip(f1, f4, f2, f3),
@@ -323,7 +325,7 @@ pub fn move_4_opt<T>(
             }
         }
         Opt4SeqMove::Move12 => {
-            move_3_opt(tour, f1, t1, f2, t2, f3, t3, Opt3Move::Move5);
+            move_3_opt(tour, pair_1, pair_2, pair_3, Opt3Move::Move5);
 
             match tour.relation(t1, f3) {
                 NodeRel::Predecessor => tour.flip(t1, f3, f4, t4),
@@ -332,7 +334,7 @@ pub fn move_4_opt<T>(
             }
         }
         Opt4SeqMove::Move13 => {
-            move_3_opt(tour, f1, t1, f2, t2, f3, t3, Opt3Move::Move6);
+            move_3_opt(tour, pair_1, pair_2, pair_3, Opt3Move::Move6);
 
             match tour.relation(f3, f2) {
                 NodeRel::Predecessor => tour.flip(f3, f2, f4, t4),
@@ -341,7 +343,7 @@ pub fn move_4_opt<T>(
             }
         }
         Opt4SeqMove::Move14 => {
-            move_3_opt(tour, f1, t1, f2, t2, f3, t3, Opt3Move::Move7);
+            move_3_opt(tour, pair_1, pair_2, pair_3, Opt3Move::Move7);
 
             match tour.relation(f3, t1) {
                 NodeRel::Predecessor => tour.flip(f3, t1, f4, t4),
@@ -350,7 +352,7 @@ pub fn move_4_opt<T>(
             }
         }
         Opt4SeqMove::Move15 => {
-            move_4_opt(tour, f1, t1, f2, t2, f3, t3, f4, t4, Opt4SeqMove::Move12);
+            move_4_opt(tour, pair_1, pair_2, pair_3, pair_4, Opt4SeqMove::Move12);
 
             match tour.relation(f1, f2) {
                 NodeRel::Predecessor => tour.flip(f1, f2, f3, t4),
@@ -374,7 +376,7 @@ pub fn move_4_opt<T>(
             }
         }
         Opt4SeqMove::Move17 => {
-            move_3_opt(tour, f1, t1, f2, t2, f3, t3, Opt3Move::Move4);
+            move_3_opt(tour, pair_1, pair_2, pair_3, Opt3Move::Move4);
 
             match tour.relation(t2, t1) {
                 NodeRel::Predecessor => tour.flip(t2, t1, f4, t4),
@@ -413,7 +415,7 @@ pub fn move_4_opt<T>(
             }
         }
         Opt4SeqMove::Move20 => {
-            move_3_opt(tour, f1, t1, f2, t2, f3, t3, Opt3Move::Move5);
+            move_3_opt(tour, pair_1, pair_2, pair_3, Opt3Move::Move5);
 
             match tour.relation(f1, f2) {
                 NodeRel::Predecessor => tour.flip(f1, f2, f4, t4),

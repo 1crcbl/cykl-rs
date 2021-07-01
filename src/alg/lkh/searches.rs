@@ -1,6 +1,6 @@
 use crate::{
     alg::lkh::move_2_opt,
-    tour::{is_excludable, NodeRel, Tour, TourNode, UpdateTourError},
+    tour::{NodeRel, Tour, TourNode, UpdateTourError},
     Scalar,
 };
 
@@ -15,8 +15,8 @@ where
     T: Tour,
 {
     let g0 = tour.distance(base, base_s);
-    let mut g2_best = Scalar::MIN;
-    let mut pair = None;
+    let mut _g2_best = Scalar::MIN;
+    let pair = None;
 
     for cand in base_s.candidates() {
         let g1 = g0 - tour.distance(base_s, cand);
@@ -26,7 +26,7 @@ where
 
         let cand_p = match tour.predecessor(cand) {
             Some(node) => node,
-            None => Err(UpdateTourError::NodeNotFound)?,
+            None => return Err(UpdateTourError::NodeNotFound),
         };
 
         // g2
@@ -40,11 +40,11 @@ where
         } else {
             // Non-gainful move.
 
-            if g2 > g2_best && is_excludable(&cand_p, cand) {
-                g2_best = g2;
-                pair = Some((cand_p, *cand));
-                // check if t3 and t4 can be excluded
-            }
+            // if g2 > g2_best && is_excludable(&cand_p, cand) {
+            //     g2_best = g2;
+            //     pair = Some((cand_p, *cand));
+            //     // check if t3 and t4 can be excluded
+            // }
         }
     }
 

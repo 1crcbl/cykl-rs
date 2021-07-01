@@ -16,7 +16,7 @@ where
     let mut v = Vec::with_capacity(tour.len());
     let mut node = match tour.get(starter.unwrap_or(0)) {
         Some(node) => node,
-        None => Err(UpdateTourError::NodeNotFound)?,
+        None => return Err(UpdateTourError::NodeNotFound),
     };
 
     v.push(node.index());

@@ -38,27 +38,24 @@ impl<M> TwoLevelList<M> {
 
         for ii in 1..n_segments {
             let s = to_nonnull(Segment::new(ii, groupsize));
-            match segments.last() {
-                Some(el) => match el {
-                    Some(last) => unsafe {
+
+            if let Some(el) = segments.last() {
+                if let Some(last) = el {
+                    unsafe {
                         (*s.unwrap().as_ptr()).prev = *el;
                         (*last.as_ptr()).next = s;
-                    },
-                    None => {}
-                },
-                None => {}
+                    }
+                }
             }
 
             if ii == n_segments - 1 {
-                match segments.first() {
-                    Some(el) => match el {
-                        Some(first) => unsafe {
+                if let Some(el) = segments.first() {
+                    if let Some(first) = el {
+                        unsafe {
                             (*s.unwrap().as_ptr()).next = *el;
                             (*first.as_ptr()).prev = s;
-                        },
-                        None => {}
-                    },
-                    None => {}
+                        }
+                    }
                 }
             }
 
@@ -70,8 +67,8 @@ impl<M> TwoLevelList<M> {
 
         let mut result = Self {
             store,
-            nodes: nodes,
-            segments: segments,
+            nodes,
+            segments,
             total_dist: 0.,
             rev: false,
         };
@@ -92,10 +89,10 @@ impl<M> Tour for TwoLevelList<M> {
         let s_len = self.segments.len();
 
         if order.len() != v_len {
-            Err(UpdateTourError::TourLenMismatched {
+            return Err(UpdateTourError::TourLenMismatched {
                 expected: v_len,
                 received: order.len(),
-            })?
+            });
         }
 
         self.total_dist = 0.;
@@ -329,10 +326,10 @@ impl<M> Tour for TwoLevelList<M> {
 
                         if diff1 <= diff2 {
                             // Reverses the path (to_a, from_b).
-                            return reverse_segs(&sta, &sfb);
+                            reverse_segs(&sta, &sfb);
                         } else {
                             // Reverses the path (to_b, from_a).
-                            return reverse_segs(&stb, &sfa);
+                            reverse_segs(&stb, &sfa);
                         };
                     }
                     _ => panic!("DataNode without segment while flipping."),
@@ -344,10 +341,7 @@ impl<M> Tour for TwoLevelList<M> {
 
     #[inline]
     fn get(&self, index: usize) -> Option<TourNode> {
-        match self.nodes.get(index) {
-            Some(v) => Some(TourNode { inner: v.inner }),
-            None => None,
-        }
+        self.nodes.get(index).copied()
     }
 
     #[inline]
@@ -380,19 +374,13 @@ impl<M> Tour for TwoLevelList<M> {
                 match (*inner.as_ptr()).segment {
                     Some(seg) => {
                         if (*seg.as_ptr()).reverse ^ self.rev {
-                            match (*inner.as_ptr()).predecessor {
-                                Some(_) => Some(TourNode {
-                                    inner: (*inner.as_ptr()).predecessor,
-                                }),
-                                None => None,
-                            }
+                            (*inner.as_ptr()).predecessor.map(|_| TourNode {
+                                inner: (*inner.as_ptr()).predecessor,
+                            })
                         } else {
-                            match (*inner.as_ptr()).successor {
-                                Some(_) => Some(TourNode {
-                                    inner: (*inner.as_ptr()).successor,
-                                }),
-                                None => None,
-                            }
+                            (*inner.as_ptr()).successor.map(|_| TourNode {
+                                inner: (*inner.as_ptr()).successor,
+                            })
                         }
                     }
                     None => None,
@@ -417,19 +405,13 @@ impl<M> Tour for TwoLevelList<M> {
                 match (*inner.as_ptr()).segment {
                     Some(seg) => {
                         if (*seg.as_ptr()).reverse ^ self.rev {
-                            match (*inner.as_ptr()).successor {
-                                Some(_) => Some(TourNode {
-                                    inner: (*inner.as_ptr()).successor,
-                                }),
-                                None => None,
-                            }
+                            (*inner.as_ptr()).successor.map(|_| TourNode {
+                                inner: (*inner.as_ptr()).successor,
+                            })
                         } else {
-                            match (*inner.as_ptr()).predecessor {
-                                Some(_) => Some(TourNode {
-                                    inner: (*inner.as_ptr()).predecessor,
-                                }),
-                                None => None,
-                            }
+                            (*inner.as_ptr()).predecessor.map(|_| TourNode {
+                                inner: (*inner.as_ptr()).predecessor,
+                            })
                         }
                     }
                     None => None,
@@ -476,9 +458,9 @@ impl<M> Tour for TwoLevelList<M> {
                     }
                 }
 
-                return TourOrder::with_cost(result, d);
+                TourOrder::with_cost(result, d)
             }
-            None => return TourOrder::default(),
+            None => TourOrder::default(),
         }
     }
 
@@ -489,6 +471,11 @@ impl<M> Tour for TwoLevelList<M> {
     #[inline]
     fn len(&self) -> usize {
         self.nodes.len()
+    }
+
+    #[inline]
+    fn is_empty(&self) -> bool {
+        self.nodes.is_empty()
     }
 
     #[inline]

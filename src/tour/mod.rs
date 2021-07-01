@@ -8,7 +8,6 @@ pub use tll::TwoLevelList;
 
 mod node;
 pub use node::exclude;
-pub use node::is_excludable;
 pub use node::NodeStatus;
 pub use node::TourNode;
 
@@ -130,6 +129,9 @@ pub trait Tour {
     /// Returns the number of vertices in the tour.
     fn len(&self) -> usize;
 
+    /// Returns ```true``` if the tour contains no nodes.
+    fn is_empty(&self) -> bool;
+
     /// Returns the total distance of completely traversing through the tour.
     fn total_distance(&self) -> Scalar;
 
@@ -211,10 +213,7 @@ impl TourOrder {
     }
 
     pub fn with_ord(order: Vec<usize>) -> Self {
-        Self {
-            order: order,
-            cost: 0.,
-        }
+        Self { order, cost: 0. }
     }
 
     pub fn with_cost(order: Vec<usize>, cost: Scalar) -> Self {
@@ -224,6 +223,12 @@ impl TourOrder {
     #[inline]
     pub fn len(&self) -> usize {
         self.order.len()
+    }
+
+    /// Returns ```true``` if the tour order contains no nodes.
+    #[inline]
+    pub fn is_empty(&self) -> bool {
+        self.order.is_empty()
     }
 
     #[inline]

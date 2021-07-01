@@ -104,7 +104,7 @@ impl Display for TourNode {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self.inner {
             Some(inner) => write!(f, "TourNode: {}", format!("{:?}", inner)),
-            None => write!(f, "{}", "None"),
+            None => write!(f, "None"),
         }
     }
 }
@@ -193,23 +193,6 @@ pub fn exclude(one: &mut TourNode, other: &mut TourNode) {
     }
 }
 
-pub fn is_excludable(one: &TourNode, other: &TourNode) -> bool {
-    if let (Some(inner1), Some(inner2)) = (one.inner, other.inner) {
-        unsafe {
-            if (*inner1.as_ref()).orgn_nbr_1 == other.inner
-                || (*inner1.as_ref()).orgn_nbr_2 == other.inner
-            {
-                return true;
-            } else if (*inner2.as_ref()).orgn_nbr_1 == one.inner
-                || (*inner2.as_ref()).orgn_nbr_2 == one.inner
-            {
-                return true;
-            }
-        }
-    }
-    false
-}
-
 #[derive(Debug)]
 pub struct Segment {
     pub(super) rank: usize,
@@ -295,13 +278,13 @@ impl Segment {
             (Some(first), Some(last)) => {
                 match (&(*first.as_ptr()).predecessor, &(*last.as_ptr()).successor) {
                     (Some(p), Some(s)) => {
-                        if &(*p.as_ptr()).predecessor == &self.first {
+                        if (*p.as_ptr()).predecessor == self.first {
                             (*p.as_ptr()).predecessor = self.last;
                         } else {
                             (*p.as_ptr()).successor = self.last;
                         }
 
-                        if &(*s.as_ptr()).predecessor == &self.last {
+                        if (*s.as_ptr()).predecessor == self.last {
                             (*s.as_ptr()).predecessor = self.first;
                         } else {
                             (*s.as_ptr()).successor = self.first;
@@ -356,35 +339,28 @@ impl Segment {
                         }
                         self.first = Some(*node);
                     }
-                } else {
-                    if self.reverse {
-                        match self.prev {
-                            Some(prev) => {
-                                (*prev.as_ptr()).move_back(
-                                    (*node.as_ptr()).successor,
-                                    self.last,
-                                    d2,
-                                    self.reverse,
-                                );
-                            }
-                            None => panic!("No prev"),
+                } else if self.reverse {
+                    match self.prev {
+                        Some(prev) => {
+                            (*prev.as_ptr()).move_back(
+                                (*node.as_ptr()).successor,
+                                self.last,
+                                d2,
+                                self.reverse,
+                            );
                         }
-                        self.last = Some(*node);
-                    } else {
-                        let tmp_ptr = (*node.as_ptr()).predecessor;
-                        match self.next {
-                            Some(next) => {
-                                (*next.as_ptr()).move_front(
-                                    Some(*node),
-                                    self.last,
-                                    d2,
-                                    self.reverse,
-                                );
-                            }
-                            None => panic!("No next"),
-                        }
-                        self.last = tmp_ptr;
+                        None => panic!("No prev"),
                     }
+                    self.last = Some(*node);
+                } else {
+                    let tmp_ptr = (*node.as_ptr()).predecessor;
+                    match self.next {
+                        Some(next) => {
+                            (*next.as_ptr()).move_front(Some(*node), self.last, d2, self.reverse);
+                        }
+                        None => panic!("No next"),
+                    }
+                    self.last = tmp_ptr;
                 }
             }
             _ => panic!("Missing first/last"),

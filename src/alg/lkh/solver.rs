@@ -39,12 +39,12 @@ where
 
             let successor = match tour.successor(&base) {
                 Some(s) => s,
-                None => Err(UpdateTourError::NodeNotFound)?,
+                None => return Err(UpdateTourError::NodeNotFound),
             };
 
             let predecessor = match tour.predecessor(&base) {
                 Some(p) => p,
-                None => Err(UpdateTourError::NodeNotFound)?,
+                None => return Err(UpdateTourError::NodeNotFound),
             };
 
             let mut flag = true;
@@ -55,7 +55,7 @@ where
                     match tour.relation(&base, &predecessor) {
                         crate::tour::NodeRel::Predecessor => tour.rev(),
                         crate::tour::NodeRel::Successor => {}
-                        crate::tour::NodeRel::None => Err(UpdateTourError::BrokenTour)?,
+                        crate::tour::NodeRel::None => return Err(UpdateTourError::BrokenTour),
                     };
 
                     search(tour, kopt, &base, &predecessor)?

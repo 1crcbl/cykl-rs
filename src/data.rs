@@ -69,7 +69,7 @@ impl<M> DataStore<M> {
     pub fn new(metric: Metric) -> Self {
         let inner = InnerStore {
             dim: metric.dim(),
-            metric: metric,
+            metric,
             nodes: Vec::new(),
             meta: Vec::new(),
             coords: Vec::new(),
@@ -84,7 +84,7 @@ impl<M> DataStore<M> {
     pub fn with_capacity(metric: Metric, capacity: usize) -> Self {
         let inner = InnerStore {
             dim: metric.dim(),
-            metric: metric,
+            metric,
             nodes: Vec::with_capacity(capacity),
             meta: Vec::with_capacity(capacity),
             coords: Vec::with_capacity(capacity * metric.dim()),
@@ -137,7 +137,7 @@ impl<M> DataStore<M> {
         I: GetIndex + PartialEq + Eq,
     {
         if a == b {
-            return 0.;
+            0.
         } else {
             match self.inner {
                 Some(inner) => unsafe {
